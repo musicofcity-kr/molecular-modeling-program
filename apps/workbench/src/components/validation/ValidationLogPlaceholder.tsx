@@ -7,7 +7,7 @@ export function ValidationLogPlaceholder() {
         {
           id: 'placeholder-compatibility-log',
           level: 'info',
-          message: 'Ketcher 통합 단계입니다. RDKit.js 검증은 아직 실행하지 않습니다.',
+          message: 'Ketcher 추출 후 RDKit.js 검증 결과를 이 영역에 표시합니다.',
         },
       ]}
     />

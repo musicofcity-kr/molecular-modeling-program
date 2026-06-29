@@ -2,28 +2,19 @@ import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from 'reac
 import { Editor } from 'ketcher-react';
 import type { Ketcher } from 'ketcher-core';
 import { StandaloneStructServiceProvider } from 'ketcher-standalone';
-import type {
-  ChemicalEditorHandle,
-  ExtractedStructureData,
-} from '../../editor/chemical-editor-handle';
+import type { ChemicalEditorHandle } from '../../editor/chemical-editor-handle';
+import {
+  extractStructureFromKetcher,
+  normalizeKetcherError,
+} from '../../editor/ketcher-structure-extraction';
 import 'ketcher-react/dist/index.css';
+
+export { normalizeKetcherError };
 
 type KetcherEditorProps = {
   onReadyChange?: (ready: boolean) => void;
   onError?: (message: string) => void;
 };
-
-export function normalizeKetcherError(error: unknown, fallback: string): string {
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message;
-  }
-
-  if (typeof error === 'string' && error.trim().length > 0) {
-    return error;
-  }
-
-  return fallback;
-}
 
 export const KetcherEditor = forwardRef<ChemicalEditorHandle, KetcherEditorProps>(
   function KetcherEditor({ onReadyChange, onError }, ref) {
@@ -36,47 +27,31 @@ export const KetcherEditor = forwardRef<ChemicalEditorHandle, KetcherEditorProps
       () => ({
         async getSmiles() {
           if (!ketcherRef.current) {
-            throw new Error('Ketcher editor is not ready.');
+            throw new Error('Ketcher 편집기가 아직 준비되지 않았습니다.');
           }
 
           return ketcherRef.current.getSmiles();
         },
         async getMolfile() {
           if (!ketcherRef.current) {
-            throw new Error('Ketcher editor is not ready.');
+            throw new Error('Ketcher 편집기가 아직 준비되지 않았습니다.');
           }
 
-          return ketcherRef.current.getMolfile();
+          return ketcherRef.current.getMolfile('v2000');
         },
-        async extractStructure(): Promise<ExtractedStructureData> {
+        async extractStructure() {
           if (!ketcherRef.current) {
-            throw new Error('Ketcher editor is not ready.');
+            throw new Error('Ketcher 편집기가 아직 준비되지 않았습니다.');
           }
 
-          const [smiles, molfile] = await Promise.all([
-            ketcherRef.current.getSmiles(),
-            ketcherRef.current.getMolfile(),
-          ]);
-
-          if (!smiles.trim() && !molfile.trim()) {
-            throw new Error('구조를 먼저 그려주세요.');
-          }
-
-          return {
-            source: 'ketcher',
-            smiles,
-            molBlock: molfile,
-            molfile,
-            extractedAt: new Date().toISOString(),
-            validationStatus: 'unvalidated',
-          };
+          return extractStructureFromKetcher(ketcherRef.current);
         },
         async setMolecule(input) {
           if (!ketcherRef.current) {
-            throw new Error('Ketcher editor is not ready.');
+            throw new Error('Ketcher 편집기가 아직 준비되지 않았습니다.');
           }
 
-          const structure = input.molBlock ?? input.molfile ?? input.smiles;
+          const structure = input.molBlock ?? input.smiles;
 
           if (!structure?.trim()) {
             throw new Error('불러올 구조 데이터가 없습니다.');
@@ -86,7 +61,7 @@ export const KetcherEditor = forwardRef<ChemicalEditorHandle, KetcherEditorProps
         },
         async clear() {
           if (!ketcherRef.current) {
-            throw new Error('Ketcher editor is not ready.');
+            throw new Error('Ketcher 편집기가 아직 준비되지 않았습니다.');
           }
 
           await ketcherRef.current.setMolecule('');

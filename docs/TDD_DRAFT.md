@@ -28,18 +28,20 @@ FastAPI Backend
 1. User draws molecule in Ketcher.
 2. App requests SMILES and MOL block from Ketcher.
 3. Ketcher output is normalized into `MoleculeInput` with `validationStatus: 'unvalidated'`.
-4. RDKit.js receives only `MoleculeInput.smiles` or `MoleculeInput.molBlock`.
-5. RDKit.js parses the structure.
+4. RDKit.js receives only `MoleculeInput.molBlock` or `MoleculeInput.smiles`; when both exist, the current service validates the MOL block first because it preserves the editor-exported structure more directly.
+5. `src/services/rdkitService.ts` initializes RDKit.js once, creates an RDKit molecule object with `get_mol(...)`, checks `is_valid()`, and disposes the molecule object with `delete()` after validation.
 6. Validation service returns `MoleculeValidationResult`:
    - parse status
    - canonical SMILES
    - molecular formula
-   - molecular weight if available
+   - average molecular weight from RDKit descriptor `amw`, not exact mass
    - warnings
+   - student-facing failure message
    - developer logs for diagnostics
-7. UI displays formula, molecular weight, and canonical SMILES only when `validationStatus: 'valid'`.
-8. 3Dmol.js receives a `MoleculeRenderState` only after validation passes; it does not validate chemistry.
-9. Export service generates image output from the current validated or explicitly unvalidated drawing state, depending on export type.
+7. UI displays formula, average molecular weight, and canonical SMILES only when `validationStatus: 'valid'` and `ok: true`.
+8. If validation fails, the student panel shows only a classroom-facing correction message and hides formula, average molecular weight, canonical SMILES, and raw invalid structure strings.
+9. 3Dmol.js receives a `MoleculeRenderState` only after validation passes; it does not validate chemistry.
+10. Export service generates image output from the current validated or explicitly unvalidated drawing state, depending on export type.
 
 ## 3. Core Interfaces
 
@@ -69,6 +71,7 @@ export type MoleculeValidationResult =
       canonicalSmiles: string;
       molecularFormula: string;
       molecularWeight: number;
+      studentMessage?: never;
       warnings: string[];
       errors: string[];
       developerLogs: string[];
@@ -77,6 +80,7 @@ export type MoleculeValidationResult =
       ok: false;
       validationStatus: 'invalid' | 'error';
       source?: 'smiles' | 'mol-block';
+      studentMessage: string;
       warnings: string[];
       errors: string[];
       developerLogs: string[];
@@ -107,8 +111,9 @@ The canonical TypeScript source for these contracts is `apps/workbench/src/types
 - Gate 2: structure extraction returns non-empty machine-readable data.
 - Gate 3: RDKit parses molecule.
 - Gate 4: calculated outputs are derived from RDKit-parsed molecule.
-- Gate 5: 3Dmol.js receives only validated structure state and does not compute validation.
-- Gate 6: export uses current validated structure for chemistry-bearing export, while worksheet image export may use the visible editor drawing with an explicit validation label.
+- Gate 5: invalid or errored validation results do not populate the student-facing formula, average molecular weight, or canonical SMILES fields.
+- Gate 6: 3Dmol.js receives only validated structure state and does not compute validation.
+- Gate 7: export uses current validated structure for chemistry-bearing export, while worksheet image export may use the visible editor drawing with an explicit validation label.
 
 ## 5. Initial Dependencies
 
@@ -128,6 +133,8 @@ The canonical TypeScript source for these contracts is `apps/workbench/src/types
 - Example molecule list validates expected SMILES.
 - Validation service handles valid and invalid input.
 - Formula/mass display is blocked when validation fails.
+- RDKit initialization is reused across repeated validation calls.
+- MOL block validation works and is preferred over SMILES when both are available.
 
 ### Integration tests
 

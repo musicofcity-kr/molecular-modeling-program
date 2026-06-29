@@ -51,6 +51,8 @@ Use this file to record why a chemistry or UI dependency was added.
 - Install warnings: npm reported peer dependency override warnings and deprecated transitive packages `deep-diff@0.3.8` and `intersection-observer@0.12.2`.
 - Runtime note: Ketcher transitive browser code references Node-style `process` and `global`; `apps/workbench/index.html` provides a minimal browser polyfill so the Vite dev page does not fail before React renders.
 - Scope note: The active Ketcher-only phase stops after SMILES/MOL extraction. It does not install or call RDKit.js, 3Dmol.js, PubChem, or molecular weight calculation.
+- Extraction note: The wrapper requests SMILES through `getSmiles()` and MOL block through `getMolfile('v2000')`, then stores both as unvalidated `MoleculeInput` data.
+- Limitation: Extracted Ketcher data is displayed for inspection only. Long MOL blocks are scrollable in the right panel, and no chemical correctness or molecular weight is claimed before a later RDKit.js validation layer.
 - Decision: adopt for Ketcher-only integration spike; revisit code splitting and bundle size before production deployment.
 
 ### RDKit.js
@@ -61,10 +63,21 @@ Use this file to record why a chemistry or UI dependency was added.
 
 ## 2026-06-29 — RDKit.js validation layer deferred
 
-- Purpose: Future deterministic validation of Ketcher-extracted SMILES/MOL strings before showing formula, molecular weight, or canonical SMILES.
-- Current phase: Deferred. The active app does not include `@rdkit/rdkit`, RDKit WASM assets, or RDKit runtime calls.
-- Why deferred: The current implementation target is Ketcher-only structure input and extraction. Calculated chemistry values are intentionally blocked until a later RDKit.js validation phase.
-- Decision: candidate for the next validation layer, not adopted in the current Ketcher-only baseline.
+Superseded by the adoption decision below.
+
+## 2026-06-29 — RDKit.js validation layer
+
+- Purpose: Deterministically validate Ketcher-extracted SMILES/MOL block data before showing canonical SMILES, molecular formula, or molecular weight.
+- Official documentation checked: Local `@rdkit/rdkit` package README, package metadata, and TypeScript declarations for `initRDKitModule`, `get_mol`, `is_valid`, `get_smiles`, `get_json`, `get_descriptors`, and `delete`.
+- License: `@rdkit/rdkit@2025.3.4-1.0.0` reports `BSD-3-Clause`.
+- Browser compatibility: Uses RDKit.js MinimalLib through `/rdkit/RDKit_minimal.js` and `/rdkit/RDKit_minimal.wasm` static assets. The loader passes `locateFile` so the browser can find the WASM file in Vite public assets.
+- Bundle size / performance risk: Medium. The WASM asset is about 6.9 MB and is initialized lazily on first validation, then reused.
+- Security/privacy risk: Low for this step. Validation runs locally in the browser; no PubChem, backend, or external network chemistry lookup was added.
+- Why not implement ourselves: SMILES/MOL parsing, sanitization, canonical SMILES, and descriptor calculation must come from a chemistry toolkit, not custom or LLM-generated parsing.
+- Test added: `apps/workbench/src/services/rdkitService.test.ts` covers empty input, invalid SMILES, existing classroom fixtures, MOL block validation, molecular formula, average molecular weight from `amw`, canonical SMILES, and single RDKit initialization reuse. `StructureInfoPanel` tests cover hiding chemistry output when validation fails.
+- Limitation: Formula display is derived from RDKit molecule JSON after RDKit parsing; the helper currently supports common classroom elements needed by the MVP fixture set. Broader element support should be expanded with explicit tests before using uncommon elements in class.
+- Limitation: This step does not implement valence warning UI, 3Dmol.js visualization, PubChem lookup, or example molecule expansion.
+- Decision: adopt for the MVP validation layer.
 
 ### 3Dmol.js
 

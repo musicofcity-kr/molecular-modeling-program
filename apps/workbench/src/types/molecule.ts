@@ -15,7 +15,6 @@ export type MoleculeInput = {
   label?: string;
   smiles?: string;
   molBlock?: string;
-  molfile?: string;
 };
 
 export type MoleculeValidationResult =
@@ -28,6 +27,7 @@ export type MoleculeValidationResult =
       canonicalSmiles: string;
       molecularFormula: string;
       molecularWeight: number;
+      studentMessage?: never;
       warnings: string[];
       errors: string[];
       developerLogs: string[];
@@ -41,6 +41,7 @@ export type MoleculeValidationResult =
       canonicalSmiles?: never;
       molecularFormula?: never;
       molecularWeight?: never;
+      studentMessage: string;
       warnings: string[];
       errors: string[];
       developerLogs: string[];

@@ -81,25 +81,64 @@ Extracted SMILES/MOL is explicitly marked as `Ketcher 추출 완료 / RDKit.js �
 - Local dev server check: `http://127.0.0.1:5173` returned HTTP 200 and included the app marker text.
 - Note: Vitest and Vite build still require escalated execution in this sandbox because esbuild child processes fail with `spawn EPERM` otherwise.
 
-## 2026-06-29 — Phase 3 RDKit.js validation layer deferred
+## 2026-06-29 — Phase 3 RDKit.js validation layer
 
 ### Current status
 
-- Deferred. The active MVP code is currently Ketcher-only.
-- The top action is `구조 가져오기`; it extracts SMILES/MOL data from Ketcher and does not run chemistry validation.
-- The result panel shows extracted SMILES/MOL only.
-- Formula, molecular weight, canonical SMILES, and RDKit parser messages are not displayed in this phase.
+- Implemented. The top action is now `구조 검증하기`.
+- The app extracts SMILES/MOL data from Ketcher, then validates the extracted structure through RDKit.js.
+- RDKit.js is initialized through `apps/workbench/src/services/rdkitService.ts` and reuses a single module instance across repeated validations.
+- Valid structures show canonical SMILES, molecular formula, and RDKit average molecular weight in the right panel.
+- Invalid structures show a student-facing correction message and do not display formula, average molecular weight, canonical SMILES, or raw invalid structure strings in the student panel.
 
-### Intentionally not implemented in the active Ketcher-only phase
+### Intentionally not implemented in the active RDKit validation phase
 
-- RDKit.js validation
-- Molecular formula calculation
-- Molecular weight calculation
-- Canonical SMILES calculation
+- Valence warning UI beyond RDKit parse failure status
 - 3Dmol.js viewer
 - PubChem lookup
 - Backend validation service
+- Example molecule library expansion
 
 ### Current validation gate
 
-No chemistry-derived value is shown. Extracted SMILES/MOL is marked as `Ketcher 추출 완료 / RDKit.js 미검증`, and the UI states that chemistry calculation and molecular weight display are not executed yet.
+Chemistry-derived values are shown only when `MoleculeValidationResult.ok === true` and `validationStatus === 'valid'`. Molecular weight means RDKit descriptor `amw`; exact mass is not displayed in this MVP. RDKit failure keeps the student panel in a blocked state with the classroom-facing validation message.
+
+### Verification
+
+- `npm run typecheck`: passed.
+- `npm test`: passed with 31 tests.
+- `npm run build`: passed after rerunning outside the sandbox because the sandboxed run hit an esbuild `spawn EPERM` process restriction.
+- Build output includes `/rdkit/RDKit_minimal.js` and `/rdkit/RDKit_minimal.wasm` copied from Vite public assets.
+
+## 2026-06-30 — Phase 4 example molecule library
+
+### Current status
+
+- Implemented a local classroom example molecule library in `apps/workbench/src/data/exampleMolecules.ts`.
+- Added nine examples:
+  - 물
+  - 메테인
+  - 암모니아
+  - 이산화탄소
+  - 에탄올
+  - 아세트산
+  - 벤젠
+  - 포도당
+  - 아스피린
+- Added a top example selector and `예제 불러오기` action.
+- Loading an example writes the example SMILES into Ketcher, then reuses the existing Ketcher extraction and RDKit.js validation flow.
+- Example `formula` values are metadata and are tested against RDKit validation output. Student-facing formula and average molecular weight still come from RDKit validation, not from example metadata.
+
+### Intentionally not implemented in this phase
+
+- 3Dmol.js viewer
+- PubChem lookup
+- backend example source lookup
+- new molecular weight metadata in example records
+
+### Verification
+
+- `npm run typecheck`: passed.
+- `npm test`: passed with 44 tests.
+- `npm run build`: passed with the known Ketcher large chunk warning.
+- Local dev server check: `http://127.0.0.1:5173` returned HTTP 200 with title `Molecule Modeling Workbench`.

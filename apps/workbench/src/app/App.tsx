@@ -13,6 +13,10 @@ import type {
   ChemicalEditorHandle,
   ExtractedStructureData,
 } from '../editor/chemical-editor-handle';
+import { exampleMolecules } from '../data/exampleMolecules';
+import type { ExampleMolecule } from '../data/exampleMolecules';
+import { validateMoleculeInput } from '../services/rdkitService';
+import type { MoleculeValidationResult } from '../types/molecule';
 
 function createLog(level: WorkbenchLogEntry['level'], message: string): WorkbenchLogEntry {
   return {
@@ -24,12 +28,18 @@ function createLog(level: WorkbenchLogEntry['level'], message: string): Workbenc
 
 export function App() {
   const editorRef = useRef<ChemicalEditorHandle | null>(null);
+  const hasLoggedEditorReadyRef = useRef(false);
+  const [selectedExampleId, setSelectedExampleId] = useState(
+    exampleMolecules[0]?.id ?? '',
+  );
   const [extractedStructure, setExtractedStructure] =
     useState<ExtractedStructureData | null>(null);
+  const [validationResult, setValidationResult] =
+    useState<MoleculeValidationResult | null>(null);
   const [logs, setLogs] = useState<WorkbenchLogEntry[]>([
     createLog(
       'info',
-      'Ketcher에서 구조를 그린 뒤 SMILES/MOL 데이터를 가져옵니다.',
+      'Ketcher에서 구조를 추출한 뒤 RDKit.js 검증을 실행합니다.',
     ),
   ]);
 
@@ -37,22 +47,48 @@ export function App() {
     setLogs((currentLogs) => [entry, ...currentLogs].slice(0, 6));
   };
 
-  const handleExtractStructure = async () => {
-    try {
-      const structure = await editorRef.current?.extractStructure();
+  const extractAndValidateCurrentStructure = async (label?: string) => {
+    const structure = await editorRef.current?.extractStructure();
 
-      if (!structure) {
-        throw new Error('Ketcher editor is not ready.');
-      }
+    if (!structure) {
+      throw new Error('Ketcher 편집기가 아직 준비되지 않았습니다.');
+    }
 
-      setExtractedStructure(structure);
+    const labeledStructure = label ? { ...structure, label } : structure;
+
+    setExtractedStructure(labeledStructure);
+    setValidationResult(null);
+    appendLog(
+      createLog(
+        'info',
+        label
+          ? `${label} 예제를 Ketcher에서 추출했습니다. RDKit.js 검증을 시작합니다.`
+          : 'Ketcher에서 SMILES/MOL 데이터를 추출했습니다. RDKit.js 검증을 시작합니다.',
+      ),
+    );
+
+    const result = await validateMoleculeInput(labeledStructure);
+    setValidationResult(result);
+
+    if (result.ok) {
       appendLog(
         createLog(
           'info',
-          'Ketcher에서 SMILES/MOL 데이터를 가져왔습니다. RDKit.js 검증은 아직 실행하지 않습니다.',
+          `RDKit.js 검증 완료: ${result.molecularFormula}, 평균 분자량 ${result.molecularWeight.toFixed(3)}`,
         ),
       );
+    } else {
+      console.info('[RDKit validation]', result.developerLogs);
+      appendLog(createLog('error', result.studentMessage));
+    }
+  };
+
+  const handleExtractAndValidate = async () => {
+    try {
+      await extractAndValidateCurrentStructure();
     } catch (error) {
+      setExtractedStructure(null);
+      setValidationResult(null);
       appendLog(
         createLog(
           'error',
@@ -62,15 +98,57 @@ export function App() {
     }
   };
 
+  const findSelectedExample = (): ExampleMolecule | undefined =>
+    exampleMolecules.find((example) => example.id === selectedExampleId);
+
+  const handleLoadExample = async () => {
+    try {
+      const example = findSelectedExample();
+
+      if (!example) {
+        throw new Error('불러올 예제 분자를 선택해 주세요.');
+      }
+
+      if (!editorRef.current) {
+        throw new Error('Ketcher 편집기가 아직 준비되지 않았습니다.');
+      }
+
+      await editorRef.current.setMolecule({ smiles: example.smiles });
+      appendLog(
+        createLog(
+          'info',
+          `${example.nameKo} 예제를 Ketcher 편집기에 불러왔습니다.`,
+        ),
+      );
+      await extractAndValidateCurrentStructure(example.nameKo);
+    } catch (error) {
+      setExtractedStructure(null);
+      setValidationResult(null);
+      appendLog(
+        createLog(
+          'error',
+          normalizeKetcherError(error, '예제 분자를 불러오는 중 오류가 발생했습니다.'),
+        ),
+      );
+    }
+  };
+
   return (
     <main className="app-shell" data-testid="app-shell">
-      <AppHeader onExtractStructure={handleExtractStructure} />
+      <AppHeader
+        examples={exampleMolecules}
+        selectedExampleId={selectedExampleId}
+        onSelectExample={setSelectedExampleId}
+        onLoadExample={handleLoadExample}
+        onExtractAndValidate={handleExtractAndValidate}
+      />
 
       <section className="workbench-layout" aria-label="분자 모델링 작업 영역">
         <KetcherEditor
           ref={editorRef}
           onReadyChange={(ready) => {
-            if (ready) {
+            if (ready && !hasLoggedEditorReadyRef.current) {
+              hasLoggedEditorReadyRef.current = true;
               appendLog(createLog('info', 'Ketcher editor가 준비되었습니다.'));
             }
           }}
@@ -80,6 +158,7 @@ export function App() {
         />
         <StructureInfoPanel
           extractedStructure={extractedStructure}
+          validationResult={validationResult}
         />
       </section>
 

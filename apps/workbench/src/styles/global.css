@@ -79,6 +79,25 @@ select {
   flex-wrap: wrap;
 }
 
+.example-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #42636c;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.example-picker select {
+  min-height: 38px;
+  max-width: 210px;
+  border: 1px solid #bfd0d4;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1d2730;
+  padding: 7px 10px;
+}
+
 .header-status,
 .status-pill {
   padding: 8px 10px;
@@ -109,9 +128,26 @@ select {
   padding: 8px 12px;
 }
 
+.secondary-action {
+  min-height: 38px;
+  border: 1px solid #bfd0d4;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #2f5f67;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 8px 12px;
+}
+
 .primary-action:focus-visible,
 .primary-action:hover {
   background: #245965;
+}
+
+.secondary-action:focus-visible,
+.secondary-action:hover {
+  border-color: #7ea3aa;
+  background: #eef5f6;
 }
 
 .workbench-layout {
