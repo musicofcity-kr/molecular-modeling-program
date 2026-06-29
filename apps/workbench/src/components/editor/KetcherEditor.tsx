@@ -65,9 +65,10 @@ export const KetcherEditor = forwardRef<ChemicalEditorHandle, KetcherEditorProps
           return {
             source: 'ketcher',
             smiles,
+            molBlock: molfile,
             molfile,
             extractedAt: new Date().toISOString(),
-            validationStatus: 'rdkit-not-run',
+            validationStatus: 'unvalidated',
           };
         },
         async setMolecule(input) {
@@ -75,7 +76,7 @@ export const KetcherEditor = forwardRef<ChemicalEditorHandle, KetcherEditorProps
             throw new Error('Ketcher editor is not ready.');
           }
 
-          const structure = input.molfile ?? input.smiles;
+          const structure = input.molBlock ?? input.molfile ?? input.smiles;
 
           if (!structure?.trim()) {
             throw new Error('불러올 구조 데이터가 없습니다.');

@@ -14,14 +14,14 @@ vi.mock('../components/editor/KetcherEditor', () => ({
 }));
 
 describe('App scaffold', () => {
-  it('renders the Ketcher integration regions without RDKit results', () => {
+  it('renders the Ketcher extraction regions without RDKit results', () => {
     const markup = renderToStaticMarkup(<App />);
 
     expect(markup).toContain('Molecule Modeling Workbench');
     expect(markup).toContain('분자 편집 영역');
     expect(markup).toContain('구조 정보');
     expect(markup).toContain('로그 / 검증 결과');
-    expect(markup).toContain('구조 검증하기');
+    expect(markup).toContain('구조 가져오기');
     expect(markup).toContain('RDKit.js 미검증');
     expect(markup).not.toContain('data-testid="formula-output"');
     expect(markup).not.toContain('data-testid="molecular-weight-output"');

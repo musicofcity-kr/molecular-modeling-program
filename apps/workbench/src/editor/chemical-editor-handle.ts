@@ -1,15 +1,18 @@
+import type { MoleculeInput } from '../types/molecule';
+
 export type ExtractedStructureData = {
   source: 'ketcher';
   smiles: string;
+  molBlock: string;
   molfile: string;
   extractedAt: string;
-  validationStatus: 'rdkit-not-run';
+  validationStatus: 'unvalidated';
 };
 
 export type ChemicalEditorHandle = {
   getSmiles(): Promise<string>;
   getMolfile(): Promise<string>;
   extractStructure(): Promise<ExtractedStructureData>;
-  setMolecule(input: { smiles?: string; molfile?: string }): Promise<void>;
+  setMolecule(input: Pick<MoleculeInput, 'smiles' | 'molBlock' | 'molfile'>): Promise<void>;
   clear(): Promise<void>;
 };

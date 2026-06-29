@@ -13,8 +13,6 @@ import type {
   ChemicalEditorHandle,
   ExtractedStructureData,
 } from '../editor/chemical-editor-handle';
-import { validateMoleculeInput } from '../chemistry/validation-service';
-import type { MoleculeValidationResult } from '../chemistry/structure-types';
 
 function createLog(level: WorkbenchLogEntry['level'], message: string): WorkbenchLogEntry {
   return {
@@ -28,12 +26,10 @@ export function App() {
   const editorRef = useRef<ChemicalEditorHandle | null>(null);
   const [extractedStructure, setExtractedStructure] =
     useState<ExtractedStructureData | null>(null);
-  const [validationResult, setValidationResult] =
-    useState<MoleculeValidationResult | null>(null);
   const [logs, setLogs] = useState<WorkbenchLogEntry[]>([
     createLog(
       'info',
-      'Ketcher에서 구조를 추출한 뒤 RDKit.js 검증을 실행합니다.',
+      'Ketcher에서 구조를 그린 뒤 SMILES/MOL 데이터를 가져옵니다.',
     ),
   ]);
 
@@ -41,7 +37,7 @@ export function App() {
     setLogs((currentLogs) => [entry, ...currentLogs].slice(0, 6));
   };
 
-  const handleExtractAndValidate = async () => {
+  const handleExtractStructure = async () => {
     try {
       const structure = await editorRef.current?.extractStructure();
 
@@ -50,35 +46,13 @@ export function App() {
       }
 
       setExtractedStructure(structure);
-      setValidationResult(null);
       appendLog(
         createLog(
           'info',
-          'Ketcher에서 SMILES/MOL 데이터를 추출했습니다. RDKit.js 검증을 시작합니다.',
+          'Ketcher에서 SMILES/MOL 데이터를 가져왔습니다. RDKit.js 검증은 아직 실행하지 않습니다.',
         ),
       );
-
-      const result = await validateMoleculeInput({
-        source: 'ketcher',
-        smiles: structure.smiles,
-        molfile: structure.molfile,
-      });
-
-      setValidationResult(result);
-
-      if (result.ok) {
-        appendLog(
-          createLog(
-            'info',
-            `RDKit.js 검증 완료: ${result.formula}, 분자량 ${result.molecularWeight?.toFixed(3)}`,
-          ),
-        );
-      } else {
-        appendLog(createLog('error', result.errors[0]));
-        appendLog(createLog('info', `개발자 로그: ${result.developerLogs.join(' | ')}`));
-      }
     } catch (error) {
-      setValidationResult(null);
       appendLog(
         createLog(
           'error',
@@ -90,7 +64,7 @@ export function App() {
 
   return (
     <main className="app-shell" data-testid="app-shell">
-      <AppHeader onExtractAndValidate={handleExtractAndValidate} />
+      <AppHeader onExtractStructure={handleExtractStructure} />
 
       <section className="workbench-layout" aria-label="분자 모델링 작업 영역">
         <KetcherEditor
@@ -106,7 +80,6 @@ export function App() {
         />
         <StructureInfoPanel
           extractedStructure={extractedStructure}
-          validationResult={validationResult}
         />
       </section>
 

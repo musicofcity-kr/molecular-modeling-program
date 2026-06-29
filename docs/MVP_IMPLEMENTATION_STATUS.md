@@ -81,47 +81,25 @@ Extracted SMILES/MOL is explicitly marked as `Ketcher 추출 완료 / RDKit.js �
 - Local dev server check: `http://127.0.0.1:5173` returned HTTP 200 and included the app marker text.
 - Note: Vitest and Vite build still require escalated execution in this sandbox because esbuild child processes fail with `spawn EPERM` otherwise.
 
-## 2026-06-29 — Phase 3 RDKit.js validation layer
+## 2026-06-29 — Phase 3 RDKit.js validation layer deferred
 
-### Implemented
+### Current status
 
-- Added `@rdkit/rdkit@2025.3.4-1.0.0`.
-- Added RDKit static assets under `apps/workbench/public/rdkit`.
-- Added lazy RDKit initialization through `rdkit-loader.ts`.
-- Added `validateMoleculeInput()` for SMILES/MOL input validation.
-- Added formula calculation from RDKit-parsed molecule JSON atom data, not from raw SMILES parsing.
-- Added average molecular weight from RDKit descriptors.
-- Added canonical SMILES from RDKit molecule output.
-- Connected the top `구조 검증하기` action to:
-  - extract Ketcher SMILES/MOL
-  - run RDKit validation
-  - show formula, molecular weight, and canonical SMILES only when validation succeeds
-  - show a Korean student-facing error when validation fails
-  - keep RDKit parser/WASM details in developer log messages
+- Deferred. The active MVP code is currently Ketcher-only.
+- The top action is `구조 가져오기`; it extracts SMILES/MOL data from Ketcher and does not run chemistry validation.
+- The result panel shows extracted SMILES/MOL only.
+- Formula, molecular weight, canonical SMILES, and RDKit parser messages are not displayed in this phase.
 
-### Intentionally not implemented
+### Intentionally not implemented in the active Ketcher-only phase
 
+- RDKit.js validation
+- Molecular formula calculation
+- Molecular weight calculation
+- Canonical SMILES calculation
 - 3Dmol.js viewer
 - PubChem lookup
 - Backend validation service
-- Name-to-structure inference
-- 3D conformer generation
 
 ### Current validation gate
 
-The result panel renders formula, molecular weight, and canonical SMILES only when `MoleculeValidationResult.ok === true`. If validation fails, the panel hides calculated values and raw invalid SMILES/MOL strings, then shows only the student-facing validation message.
-
-### Dependency notes
-
-- RDKit.js reports `BSD-3-Clause`.
-- RDKit WASM asset size is about 6.9 MB.
-- Browser loading follows the RDKit.js README asset pattern with `locateFile`.
-- Build no longer emits RDKit `fs`/`crypto` externalization warnings after switching browser loading to the static script asset.
-- Ketcher remains the dominant bundle-size risk.
-
-### Verification
-
-- `npm run typecheck`: passed with `tsc -b`.
-- `npm test`: passed with 13 tests.
-- `npm run build`: passed with existing Ketcher large chunk warnings.
-- Local dev server check: app route, RDKit JS asset, and RDKit WASM asset returned HTTP 200.
+No chemistry-derived value is shown. Extracted SMILES/MOL is marked as `Ketcher 추출 완료 / RDKit.js 미검증`, and the UI states that chemistry calculation and molecular weight display are not executed yet.

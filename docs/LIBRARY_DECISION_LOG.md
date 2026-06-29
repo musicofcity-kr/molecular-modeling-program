@@ -50,6 +50,7 @@ Use this file to record why a chemistry or UI dependency was added.
 - Test added: `apps/workbench/src/app/App.test.tsx` checks that the Ketcher integration shell renders and does not present RDKit results.
 - Install warnings: npm reported peer dependency override warnings and deprecated transitive packages `deep-diff@0.3.8` and `intersection-observer@0.12.2`.
 - Runtime note: Ketcher transitive browser code references Node-style `process` and `global`; `apps/workbench/index.html` provides a minimal browser polyfill so the Vite dev page does not fail before React renders.
+- Scope note: The active Ketcher-only phase stops after SMILES/MOL extraction. It does not install or call RDKit.js, 3Dmol.js, PubChem, or molecular weight calculation.
 - Decision: adopt for Ketcher-only integration spike; revisit code splitting and bundle size before production deployment.
 
 ### RDKit.js
@@ -58,19 +59,12 @@ Use this file to record why a chemistry or UI dependency was added.
 - Decision: candidate for MVP validation layer.
 - Risk: WASM loading and maintenance state must be checked before locking version.
 
-## 2026-06-29 — RDKit.js validation layer
+## 2026-06-29 — RDKit.js validation layer deferred
 
-- Purpose: Validate Ketcher-extracted SMILES/MOL strings and compute classroom-facing formula, molecular weight, and canonical SMILES only after RDKit parsing succeeds.
-- Official documentation checked: RDKit.js GitHub README, `@rdkit/rdkit` npm package metadata, bundled TypeScript definitions in `dist/index.d.ts`, and local API probes against `get_mol`, `get_descriptors`, `get_json`, and `delete`.
-- License: `@rdkit/rdkit@2025.3.4-1.0.0` reports `BSD-3-Clause`.
-- Browser compatibility: RDKit JS/WASM assets are copied to `apps/workbench/public/rdkit`; browser loading uses `/rdkit/RDKit_minimal.js` and `/rdkit/RDKit_minimal.wasm` with `locateFile`.
-- Bundle size / performance risk: Medium. RDKit WASM is about 6.9 MB and is loaded only when validation runs. Ketcher remains the largest bundle risk.
-- Security/privacy risk: Low. Validation runs locally in the browser with no PubChem lookup, backend service, or external chemistry API.
-- Why not implement ourselves: Formula and molecular weight must come from a deterministic chemistry toolkit after parsing; hand-written SMILES parsing is explicitly avoided.
-- Test added: `validation-service.test.ts` covers empty input, invalid SMILES, seven valid fixtures, formula outputs, molecular weight presence, canonical SMILES, and singleton RDKit initialization. `StructureInfoPanel.test.tsx` verifies failed validation hides formula/mass/canonical and raw invalid structure strings.
-- Maintenance note: RDKit.js README links to an upstream maintenance status note; revisit before production lock.
-- Install warnings: npm repeated Ketcher transitive `miew-react` React 18 peer override warnings. No new vulnerabilities were reported.
-- Decision: adopt for MVP validation layer.
+- Purpose: Future deterministic validation of Ketcher-extracted SMILES/MOL strings before showing formula, molecular weight, or canonical SMILES.
+- Current phase: Deferred. The active app does not include `@rdkit/rdkit`, RDKit WASM assets, or RDKit runtime calls.
+- Why deferred: The current implementation target is Ketcher-only structure input and extraction. Calculated chemistry values are intentionally blocked until a later RDKit.js validation phase.
+- Decision: candidate for the next validation layer, not adopted in the current Ketcher-only baseline.
 
 ### 3Dmol.js
 
