@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { AppHeader } from '../components/header/AppHeader';
 import {
   KetcherEditor,
   normalizeKetcherError,
 } from '../components/editor/KetcherEditor';
+import { Molecule3DViewer } from '../components/Molecule3DViewer';
 import { StructureInfoPanel } from '../components/molecule-panel/StructureInfoPanel';
 import {
   ValidationLogPanel,
@@ -49,6 +50,10 @@ export function App() {
   const appendLog = (entry: WorkbenchLogEntry) => {
     setLogs((currentLogs) => [entry, ...currentLogs].slice(0, 6));
   };
+
+  const handle3DDeveloperLog = useCallback((message: string) => {
+    console.info('[3Dmol viewer]', message);
+  }, []);
 
   const extractAndValidateCurrentStructure = async (example?: ExampleMolecule) => {
     const structure = await editorRef.current?.extractStructure();
@@ -174,6 +179,15 @@ export function App() {
           validationResult={validationResult}
         />
       </section>
+
+      <Molecule3DViewer
+        coordinateData={null}
+        hasValidatedStructure={validationResult?.ok === true}
+        validatedStructureKey={
+          validationResult?.ok === true ? validationResult.canonicalSmiles : undefined
+        }
+        onDeveloperLog={handle3DDeveloperLog}
+      />
 
       <ValidationLogPanel logs={logs} />
     </main>

@@ -25,11 +25,12 @@ export function AppHeader({
       </div>
       <div className="header-actions">
         <p className="header-status" aria-label="현재 구현 상태">
-          Phase 4: 예제 분자 라이브러리
+          Phase 5: 3D Viewer Shell
         </p>
         <label className="example-picker">
           <span>예제</span>
           <select
+            data-testid="example-select"
             aria-label="예제 분자 선택"
             value={selectedExampleId}
             onChange={(event) => {
@@ -49,10 +50,20 @@ export function AppHeader({
             ))}
           </select>
         </label>
-        <button className="secondary-action" type="button" onClick={onLoadExample}>
+        <button
+          className="secondary-action"
+          data-testid="load-example-button"
+          type="button"
+          onClick={onLoadExample}
+        >
           예제 불러오기
         </button>
-        <button className="primary-action" type="button" onClick={onExtractAndValidate}>
+        <button
+          className="primary-action"
+          data-testid="validate-button"
+          type="button"
+          onClick={onExtractAndValidate}
+        >
           구조 검증하기
         </button>
       </div>

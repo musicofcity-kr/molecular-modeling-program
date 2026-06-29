@@ -17,6 +17,15 @@ export type MoleculeInput = {
   molBlock?: string;
 };
 
+export type Molecule3DCoordinateFormat = 'mol' | 'sdf' | 'xyz' | 'pdb';
+
+export type Molecule3DInput = {
+  format: Molecule3DCoordinateFormat;
+  data: string;
+  label: string;
+  coordinateSource: string;
+};
+
 export type MoleculeValidationResult =
   | {
       ok: true;

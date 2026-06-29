@@ -85,6 +85,21 @@ Superseded by the adoption decision below.
 - Decision: Phase 2 viewer candidate.
 - Risk: 3D coordinates and conformer generation should not be overstated.
 
+## 2026-06-30 — 3Dmol.js Viewer Shell
+
+- Purpose: Add a browser-based 3D molecular visualization shell that can later render coordinate-bearing molecule data after RDKit validation.
+- Official documentation checked: 3Dmol.js documentation for npm usage, `createViewer`, model loading, `clear()`, `resize()`, and render flow; installed `3dmol@2.5.5` package metadata and TypeScript declarations.
+- License: `3dmol@2.5.5` reports `BSD-3-Clause`.
+- Browser compatibility: Runs as a client-side WebGL viewer inside React. The component initializes 3Dmol.js with a browser-only dynamic import so server-side/static render tests do not instantiate WebGL.
+- Bundle size / performance risk: Medium. 3Dmol.js adds WebGL rendering code to the Vite bundle and should remain isolated from Ketcher/RDKit state. `npm run build` produced a separate `3Dmol` chunk of about 588 KB before gzip and retained the existing large Ketcher/RDKit-related chunk warning.
+- Build warning: Vite warned that `node_modules/3dmol/build/3Dmol.js` uses `eval`; keep this dependency isolated and re-check before production deployment.
+- Security/privacy risk: Low in this phase. No PubChem, backend conversion, Open Babel, or remote structure lookup is called.
+- Why not implement ourselves: Molecular 3D rendering, camera control, model parsing, and WebGL management are specialized concerns and should not be hand-rolled for a classroom MVP.
+- Test added: `apps/workbench/src/components/Molecule3DViewer.test.tsx` verifies the no-coordinate student message and coordinate source/format labels.
+- Install note: `npm install 3dmol` added 6 packages, found 0 vulnerabilities, and repeated the existing Ketcher `miew-react` React 18 peer dependency warning under the React 19 app.
+- Scope note: The viewer shell does not generate 3D conformers from SMILES, does not treat Ketcher 2D MOL blocks as 3D structures, and does not override RDKit validation.
+- Decision: adopt for viewer shell only; coordinate generation/import remains a later, separately validated feature.
+
 ### Open Babel
 
 - Purpose: optional backend conversion for chemical file formats.

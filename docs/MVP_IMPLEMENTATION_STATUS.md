@@ -143,3 +143,30 @@ Chemistry-derived values are shown only when `MoleculeValidationResult.ok === tr
 - `npm test`: passed with 44 tests.
 - `npm run build`: passed with the known Ketcher large chunk warning.
 - Local dev server check: `http://127.0.0.1:5173` returned HTTP 200 with title `Molecule Modeling Workbench`.
+
+## 2026-06-30 — Phase 5 3Dmol.js Viewer Shell
+
+### Current status
+
+- Added `3dmol@2.5.5` as the browser 3D viewer dependency.
+- Added `apps/workbench/src/components/Molecule3DViewer.tsx`.
+- Added a visible `3D Viewer` shell below the Ketcher/RDKit workbench and above the validation log.
+- The viewer initializes 3Dmol.js with a browser-only dynamic import, supports resize, clear, and a `loadStructure(input)` function for later coordinate-bearing `mol`, `sdf`, `xyz`, or `pdb` data.
+- Current Ketcher/RDKit outputs do not provide 3D coordinates, so the student-facing message is `3D 좌표 데이터가 아직 없습니다`.
+- Developer log message for validated SMILES-only structures is `SMILES만으로는 아직 3D 구조를 생성하지 않음`.
+- Added a favicon data URL to avoid the previous `/favicon.ico` 404 browser console error during local checks.
+
+### Intentionally not implemented in this phase
+
+- SMILES-to-3D conformer generation
+- treating Ketcher 2D MOL blocks as 3D coordinate data
+- PubChem lookup
+- Open Babel backend
+- RDKit conformer generation
+
+### Verification
+
+- `npm run typecheck`: passed.
+- `npm test`: passed with 47 tests.
+- `npm run build`: passed after rerunning outside the sandbox because the sandboxed run hit the known esbuild `spawn EPERM` process restriction.
+- Build output includes a separate `3Dmol` chunk and still emits known large chunk warnings.

@@ -10,6 +10,7 @@ React/Vite App
  ├─ Structure State Service
  ├─ RDKit Validation Service
  ├─ Molecule Result Panel
+ ├─ 3Dmol.js Viewer Shell
  ├─ Export Service
  └─ Example Molecule Library
 ```
@@ -41,7 +42,9 @@ FastAPI Backend
 7. UI displays formula, average molecular weight, and canonical SMILES only when `validationStatus: 'valid'` and `ok: true`.
 8. If validation fails, the student panel shows only a classroom-facing correction message and hides formula, average molecular weight, canonical SMILES, and raw invalid structure strings.
 9. 3Dmol.js receives a `MoleculeRenderState` only after validation passes; it does not validate chemistry.
-10. Export service generates image output from the current validated or explicitly unvalidated drawing state, depending on export type.
+10. Current 3D Viewer Shell does not generate coordinates from SMILES, does not treat Ketcher 2D MOL blocks as 3D data, and does not call PubChem, Open Babel, or RDKit conformer generation.
+11. If a later import or trusted example provides coordinate-bearing `mol`, `sdf`, `xyz`, or `pdb` data, the viewer can clear the previous model, load the coordinate data, resize, and render it with a source/method label.
+12. Export service generates image output from the current validated or explicitly unvalidated drawing state, depending on export type.
 
 ## 3. Core Interfaces
 
@@ -59,6 +62,13 @@ export type MoleculeInput = {
   smiles?: string;
   molBlock?: string;
   label?: string;
+};
+
+export type Molecule3DInput = {
+  format: 'mol' | 'sdf' | 'xyz' | 'pdb';
+  data: string;
+  label: string;
+  coordinateSource: string;
 };
 
 export type MoleculeValidationResult =
@@ -112,7 +122,7 @@ The canonical TypeScript source for these contracts is `apps/workbench/src/types
 - Gate 3: RDKit parses molecule.
 - Gate 4: calculated outputs are derived from RDKit-parsed molecule.
 - Gate 5: invalid or errored validation results do not populate the student-facing formula, average molecular weight, or canonical SMILES fields.
-- Gate 6: 3Dmol.js receives only validated structure state and does not compute validation.
+- Gate 6: 3Dmol.js receives only validated structure state plus explicit coordinate-bearing 3D data and does not compute validation.
 - Gate 7: export uses current validated structure for chemistry-bearing export, while worksheet image export may use the visible editor drawing with an explicit validation label.
 
 ## 5. Initial Dependencies
@@ -135,6 +145,8 @@ The canonical TypeScript source for these contracts is `apps/workbench/src/types
 - Formula/mass display is blocked when validation fails.
 - RDKit initialization is reused across repeated validation calls.
 - MOL block validation works and is preferred over SMILES when both are available.
+- 3D Viewer Shell renders the student-facing no-coordinate message when only SMILES/2D MOL data is available.
+- 3D Viewer Shell labels coordinate source and input format when coordinate-bearing data is supplied.
 
 ### Integration tests
 
@@ -154,6 +166,6 @@ The canonical TypeScript source for these contracts is `apps/workbench/src/types
 |---|---|
 | Ketcher package integration complexity | Start with minimal embedding spike. |
 | RDKit.js WASM loading issues | Create dedicated loader service and test it early. |
-| 2D-to-3D conversion is not trivial | Treat 3D viewer as Phase 2; use known examples first. |
+| 2D-to-3D conversion is not trivial | Current shell does not generate conformers; add a coordinate source only after a validated import or explicit generation method exists. |
 | Licensing ambiguity | Keep dependency decision log. |
 | Students misinterpret generated 3D geometry | Add method/source label to viewer. |

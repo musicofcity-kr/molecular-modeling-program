@@ -206,6 +206,73 @@ select {
   line-height: 1.6;
 }
 
+.viewer-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.viewer-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 0;
+}
+
+.viewer-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+  gap: 14px;
+  min-height: 240px;
+}
+
+.viewer-3d-host {
+  position: relative;
+  min-height: 240px;
+  overflow: hidden;
+  border: 1px solid #9cb4ba;
+  border-radius: 8px;
+  background: #f9fbfb;
+}
+
+.viewer-empty-state {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #d7e0e2;
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+.viewer-empty-state p {
+  margin: 0;
+  color: #21313a;
+  font-weight: 700;
+}
+
+.viewer-empty-state dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.viewer-empty-state div {
+  display: grid;
+  gap: 3px;
+}
+
+.viewer-empty-state dt {
+  color: #42636c;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.viewer-empty-state dd {
+  margin: 0;
+  color: #34464d;
+}
+
 .info-list {
   display: grid;
   gap: 12px;
@@ -297,6 +364,10 @@ select {
   }
 
   .workbench-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .viewer-content {
     grid-template-columns: 1fr;
   }
 
