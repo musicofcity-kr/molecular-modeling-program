@@ -1,0 +1,3 @@
+# Optional UI metadata for Codex-compatible agents.
+# Keep minimal; behavior lives in SKILL.md.
+display_name: chem-file-interop

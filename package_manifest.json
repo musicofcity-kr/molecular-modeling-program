@@ -1,0 +1,27 @@
+{
+  "package": "molecule-modeling-workbench-codex-skills",
+  "version": "0.1.0-draft",
+  "created_for": "ChemDraw-like educational molecule modeling web app",
+  "skills": [
+    "chem-architecture",
+    "ketcher-integration",
+    "rdkit-validation",
+    "molecular-3d-viewer",
+    "chem-file-interop",
+    "edu-chem-ui",
+    "source-driven-development",
+    "test-driven-development",
+    "code-review-and-quality",
+    "e2e-playwright-testing"
+  ],
+  "recommended_stack": [
+    "React",
+    "Vite",
+    "TypeScript",
+    "Ketcher",
+    "RDKit.js",
+    "3Dmol.js",
+    "Playwright"
+  ],
+  "notes": "Custom draft package; not a verbatim copy of any public repository."
+}

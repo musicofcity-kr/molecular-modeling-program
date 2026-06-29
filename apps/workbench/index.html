@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Molecule Modeling Workbench</title>
+    <script>
+      window.global = window.global || window;
+      window.process = window.process || {
+        env: { NODE_DEBUG: "" },
+        emitWarning: console.warn.bind(console),
+        nextTick: function (callback) {
+          var args = Array.prototype.slice.call(arguments, 1);
+          Promise.resolve().then(function () {
+            callback.apply(null, args);
+          });
+        },
+        pid: 0,
+        stderr: {
+          isTTY: false,
+          columns: 80,
+          getColorDepth: function () {
+            return 1;
+          }
+        }
+      };
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
