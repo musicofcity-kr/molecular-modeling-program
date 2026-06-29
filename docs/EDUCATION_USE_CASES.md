@@ -8,7 +8,7 @@ The example molecule library lets students start from verified classroom molecul
 
 ## Current Example Library
 
-| Group | Molecule | SMILES | Formula metadata | Teaching use |
+| Category | Molecule | SMILES | Expected formula metadata | Teaching use |
 |---|---|---|---|---|
 | 기본 분자 | 물 | `O` | `H2O` | 공유 결합과 굽은형 분자 구조 |
 | 기본 분자 | 메테인 | `C` | `CH4` | 탄소의 네 결합과 기본 유기 분자 |
@@ -18,9 +18,9 @@ The example molecule library lets students start from verified classroom molecul
 | 유기 기초 | 아세트산 | `CC(=O)O` | `C2H4O2` | 카복실기와 산성 물질 예시 |
 | 유기 기초 | 벤젠 | `c1ccccc1` | `C6H6` | 방향족 고리와 결합 표현 |
 | 생활 속 분자 | 포도당 | `C(C1C(C(C(C(O1)O)O)O)O)O` | `C6H12O6` | 탄수화물과 생명 현상 속 분자 |
-| 생활 속 분자 | 아스피린 | `CC(=O)Oc1ccccc1C(=O)O` | `C9H8O4` | 의약품 분자와 작용기 찾기 |
+| 생활 속 분자 | 아스피린 | `CC(=O)OC1=CC=CC=C1C(=O)O` | `C9H8O4` | 의약품 분자와 작용기 찾기 |
 
-Formula metadata is checked against RDKit.js validation tests. The student-facing result panel still displays only RDKit-validated formula and average molecular weight.
+Expected formula metadata is checked against RDKit.js validation tests. The student-facing result panel still displays only RDKit-validated formula and average molecular weight.
 
 ## Classroom Flow
 
@@ -32,7 +32,8 @@ Formula metadata is checked against RDKit.js validation tests. The student-facin
    - canonical SMILES
    - molecular formula
    - average molecular weight from RDKit descriptor `amw`
-6. Student modifies the structure in Ketcher and clicks `구조 검증하기` again.
+6. If an example's `expectedFormula` does not match the RDKit result, the bottom log warns about the mismatch while the student panel keeps showing the RDKit result.
+7. Student modifies the structure in Ketcher and clicks `구조 검증하기` again.
 
 ## Suggested Lessons
 
@@ -60,4 +61,4 @@ Formula metadata is checked against RDKit.js validation tests. The student-facin
 - PubChem lookup is not integrated yet.
 - Example molecules are static local records, not external database results.
 - Molecular weight means RDKit descriptor `amw` average molecular weight; exact mass is not displayed.
-- The formulas in `src/data/exampleMolecules.ts` are metadata and must stay aligned with RDKit validation tests.
+- `expectedFormula` values in `src/data/exampleMolecules.ts` are metadata and must stay aligned with RDKit validation tests.

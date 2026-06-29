@@ -11,5 +11,5 @@ export const moleculeExamples: MoleculeExample[] = exampleMolecules.map((example
   id: example.id,
   labelKo: example.nameKo,
   smiles: example.smiles,
-  expectedFormula: example.formula,
+  expectedFormula: example.expectedFormula,
 }));

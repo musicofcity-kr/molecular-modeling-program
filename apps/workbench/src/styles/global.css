@@ -266,6 +266,12 @@ select {
   background: #f8fbfb;
 }
 
+.log-entry.warning {
+  border-color: #dfcf95;
+  background: #fff9e8;
+  color: #6b5618;
+}
+
 .log-entry.error {
   border-color: #e2b7b7;
   background: #fff5f5;

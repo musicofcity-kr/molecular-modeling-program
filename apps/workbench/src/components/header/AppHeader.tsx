@@ -15,6 +15,8 @@ export function AppHeader({
   onSelectExample,
   onLoadExample,
 }: AppHeaderProps) {
+  const categories = Array.from(new Set(examples.map((example) => example.category)));
+
   return (
     <header className="app-header">
       <div>
@@ -23,7 +25,7 @@ export function AppHeader({
       </div>
       <div className="header-actions">
         <p className="header-status" aria-label="현재 구현 상태">
-          Phase 3: RDKit.js 구조 검증
+          Phase 4: 예제 분자 라이브러리
         </p>
         <label className="example-picker">
           <span>예제</span>
@@ -34,10 +36,16 @@ export function AppHeader({
               onSelectExample(event.currentTarget.value);
             }}
           >
-            {examples.map((example) => (
-              <option key={example.id} value={example.id}>
-                {example.nameKo} ({example.nameEn})
-              </option>
+            {categories.map((category) => (
+              <optgroup key={category} label={category}>
+                {examples
+                  .filter((example) => example.category === category)
+                  .map((example) => (
+                    <option key={example.id} value={example.id}>
+                      {example.nameKo} ({example.nameEn})
+                    </option>
+                  ))}
+              </optgroup>
             ))}
           </select>
         </label>

@@ -1,6 +1,6 @@
 export type WorkbenchLogEntry = {
   id: string;
-  level: 'info' | 'error';
+  level: 'info' | 'warning' | 'error';
   message: string;
 };
 

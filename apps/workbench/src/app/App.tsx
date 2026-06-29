@@ -13,7 +13,10 @@ import type {
   ChemicalEditorHandle,
   ExtractedStructureData,
 } from '../editor/chemical-editor-handle';
-import { exampleMolecules } from '../data/exampleMolecules';
+import {
+  buildExpectedFormulaWarning,
+  exampleMolecules,
+} from '../data/exampleMolecules';
 import type { ExampleMolecule } from '../data/exampleMolecules';
 import { validateMoleculeInput } from '../services/rdkitService';
 import type { MoleculeValidationResult } from '../types/molecule';
@@ -47,22 +50,24 @@ export function App() {
     setLogs((currentLogs) => [entry, ...currentLogs].slice(0, 6));
   };
 
-  const extractAndValidateCurrentStructure = async (label?: string) => {
+  const extractAndValidateCurrentStructure = async (example?: ExampleMolecule) => {
     const structure = await editorRef.current?.extractStructure();
 
     if (!structure) {
       throw new Error('Ketcher 편집기가 아직 준비되지 않았습니다.');
     }
 
-    const labeledStructure = label ? { ...structure, label } : structure;
+    const labeledStructure = example
+      ? { ...structure, label: example.nameKo }
+      : structure;
 
     setExtractedStructure(labeledStructure);
     setValidationResult(null);
     appendLog(
       createLog(
         'info',
-        label
-          ? `${label} 예제를 Ketcher에서 추출했습니다. RDKit.js 검증을 시작합니다.`
+        example
+          ? `${example.nameKo} 예제를 Ketcher에서 추출했습니다. RDKit.js 검증을 시작합니다.`
           : 'Ketcher에서 SMILES/MOL 데이터를 추출했습니다. RDKit.js 검증을 시작합니다.',
       ),
     );
@@ -71,12 +76,20 @@ export function App() {
     setValidationResult(result);
 
     if (result.ok) {
+      const expectedFormulaWarning = example
+        ? buildExpectedFormulaWarning(example, result.molecularFormula)
+        : null;
+
       appendLog(
         createLog(
           'info',
           `RDKit.js 검증 완료: ${result.molecularFormula}, 평균 분자량 ${result.molecularWeight.toFixed(3)}`,
         ),
       );
+
+      if (expectedFormulaWarning) {
+        appendLog(createLog('warning', expectedFormulaWarning));
+      }
     } else {
       console.info('[RDKit validation]', result.developerLogs);
       appendLog(createLog('error', result.studentMessage));
@@ -120,7 +133,7 @@ export function App() {
           `${example.nameKo} 예제를 Ketcher 편집기에 불러왔습니다.`,
         ),
       );
-      await extractAndValidateCurrentStructure(example.nameKo);
+      await extractAndValidateCurrentStructure(example);
     } catch (error) {
       setExtractedStructure(null);
       setValidationResult(null);

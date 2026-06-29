@@ -125,9 +125,10 @@ Chemistry-derived values are shown only when `MoleculeValidationResult.ok === tr
   - 벤젠
   - 포도당
   - 아스피린
-- Added a top example selector and `예제 불러오기` action.
+- Added a top example selector grouped by `category` and a `예제 불러오기` action.
 - Loading an example writes the example SMILES into Ketcher, then reuses the existing Ketcher extraction and RDKit.js validation flow.
-- Example `formula` values are metadata and are tested against RDKit validation output. Student-facing formula and average molecular weight still come from RDKit validation, not from example metadata.
+- Example `expectedFormula` values are metadata and are tested against RDKit validation output. Student-facing formula and average molecular weight still come from RDKit validation, not from example metadata.
+- If `expectedFormula` and RDKit formula ever differ, the bottom log shows a warning and the student panel keeps displaying RDKit output.
 
 ### Intentionally not implemented in this phase
 

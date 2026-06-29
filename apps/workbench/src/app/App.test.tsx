@@ -18,10 +18,14 @@ describe('App scaffold', () => {
     const markup = renderToStaticMarkup(<App />);
 
     expect(markup).toContain('Molecule Modeling Workbench');
+    expect(markup).toContain('Phase 4: 예제 분자 라이브러리');
     expect(markup).toContain('분자 편집 영역');
     expect(markup).toContain('구조 정보');
     expect(markup).toContain('로그 / 검증 결과');
     expect(markup).toContain('예제 불러오기');
+    expect(markup).toContain('기본 분자');
+    expect(markup).toContain('유기 기초');
+    expect(markup).toContain('생활 속 분자');
     expect(markup).toContain('물 (Water)');
     expect(markup).toContain('아스피린 (Aspirin)');
     expect(markup).toContain('구조 검증하기');
