@@ -20,7 +20,18 @@ import {
 } from '../data/exampleMolecules';
 import type { ExampleMolecule } from '../data/exampleMolecules';
 import { validateMoleculeInput } from '../services/rdkitService';
+import {
+  fetchPubChem3DSdf,
+  type PubChem3DLoadStatus,
+} from '../services/pubchem3d';
 import type { Molecule3DInput, MoleculeValidationResult } from '../types/molecule';
+
+type PubChem3DState = {
+  status: PubChem3DLoadStatus;
+  studentMessage?: string;
+};
+
+const INITIAL_PUBCHEM_3D_STATE: PubChem3DState = { status: 'idle' };
 
 function createLog(level: WorkbenchLogEntry['level'], message: string): WorkbenchLogEntry {
   return {
@@ -56,8 +67,12 @@ export function App() {
     useState<ExtractedStructureData | null>(null);
   const [validationResult, setValidationResult] =
     useState<MoleculeValidationResult | null>(null);
+  const [validatedExampleId, setValidatedExampleId] = useState<string | null>(null);
   const [molecule3DInput, setMolecule3DInput] = useState<Molecule3DInput | null>(
     null,
+  );
+  const [pubChem3DState, setPubChem3DState] = useState<PubChem3DState>(
+    INITIAL_PUBCHEM_3D_STATE,
   );
   const [logs, setLogs] = useState<WorkbenchLogEntry[]>([
     createLog(
@@ -68,6 +83,10 @@ export function App() {
 
   const appendLog = (entry: WorkbenchLogEntry) => {
     setLogs((currentLogs) => [entry, ...currentLogs].slice(0, 6));
+  };
+
+  const resetPubChem3DState = () => {
+    setPubChem3DState(INITIAL_PUBCHEM_3D_STATE);
   };
 
   const handle3DDeveloperLog = useCallback((message: string) => {
@@ -86,6 +105,8 @@ export function App() {
       : structure;
 
     setMolecule3DInput(null);
+    setValidatedExampleId(null);
+    resetPubChem3DState();
     setExtractedStructure(labeledStructure);
     setValidationResult(null);
     appendLog(
@@ -116,12 +137,14 @@ export function App() {
         appendLog(createLog('warning', expectedFormulaWarning));
       }
 
+      setValidatedExampleId(example && !expectedFormulaWarning ? example.id : null);
       setMolecule3DInput(
         example && !expectedFormulaWarning ? buildExample3DInput(example) : null,
       );
     } else {
       console.info('[RDKit validation]', result.developerLogs);
       appendLog(createLog('error', result.studentMessage));
+      setValidatedExampleId(null);
       setMolecule3DInput(null);
     }
   };
@@ -131,6 +154,8 @@ export function App() {
       await extractAndValidateCurrentStructure();
     } catch (error) {
       setMolecule3DInput(null);
+      setValidatedExampleId(null);
+      resetPubChem3DState();
       setExtractedStructure(null);
       setValidationResult(null);
       appendLog(
@@ -144,6 +169,101 @@ export function App() {
 
   const findSelectedExample = (): ExampleMolecule | undefined =>
     exampleMolecules.find((example) => example.id === selectedExampleId);
+
+  const getPubChem3DStatusMessage = (
+    example: ExampleMolecule | undefined,
+  ): string => {
+    if (!example) {
+      return 'PubChem 3D를 불러올 예제 분자를 선택해 주세요.';
+    }
+
+    if (!example.pubchemCid) {
+      return '이 예제는 PubChem 3D 연결이 아직 준비되지 않았습니다.';
+    }
+
+    if (validatedExampleId !== example.id || validationResult?.ok !== true) {
+      return 'PubChem 3D를 불러오려면 먼저 이 예제를 불러와 RDKit.js 검증을 완료해 주세요.';
+    }
+
+    if (pubChem3DState.status === 'loading') {
+      return 'PubChem 3D 구조 데이터를 불러오는 중입니다.';
+    }
+
+    if (pubChem3DState.studentMessage) {
+      return pubChem3DState.studentMessage;
+    }
+
+    return `PubChem CID ${example.pubchemCid}로 3D SDF를 불러올 수 있습니다.`;
+  };
+
+  const handleSelectExample = (exampleId: string) => {
+    setSelectedExampleId(exampleId);
+    resetPubChem3DState();
+  };
+
+  const handleLoadPubChem3D = async () => {
+    const example = findSelectedExample();
+
+    if (!example?.pubchemCid) {
+      setPubChem3DState({
+        status: 'noData',
+        studentMessage: '이 예제는 PubChem 3D 연결이 아직 준비되지 않았습니다.',
+      });
+      appendLog(
+        createLog(
+          'warning',
+          '선택한 예제에는 PubChem CID가 없어 3D SDF를 요청하지 않았습니다.',
+        ),
+      );
+      return;
+    }
+
+    if (validatedExampleId !== example.id || validationResult?.ok !== true) {
+      const message =
+        'PubChem 3D를 불러오려면 먼저 이 예제를 불러와 RDKit.js 검증을 완료해 주세요.';
+
+      setPubChem3DState({ status: 'idle', studentMessage: message });
+      appendLog(createLog('warning', message));
+      return;
+    }
+
+    setPubChem3DState({
+      status: 'loading',
+      studentMessage: `${example.nameKo}의 PubChem 3D 구조 데이터를 불러오는 중입니다.`,
+    });
+    appendLog(
+      createLog(
+        'info',
+        `${example.nameKo} 예제의 PubChem CID ${example.pubchemCid}로 3D SDF를 요청합니다.`,
+      ),
+    );
+
+    const result = await fetchPubChem3DSdf({
+      cid: example.pubchemCid,
+      label: example.nameKo,
+      pubchemName: example.pubchemName,
+    });
+
+    console.info('[PubChem 3D]', result.developerLogs);
+
+    if (result.ok) {
+      setMolecule3DInput(result.molecule3D);
+      setPubChem3DState({
+        status: 'success',
+        studentMessage: result.studentMessage,
+      });
+      appendLog(createLog('info', result.studentMessage));
+      return;
+    }
+
+    setPubChem3DState({
+      status: result.status,
+      studentMessage: result.studentMessage,
+    });
+    appendLog(
+      createLog(result.status === 'noData' ? 'warning' : 'error', result.studentMessage),
+    );
+  };
 
   const handleLoadExample = async () => {
     try {
@@ -167,6 +287,8 @@ export function App() {
       await extractAndValidateCurrentStructure(example);
     } catch (error) {
       setMolecule3DInput(null);
+      setValidatedExampleId(null);
+      resetPubChem3DState();
       setExtractedStructure(null);
       setValidationResult(null);
       appendLog(
@@ -178,12 +300,19 @@ export function App() {
     }
   };
 
+  const selectedExample = findSelectedExample();
+  const canLoadPubChem3D =
+    Boolean(selectedExample?.pubchemCid) &&
+    validatedExampleId === selectedExample?.id &&
+    validationResult?.ok === true &&
+    pubChem3DState.status !== 'loading';
+
   return (
     <main className="app-shell" data-testid="app-shell">
       <AppHeader
         examples={exampleMolecules}
         selectedExampleId={selectedExampleId}
-        onSelectExample={setSelectedExampleId}
+        onSelectExample={handleSelectExample}
         onLoadExample={handleLoadExample}
         onExtractAndValidate={handleExtractAndValidate}
       />
@@ -212,6 +341,29 @@ export function App() {
         hasValidatedStructure={validationResult?.ok === true}
         validatedStructureKey={
           validationResult?.ok === true ? validationResult.canonicalSmiles : undefined
+        }
+        actionSlot={
+          <div className={`pubchem-3d-control ${pubChem3DState.status}`}>
+            <div>
+              <p className="section-label">PubChem 3D</p>
+              <p className="pubchem-3d-message">
+                {getPubChem3DStatusMessage(selectedExample)}
+              </p>
+            </div>
+            {selectedExample?.pubchemCid ? (
+              <button
+                className="secondary-action"
+                data-testid="load-pubchem-3d-button"
+                type="button"
+                disabled={!canLoadPubChem3D}
+                onClick={handleLoadPubChem3D}
+              >
+                {pubChem3DState.status === 'loading'
+                  ? 'PubChem 3D 로딩 중'
+                  : 'PubChem 3D 불러오기'}
+              </button>
+            ) : null}
+          </div>
         }
         onDeveloperLog={handle3DDeveloperLog}
       />

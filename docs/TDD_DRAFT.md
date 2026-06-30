@@ -50,8 +50,18 @@ FastAPI Backend
    - If RDKit validation succeeds and the selected example has `structure3D`, 3Dmol.js receives only that coordinate-bearing data.
    - If the selected example has no `structure3D`, the viewer keeps the student message `3D 좌표 데이터가 아직 없습니다`.
 13. 3Dmol.js visualizes coordinate data only; it is not the source for formula, mass, or validation status.
-14. If a later import or trusted example provides coordinate-bearing `mol`, `sdf`, `xyz`, or `pdb` data, the viewer can clear the previous model, load the coordinate data, resize, and render it with a source/method label.
-15. Export service generates image output from the current validated or explicitly unvalidated drawing state, depending on export type.
+14. PubChem 3D prototype flow is limited to curated example molecules that already contain a `pubchemCid`.
+15. PubChem loading does not search by user-drawn SMILES and does not perform automatic compound matching:
+   - selected example with `pubchemCid`
+   - example is loaded into Ketcher
+   - Ketcher output passes RDKit.js validation for the selected example
+   - user clicks `PubChem 3D 불러오기`
+   - `src/services/pubchem3d.ts` requests CID-based 3D SDF
+   - returned SDF is converted only into `Molecule3DInput`
+   - 3Dmol.js displays the coordinate-bearing SDF
+16. PubChem loading failure does not clear RDKit.js formula, average molecular weight, or canonical SMILES. The student sees a short failure message, while developer logs keep CID, HTTP status, response excerpt, or fetch error.
+17. If a later import or trusted example provides coordinate-bearing `mol`, `sdf`, `xyz`, or `pdb` data, the viewer can clear the previous model, load the coordinate data, resize, and render it with a source/method label.
+18. Export service generates image output from the current validated or explicitly unvalidated drawing state, depending on export type.
 
 ## 3. Core Interfaces
 
@@ -88,6 +98,37 @@ export type ExampleMolecule3DStructure = {
   sourceNote: string;
   sourceUrl?: string;
 };
+
+export type ExampleMolecule = {
+  id: string;
+  nameKo: string;
+  nameEn: string;
+  smiles: string;
+  expectedFormula: string;
+  teachingUse: string;
+  category: '기본 분자' | '유기 기초' | '생활 속 분자';
+  pubchemCid?: number;
+  pubchemName?: string;
+  external3DSource?: 'pubchem' | 'static' | 'none';
+  structure3D?: ExampleMolecule3DStructure;
+};
+
+export type PubChem3DLookupResult =
+  | {
+      ok: true;
+      status: 'success';
+      molecule3D: Molecule3DInput;
+      studentMessage: string;
+      warnings: string[];
+      developerLogs: string[];
+    }
+  | {
+      ok: false;
+      status: 'noData' | 'error';
+      studentMessage: string;
+      warnings: string[];
+      developerLogs: string[];
+    };
 
 export type MoleculeValidationResult =
   | {
@@ -166,6 +207,9 @@ The canonical TypeScript source for these contracts is `apps/workbench/src/types
 - 3D Viewer Shell renders the student-facing no-coordinate message when only SMILES/2D MOL data is available.
 - 3D Viewer Shell labels coordinate source and input format when coordinate-bearing data is supplied.
 - Static 3D examples are limited to explicitly curated local records and do not mutate RDKit formula/mass output.
+- PubChem 3D service maps successful CID-based SDF responses to `Molecule3DInput` with `sourceType: 'pubchem'`.
+- PubChem 3D service separates `noData` and `error` failures and keeps student messages separate from developer logs.
+- PubChem 3D UI enables loading only for the currently RDKit-validated selected example with a curated `pubchemCid`.
 
 ### Integration tests
 
@@ -179,9 +223,50 @@ The canonical TypeScript source for these contracts is `apps/workbench/src/types
 - Draw or load benzene → export image.
 - Invalid structure → warning appears and no confident calculation is shown.
 
-## 7. Future PubChem 3D Data Flow
+## 7. PubChem CID-Based 3D Prototype
 
-This section is design-only. No PubChem API call is implemented in the current phase.
+This phase implements only a curated CID-based prototype.
+
+```text
+Selected example molecule
+  -> has curated pubchemCid
+  -> user loads example into Ketcher
+  -> Ketcher output goes through RDKit.js validation
+  -> user clicks PubChem 3D 불러오기
+  -> GET /rest/pug/compound/cid/{cid}/record/SDF?record_type=3d
+  -> success: SDF becomes Molecule3DInput with sourceType: 'pubchem'
+  -> 3Dmol.js visualizes coordinates
+```
+
+### Status model
+
+- `idle`: no PubChem request has been made for the current selected example.
+- `loading`: CID-based SDF request is in progress.
+- `success`: PubChem returned coordinate-bearing SDF and the viewer received it.
+- `noData`: PubChem did not return usable 3D SDF for the curated CID.
+- `error`: network, HTTP, or parse-level request failure.
+
+### Failure behavior
+
+- Student message: `PubChem에서 이 분자의 3D 구조 데이터를 불러오지 못했습니다. 2D 구조와 분자식 검증 결과는 계속 사용할 수 있습니다.`
+- Developer logs include:
+  - `PubChem 3D SDF fetch failed`
+  - CID
+  - HTTP status when available
+  - response text excerpt when available
+  - fetch error message when available
+
+### Role separation
+
+- Ketcher remains the 2D structure input layer.
+- RDKit.js remains the validation and formula/average molecular weight source.
+- PubChem SDF is coordinate data only.
+- 3Dmol.js visualizes PubChem-provided coordinates only.
+- The app does not display PubChem molecular weight, PubChem formula, bond angles, bond lengths, energy, or conformer quality as the student-facing calculation source.
+
+## 8. Future PubChem Search Data Flow
+
+This section remains design-only. User-input SMILES based PubChem search is not implemented in the current phase.
 
 ### Intended flow
 
@@ -242,7 +327,7 @@ The service should not call Open Babel, should not generate conformers, and shou
 - Network/API failure: keep the 2D editor and RDKit result visible, and show a student-friendly 3D loading failure message.
 - Candidate mismatch: block 3D display and log the mismatch reason for review.
 
-## 8. Risk Register
+## 9. Risk Register
 
 | Risk | Mitigation |
 |---|---|

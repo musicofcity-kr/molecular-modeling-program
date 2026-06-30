@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import type { ReactNode } from 'react';
 import type { GLViewer } from '3dmol';
 import type { Molecule3DInput } from '../types/molecule';
 
@@ -18,6 +19,7 @@ type Molecule3DViewerProps = {
   coordinateData?: Molecule3DInput | null;
   hasValidatedStructure: boolean;
   validatedStructureKey?: string;
+  actionSlot?: ReactNode;
   onDeveloperLog?: (message: string) => void;
 };
 
@@ -67,6 +69,7 @@ export const Molecule3DViewer = forwardRef<
     coordinateData = null,
     hasValidatedStructure,
     validatedStructureKey,
+    actionSlot,
     onDeveloperLog,
   },
   ref,
@@ -214,6 +217,9 @@ export const Molecule3DViewer = forwardRef<
     onDeveloperLog?.(SMILES_ONLY_DEVELOPER_LOG);
   }, [coordinateData, hasValidatedStructure, onDeveloperLog, validatedStructureKey]);
 
+  const displayedStudentMessage =
+    coordinateData || viewerStatus === 'error' ? studentMessage : NO_COORDINATES_MESSAGE;
+
   return (
     <section className="workspace-panel viewer-panel" data-testid="molecule-3d-viewer">
       <div className="panel-heading viewer-heading">
@@ -230,6 +236,8 @@ export const Molecule3DViewer = forwardRef<
         </span>
       </div>
 
+      {actionSlot ? <div className="viewer-action-slot">{actionSlot}</div> : null}
+
       <div className="viewer-content">
         <div
           ref={hostRef}
@@ -238,7 +246,7 @@ export const Molecule3DViewer = forwardRef<
           aria-label="3Dmol.js 3D 분자 뷰어"
         />
         <div className="viewer-empty-state" data-testid="viewer-3d-message">
-          <p>{studentMessage}</p>
+          <p>{displayedStudentMessage}</p>
           <dl>
             <div>
               <dt>좌표 출처</dt>

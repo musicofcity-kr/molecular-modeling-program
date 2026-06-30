@@ -150,6 +150,14 @@ select {
   background: #eef5f6;
 }
 
+.primary-action:disabled,
+.secondary-action:disabled {
+  border-color: #cdd8db;
+  background: #eef3f4;
+  color: #71868d;
+  cursor: not-allowed;
+}
+
 .workbench-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
@@ -217,6 +225,43 @@ select {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 0;
+}
+
+.viewer-action-slot {
+  display: grid;
+}
+
+.pubchem-3d-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #d7e0e2;
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+.pubchem-3d-control.success {
+  border-color: #7fb59a;
+  background: #eff9f3;
+}
+
+.pubchem-3d-control.noData,
+.pubchem-3d-control.error {
+  border-color: #dfcf95;
+  background: #fff9e8;
+}
+
+.pubchem-3d-control.error {
+  border-color: #e2b7b7;
+  background: #fff5f5;
+}
+
+.pubchem-3d-message {
+  margin: 4px 0 0;
+  color: #34464d;
+  line-height: 1.5;
 }
 
 .viewer-content {
@@ -369,6 +414,11 @@ select {
 
   .viewer-content {
     grid-template-columns: 1fr;
+  }
+
+  .pubchem-3d-control {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .editor-panel {

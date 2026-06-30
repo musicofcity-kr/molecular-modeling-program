@@ -136,3 +136,19 @@ Superseded by the adoption decision below.
 - Known risk: PubChem may have no 3D coordinate record for a molecule, may return multiple candidates, or may return a structure that does not match the current RDKit-validated structure.
 - Required UI/log behavior: Student-facing failures must remain short and non-technical; developer logs must include query key, source URL or endpoint, candidate identifier when available, and mismatch/failure reason.
 - Test/verification: Documentation-only phase. Existing checks remain `npx tsc --noEmit`, `npm test`, and `npm run build`.
+
+## 2026-06-30 — PubChem PUG-REST CID-based 3D SDF prototype
+
+- Purpose: Load external coordinate-bearing 3D SDF data for curated example molecules through PubChem CID, then pass the SDF to 3Dmol.js for classroom visualization.
+- Official documentation checked: PubChem PUG-REST documentation at https://pubchem.ncbi.nlm.nih.gov/docs/pug-rest and the CID SDF endpoint shape `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/record/SDF?record_type=3d`.
+- License: No new package dependency was added. PubChem is an external NCBI service; source attribution and classroom network reliability remain operational concerns.
+- Browser compatibility: Uses browser `fetch` from the React app. No backend proxy, Open Babel service, RDKit conformer generation, or server-side chemistry conversion was introduced.
+- Bundle size / performance risk: Low for bundle size because no dependency was added. Runtime risk shifts to classroom network availability and PubChem response latency.
+- Security/privacy risk: Medium-low for this prototype. The app only requests curated numeric CIDs from local example metadata. It does not send user-drawn SMILES, MOL blocks, student names, or worksheet data to PubChem.
+- Why not implement ourselves: External coordinate records should come from a chemistry data provider or curated source; frontend code must not invent 3D coordinates.
+- Scope boundary: This is not a PubChem search system. User-input SMILES automatic matching, name search, candidate ranking, and mismatch reconciliation are still not implemented.
+- Chemistry boundary: PubChem SDF is used only as coordinate-bearing visualization input. Formula, average molecular weight, canonical SMILES, and validation status remain RDKit.js outputs.
+- Student-facing failure: If loading fails, the app says that PubChem 3D data could not be loaded and that the 2D structure plus RDKit verification results remain usable.
+- Developer logging: Failure logs include `PubChem 3D SDF fetch failed`, CID, HTTP status where available, response text excerpt where available, and fetch error message where available.
+- Test added: `apps/workbench/src/services/pubchem3d.test.ts` covers successful SDF mapping, no-data HTTP failure, network failure, and keeping the long API URL out of `Molecule3DInput.sourceUrl`.
+- Decision: spike only for curated CID-based example molecules.

@@ -73,6 +73,50 @@ describe('exampleMolecules', () => {
     ).toBe(true);
   });
 
+  it('registers PubChem CIDs only for the initial CID-based 3D prototype examples', () => {
+    expect(
+      exampleMolecules
+        .filter((example) => example.pubchemCid)
+        .map((example) => ({
+          id: example.id,
+          pubchemCid: example.pubchemCid,
+          pubchemName: example.pubchemName,
+          external3DSource: example.external3DSource,
+        })),
+    ).toEqual([
+      {
+        id: 'water',
+        pubchemCid: 962,
+        pubchemName: 'Water',
+        external3DSource: 'pubchem',
+      },
+      {
+        id: 'methane',
+        pubchemCid: 297,
+        pubchemName: 'Methane',
+        external3DSource: 'pubchem',
+      },
+      {
+        id: 'ethanol',
+        pubchemCid: 702,
+        pubchemName: 'Ethanol',
+        external3DSource: 'pubchem',
+      },
+      {
+        id: 'benzene',
+        pubchemCid: 241,
+        pubchemName: 'Benzene',
+        external3DSource: 'pubchem',
+      },
+    ]);
+
+    expect(
+      exampleMolecules
+        .filter((example) => !example.pubchemCid)
+        .every((example) => example.external3DSource === 'none'),
+    ).toBe(true);
+  });
+
   it('includes static 3D coordinate examples only for the first classroom shell set', () => {
     const examplesWith3D = exampleMolecules
       .filter((example) => example.structure3D)

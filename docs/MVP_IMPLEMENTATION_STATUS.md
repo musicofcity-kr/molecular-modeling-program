@@ -200,3 +200,35 @@ Chemistry-derived values are shown only when `MoleculeValidationResult.ok === tr
 
 - Static coordinates are labeled as educational visualization data only.
 - 3Dmol.js remains a coordinate visualization layer and does not provide formula or molecular weight.
+
+## 2026-06-30 — Phase 7 PubChem CID 3D prototype
+
+### Current status
+
+- Added curated PubChem CID metadata to selected example molecules:
+  - 물: 962
+  - 메테인: 297
+  - 에탄올: 702
+  - 벤젠: 241
+- Added `apps/workbench/src/services/pubchem3d.ts` for CID-based 3D SDF loading.
+- Added a `PubChem 3D 불러오기` action in the 3D Viewer panel.
+- The action is enabled only when the selected example has a curated CID and the same example has passed the existing Ketcher -> RDKit.js validation flow.
+- Successful PubChem SDF responses are passed only to 3Dmol.js as coordinate data.
+- Failed PubChem requests keep the 2D editor and RDKit.js formula/average molecular weight/canonical SMILES results usable.
+
+### Intentionally not implemented in this phase
+
+- User-drawn SMILES automatic PubChem search
+- PubChem name search
+- automatic candidate matching
+- PubChem molecular weight or formula display
+- Open Babel backend conversion
+- RDKit conformer generation
+- energy minimization
+- bond angle calculation
+
+### Verification
+
+- PubChem fetch behavior is covered with mocked service tests.
+- Formula, average molecular weight, and canonical SMILES remain RDKit.js outputs.
+- PubChem API URLs are kept inside the service and are not exposed in the student-facing 3D Viewer metadata.
