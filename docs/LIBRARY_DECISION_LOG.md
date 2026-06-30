@@ -152,3 +152,17 @@ Superseded by the adoption decision below.
 - Developer logging: Failure logs include `PubChem 3D SDF fetch failed`, CID, HTTP status where available, response text excerpt where available, and fetch error message where available.
 - Test added: `apps/workbench/src/services/pubchem3d.test.ts` covers successful SDF mapping, no-data HTTP failure, network failure, and keeping the long API URL out of `Molecule3DInput.sourceUrl`.
 - Decision: spike only for curated CID-based example molecules.
+
+## 2026-06-30 — PubChem manual candidate matching policy
+
+- Purpose: Define the safety boundary for later connecting user-drawn RDKit-validated structures to PubChem candidate search.
+- Official documentation checked: PubChem PUG-REST documentation at https://pubchem.ncbi.nlm.nih.gov/docs/pug-rest.
+- Decision: Defer automatic PubChem matching for user-drawn structures.
+- Reason for deferral: RDKit.js canonical SMILES can be a useful query key, but it does not guarantee that PubChem has the same molecule or that returned candidates should be trusted without review.
+- Matching boundary: A user-drawn structure must pass RDKit.js validation before PubChem candidate search can be requested. Validation alone must not trigger network lookup.
+- Candidate policy: PubChem search may return zero, one, or multiple candidates. The app must not automatically select a candidate, including the single-candidate case, until the UI has a manual confirmation gate.
+- UI language: Student-facing UI should call returned items `외부 데이터 후보`, not confirmed structures.
+- Chemistry boundary: RDKit.js remains the source for formula, average molecular weight, canonical SMILES, and validation status. PubChem candidate metadata and 3D SDF data must not replace RDKit.js values.
+- Risk: Automatic matching could show a plausible but wrong external 3D structure for a student-drawn molecule, especially when stereochemistry, salts, tautomers, charges, or ambiguous representations are involved.
+- Implementation note: This phase adds only policy documentation and TypeScript draft types. It does not implement `searchPubChemCandidatesByCanonicalSmiles`, automatic search, candidate ranking, or automatic 3D loading from user input.
+- Test/verification: `npx tsc --noEmit` and `npm run build`; existing CID-based 3D prototype tests remain unchanged.

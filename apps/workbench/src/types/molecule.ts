@@ -35,6 +35,29 @@ export type Molecule3DInput = {
   sourceUrl?: string;
 };
 
+export type PubChemMatchStatus =
+  | 'not_requested'
+  | 'searching'
+  | 'no_match'
+  | 'single_candidate'
+  | 'multiple_candidates'
+  | 'error';
+
+export interface PubChemCandidate {
+  cid: number;
+  title?: string;
+  molecularFormula?: string;
+  molecularWeight?: string;
+  canonicalSmiles?: string;
+  source: 'pubchem';
+}
+
+// Future service contract only. Do not implement automatic PubChem matching until
+// user confirmation and candidate review gates are designed in the UI.
+export type SearchPubChemCandidatesByCanonicalSmiles = (
+  canonicalSmiles: string,
+) => Promise<PubChemCandidate[]>;
+
 export type MoleculeValidationResult =
   | {
       ok: true;

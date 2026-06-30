@@ -1,0 +1,105 @@
+# PubChem Matching Policy
+
+## Purpose
+
+This policy defines how Molecule Modeling Workbench may later connect a user-drawn structure to PubChem without implying that an external match is automatically correct.
+
+The current phase is policy and type design only. It does not implement automatic PubChem search, automatic candidate selection, or user-drawn SMILES lookup.
+
+## Matching Gate
+
+1. A user-drawn structure must first be extracted from Ketcher as machine-readable SMILES and/or MOL block.
+2. The extracted structure must pass RDKit.js validation.
+3. The app may use the RDKit.js `canonicalSmiles` as a future PubChem candidate-search input.
+4. The app must not assume that a valid `canonicalSmiles` necessarily exists in PubChem.
+5. The app must not search PubChem automatically as a hidden side effect of drawing or validation.
+
+## Candidate Outcomes
+
+PubChem candidate search may return:
+
+- 0 candidates: no external PubChem candidate is available.
+- 1 candidate: one external data candidate is available, but still needs explicit user confirmation before 3D loading.
+- multiple candidates: the app must not automatically pick one; the user must review candidate identity before continuing.
+- error: network, API, parsing, or service failure.
+
+The student-facing UI should use the phrase `외부 데이터 후보` for PubChem matches. It should not present a candidate as a confirmed structure until the user confirms it.
+
+## Role Separation
+
+- Ketcher is the 2D structure input layer.
+- RDKit.js is the validation, molecular formula, average molecular weight, and canonical SMILES source.
+- PubChem is an external data candidate source.
+- PubChem 3D structures are visualization data only.
+- 3Dmol.js visualizes coordinate-bearing data; it does not validate chemistry and does not calculate formula or molecular weight.
+
+## Calculation Source Rule
+
+Molecular formula and molecular weight remain RDKit.js validation results.
+
+PubChem molecular formula, molecular weight, title, synonym, or SDF property values must not replace RDKit.js outputs in the student result panel. PubChem values may be shown later only as external candidate metadata with source labels and mismatch warnings.
+
+## Mismatch Policy
+
+If a PubChem candidate disagrees with the current RDKit.js-validated structure, the app must:
+
+- keep RDKit.js formula and average molecular weight visible if the original structure is valid;
+- block automatic 3D loading for that candidate;
+- show a student-facing warning that an external data candidate may not match the current structure;
+- record developer logs with candidate CID, RDKit canonical SMILES, PubChem candidate metadata used for comparison, and the mismatch reason.
+
+Student-facing wording should stay short and non-technical. Developer logs should contain enough detail to reproduce or diagnose the mismatch.
+
+## Future Manual Lookup Flow
+
+```text
+User draws structure in Ketcher
+  -> Ketcher exports SMILES/MOL
+  -> RDKit.js validates structure
+  -> RDKit.js returns canonicalSmiles, formula, average molecular weight
+  -> user explicitly requests PubChem candidate search
+  -> app shows PubChem result as 외부 데이터 후보
+  -> user reviews 0/1/multiple candidates
+  -> user confirms one candidate
+  -> app requests CID-based 3D SDF
+  -> 3Dmol.js visualizes the coordinate data
+```
+
+## Non-Goals For Current Phase
+
+- No automatic PubChem search from user-drawn structures.
+- No automatic candidate ranking or selection.
+- No PubChem formula or molecular weight replacing RDKit.js values.
+- No Open Babel backend.
+- No RDKit 3D conformer generation.
+- No energy minimization.
+- No bond angle or bond length calculation.
+
+## Draft Type Boundary
+
+The canonical TypeScript draft lives in `apps/workbench/src/types/molecule.ts`:
+
+```ts
+export type PubChemMatchStatus =
+  | 'not_requested'
+  | 'searching'
+  | 'no_match'
+  | 'single_candidate'
+  | 'multiple_candidates'
+  | 'error';
+
+export interface PubChemCandidate {
+  cid: number;
+  title?: string;
+  molecularFormula?: string;
+  molecularWeight?: string;
+  canonicalSmiles?: string;
+  source: 'pubchem';
+}
+
+export type SearchPubChemCandidatesByCanonicalSmiles = (
+  canonicalSmiles: string,
+) => Promise<PubChemCandidate[]>;
+```
+
+This function signature is a future contract only. No service implementation is included in this phase.

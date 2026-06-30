@@ -130,6 +130,27 @@ export type PubChem3DLookupResult =
       developerLogs: string[];
     };
 
+export type PubChemMatchStatus =
+  | 'not_requested'
+  | 'searching'
+  | 'no_match'
+  | 'single_candidate'
+  | 'multiple_candidates'
+  | 'error';
+
+export interface PubChemCandidate {
+  cid: number;
+  title?: string;
+  molecularFormula?: string;
+  molecularWeight?: string;
+  canonicalSmiles?: string;
+  source: 'pubchem';
+}
+
+export type SearchPubChemCandidatesByCanonicalSmiles = (
+  canonicalSmiles: string,
+) => Promise<PubChemCandidate[]>;
+
 export type MoleculeValidationResult =
   | {
       ok: true;
@@ -268,14 +289,35 @@ Selected example molecule
 
 This section remains design-only. User-input SMILES based PubChem search is not implemented in the current phase.
 
+### Separate flows
+
+The app now has two intentionally separate PubChem-related paths:
+
+1. Curated example CID 3D loading:
+   - starts from a local example molecule with a known `pubchemCid`;
+   - requires the example to pass the existing Ketcher -> RDKit.js validation flow;
+   - loads CID-based 3D SDF only after the user clicks `PubChem 3D 불러오기`;
+   - does not search or match user-drawn structures.
+2. Future user-drawn structure matching:
+   - starts from Ketcher output drawn by the user;
+   - requires RDKit.js validation first;
+   - uses RDKit.js `canonicalSmiles` only as a candidate-search key;
+   - requires the user to explicitly request candidate search;
+   - presents PubChem results as `외부 데이터 후보`;
+   - requires user review before CID-based 3D loading.
+
+The future matching flow must not automatically select a PubChem candidate, even when only one candidate is returned. A single candidate is still external data that needs user confirmation.
+
 ### Intended flow
 
 ```text
 Ketcher structure
   -> RDKit.js validation
-  -> canonicalSmiles or explicit example molecule id
-  -> PubChem lookup candidate selection
-  -> coordinate-bearing 3D record, preferably SDF when available
+  -> RDKit.js canonicalSmiles
+  -> user explicitly requests PubChem candidate search
+  -> PubChem returns 0, 1, or multiple external data candidates
+  -> user reviews and confirms a candidate
+  -> app requests coordinate-bearing 3D record, preferably SDF when available
   -> source/mismatch checks
   -> Molecule3DInput with sourceType: 'pubchem'
   -> 3Dmol.js visualization
@@ -284,48 +326,35 @@ Ketcher structure
 ### Required gates before 3D display
 
 1. RDKit validation must pass for the current Ketcher structure.
-2. PubChem lookup must be triggered from a trusted key, such as RDKit canonical SMILES or a curated example ID.
+2. User-drawn structure lookup must be triggered explicitly by the user; validation alone must not trigger PubChem network search.
 3. The app must handle zero, multiple, or ambiguous PubChem candidates.
-4. Returned PubChem structure data must be labeled with source metadata, including source type and URL.
-5. If the returned external structure appears inconsistent with the RDKit-validated current molecule, the 3D viewer must remain blocked and the app must request review.
-6. Formula and molecular weight remain RDKit.js values; PubChem 3D data is not the calculation source.
+4. Multiple PubChem candidates must not be auto-selected.
+5. Returned PubChem candidates must be labeled as `외부 데이터 후보`.
+6. Returned PubChem structure data must be labeled with source metadata, including source type and URL.
+7. If the returned external structure appears inconsistent with the RDKit-validated current molecule, the 3D viewer must remain blocked and the app must request review.
+8. Formula and molecular weight remain RDKit.js values; PubChem 3D data is not the calculation source.
 
 ### Planned service boundary
 
-The future PubChem integration should be isolated behind a service, for example:
+The future PubChem candidate search should be isolated behind a service. This is a type-level design only; no implementation is present in the current phase:
 
 ```ts
-export type PubChem3DLookupInput = {
-  canonicalSmiles?: string;
-  exampleId?: string;
-  label: string;
-};
-
-export type PubChem3DLookupResult =
-  | {
-      ok: true;
-      molecule3D: Molecule3DInput & {
-        sourceType: 'pubchem';
-        sourceUrl: string;
-      };
-      developerLogs: string[];
-      warnings: string[];
-    }
-  | {
-      ok: false;
-      studentMessage: string;
-      developerLogs: string[];
-      warnings: string[];
-    };
+searchPubChemCandidatesByCanonicalSmiles(
+  canonicalSmiles: string,
+): Promise<PubChemCandidate[]>;
 ```
 
-The service should not call Open Babel, should not generate conformers, and should not modify the RDKit validation result.
+Candidate search and CID-based 3D SDF loading must remain separate services. Candidate search identifies possible PubChem CIDs; CID-based 3D loading fetches coordinate-bearing data only after a candidate is confirmed.
+
+The future service should not call Open Babel, should not generate conformers, and should not modify the RDKit validation result.
 
 ### Failure behavior
 
 - No PubChem 3D data: show `이 분자에는 사용할 수 있는 3D 좌표 데이터가 아직 없습니다.`
 - Network/API failure: keep the 2D editor and RDKit result visible, and show a student-friendly 3D loading failure message.
 - Candidate mismatch: block 3D display and log the mismatch reason for review.
+- Candidate search returns zero results: show that no external data candidate was found.
+- Candidate search returns multiple results: require user review instead of selecting one automatically.
 
 ## 9. Risk Register
 
