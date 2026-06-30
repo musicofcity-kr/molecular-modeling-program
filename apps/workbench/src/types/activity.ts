@@ -21,6 +21,7 @@ export interface ActivityTemplate {
   coreConcepts?: string[];
   teacherNotes?: string[];
   misconceptionChecks?: string[];
+  requiresVsepr?: boolean;
   expectedVsepr?: {
     axeNotation?: string;
     molecularShapeKo?: string;
@@ -44,6 +45,18 @@ export type ActivityComparisonResult = {
   rdkitFormula?: string;
   rdkitMolecularWeight?: string;
 };
+
+export function shouldShowVseprModule(options: {
+  appMode: AppMode;
+  isModuleOpen: boolean;
+  selectedTemplate?: ActivityTemplate | null;
+}): boolean {
+  if (options.appMode === 'activity') {
+    return options.selectedTemplate?.requiresVsepr === true;
+  }
+
+  return options.isModuleOpen;
+}
 
 export function buildActivityComparisonResult(
   responses: ActivityResponseState,

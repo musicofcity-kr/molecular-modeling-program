@@ -27,7 +27,7 @@ describe('App scaffold', () => {
     expect(markup).toContain('구조 정보');
     expect(markup).toContain('VSEPR 예측 모듈');
     expect(markup).toContain('VSEPR 예측 모듈 열기');
-    expect(markup).toContain('수업 활동 또는 사용자가 명시적으로');
+    expect(markup).toContain('활동 템플릿이 요구하거나 사용자가');
     expect(markup).not.toContain('분자 구조 예측');
     expect(markup).not.toContain('VSEPR 결과는 전자쌍 반발 이론에 따른 교육용 예측입니다.');
     expect(markup).not.toContain('VSEPR 예측 모형');

@@ -73,6 +73,7 @@ describe('activityTemplates', () => {
       expect(template.coreConcepts?.length).toBeGreaterThan(0);
       expect(template.teacherNotes?.length).toBeGreaterThan(0);
       expect(template.misconceptionChecks?.length).toBeGreaterThan(0);
+      expect(template.requiresVsepr).toBe(true);
       expect(template.expectedVsepr).toBeTruthy();
       expect('molecularWeight' in template).toBe(false);
       expect('expectedFormula' in template).toBe(false);

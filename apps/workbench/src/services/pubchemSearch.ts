@@ -2,6 +2,7 @@ import type {
   PubChemCandidate,
   PubChemCandidateSearchResult,
   PubChemMatchStatus,
+  MoleculeValidationResult,
 } from '../types/molecule';
 
 type PubChemPropertyRecord = {
@@ -33,6 +34,7 @@ const STUDENT_SEARCH_FAILURE_MESSAGE =
   'PubChem 후보 검색 중 오류가 발생했습니다. RDKit.js 검증 결과는 계속 사용할 수 있습니다.';
 
 const RESPONSE_TEXT_LIMIT = 500;
+const FORMULA_TOKEN_PATTERN = /([A-Z][a-z]?)(\d*)/g;
 
 function excerptResponseText(value: string): string {
   return value.replace(/\s+/g, ' ').trim().slice(0, RESPONSE_TEXT_LIMIT);
@@ -90,6 +92,131 @@ function mapPubChemCandidate(record: PubChemPropertyRecord): PubChemCandidate | 
     canonicalSmiles: record.CanonicalSMILES ?? record.ConnectivitySMILES ?? record.SMILES,
     isomericSmiles: record.IsomericSMILES ?? record.SMILES,
     source: 'pubchem',
+  };
+}
+
+function parseFormulaCounts(formula: string): Map<string, number> | null {
+  const trimmedFormula = formula.trim();
+
+  if (!trimmedFormula) {
+    return null;
+  }
+
+  const counts = new Map<string, number>();
+  let parsedLength = 0;
+  let match: RegExpExecArray | null;
+
+  FORMULA_TOKEN_PATTERN.lastIndex = 0;
+  while ((match = FORMULA_TOKEN_PATTERN.exec(trimmedFormula)) !== null) {
+    const [, symbol, rawCount] = match;
+    const count = rawCount ? Number(rawCount) : 1;
+
+    if (!Number.isFinite(count) || count <= 0) {
+      return null;
+    }
+
+    parsedLength += match[0].length;
+    counts.set(symbol, (counts.get(symbol) ?? 0) + count);
+  }
+
+  return parsedLength === trimmedFormula.length ? counts : null;
+}
+
+function haveSameFormula(leftFormula: string, rightFormula: string): boolean {
+  const leftCounts = parseFormulaCounts(leftFormula);
+  const rightCounts = parseFormulaCounts(rightFormula);
+
+  if (!leftCounts || !rightCounts) {
+    return leftFormula.trim() === rightFormula.trim();
+  }
+
+  if (leftCounts.size !== rightCounts.size) {
+    return false;
+  }
+
+  for (const [symbol, count] of leftCounts) {
+    if (rightCounts.get(symbol) !== count) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export function evaluatePubChemCandidateForCurrentStructure(
+  candidate: PubChemCandidate,
+  validationResult: MoleculeValidationResult | null,
+): {
+  canLoad3D: boolean;
+  studentMessage?: string;
+  warnings: string[];
+  developerLogs: string[];
+} {
+  if (validationResult?.ok !== true) {
+    return {
+      canLoad3D: false,
+      studentMessage:
+        'PubChem 후보를 3D로 불러오려면 먼저 현재 구조가 RDKit.js 검증을 통과해야 합니다.',
+      warnings: [],
+      developerLogs: [
+        'PubChem candidate 3D load blocked: missing valid RDKit result.',
+        `candidate CID: ${candidate.cid}`,
+      ],
+    };
+  }
+
+  const developerLogs = [
+    'PubChem candidate compatibility check.',
+    `candidate CID: ${candidate.cid}`,
+    `RDKit formula: ${validationResult.molecularFormula}`,
+    `PubChem formula: ${candidate.molecularFormula ?? 'not provided'}`,
+    `RDKit canonicalSmiles: ${validationResult.canonicalSmiles}`,
+    `PubChem canonicalSmiles: ${candidate.canonicalSmiles ?? 'not provided'}`,
+    `PubChem isomericSmiles: ${candidate.isomericSmiles ?? 'not provided'}`,
+  ];
+  const warnings: string[] = [];
+
+  if (!candidate.molecularFormula) {
+    warnings.push(
+      'PubChem 후보의 분자식이 제공되지 않았습니다. 외부 데이터 후보로만 확인하세요.',
+    );
+
+    return {
+      canLoad3D: true,
+      warnings,
+      developerLogs: [
+        ...developerLogs,
+        'candidate allowed with warning: PubChem formula not provided.',
+      ],
+    };
+  }
+
+  if (!haveSameFormula(validationResult.molecularFormula, candidate.molecularFormula)) {
+    return {
+      canLoad3D: false,
+      studentMessage:
+        '선택한 PubChem 후보의 분자식이 현재 RDKit.js 검증 결과와 달라 3D 불러오기를 중단했습니다.',
+      warnings: [
+        `RDKit.js 분자식: ${validationResult.molecularFormula}`,
+        `PubChem 후보 분자식: ${candidate.molecularFormula}`,
+      ],
+      developerLogs: [...developerLogs, 'candidate blocked: formula mismatch.'],
+    };
+  }
+
+  if (
+    candidate.canonicalSmiles &&
+    candidate.canonicalSmiles !== validationResult.canonicalSmiles
+  ) {
+    warnings.push(
+      'PubChem SMILES 표기가 RDKit.js canonical SMILES와 다를 수 있습니다. 분자식 검증값은 RDKit.js 결과를 기준으로 유지합니다.',
+    );
+  }
+
+  return {
+    canLoad3D: true,
+    warnings,
+    developerLogs: [...developerLogs, 'candidate allowed: formula compatible.'],
   };
 }
 

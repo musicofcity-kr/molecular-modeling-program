@@ -84,4 +84,35 @@ describe('TeacherPanel', () => {
     expect(markup).toContain('정답/오답 판정');
     expect(markup).toContain('자동 채점 없음');
   });
+
+  it('renders teacher diagnostics in free draw mode without exposing a student worksheet', () => {
+    const markup = renderToStaticMarkup(
+      <TeacherPanel
+        userMode="teacher"
+        appMode="free_draw"
+        templates={activityTemplates}
+        selectedActivityId="draw-water"
+        examples={exampleMolecules}
+        selectedExample={exampleMolecules[0]}
+        validationResult={null}
+        vseprAnalysis={{
+          status: 'not_requested',
+          confidence: 'low',
+          warnings: [],
+        }}
+        molecule3DInput={null}
+        pubChem3DStatus="idle"
+        pubChemCandidateStatus="not_requested"
+        onSelectActivity={() => {}}
+      />,
+    );
+
+    expect(markup).toContain('교사용 지도 패널');
+    expect(markup).toContain('작업 모드');
+    expect(markup).toContain('자유 그리기');
+    expect(markup).toContain('RDKit 검증 상태');
+    expect(markup).toContain('VSEPR 분석 상태');
+    expect(markup).toContain('PubChem 연결 상태');
+    expect(markup).not.toContain('수업용 활동 모드');
+  });
 });

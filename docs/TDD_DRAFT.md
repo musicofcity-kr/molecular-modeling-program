@@ -673,7 +673,7 @@ If the estimate is negative, non-integer, or outside the MVP mapping table, the 
 - Multiple centers: show center atom dropdown.
 - Unsupported center: hide confident geometry and show review-needed warnings.
 - In default free-draw mode, keep the VSEPR panel and VSEPR 3D model viewer hidden behind `VSEPR 예측 모듈 열기`.
-- In guided activity mode, show the VSEPR module because the activity questions frame the result as a simplified classroom model.
+- In guided activity mode, show the VSEPR module only when the selected activity template has `requiresVsepr: true`.
 - The VSEPR panel can enable `VSEPR 모형 보기` only when the analysis is `supported` and an AXE template exists.
 - 3Dmol.js is not used to generate or validate VSEPR geometry; it only draws explicit teaching-model vectors.
 
@@ -739,7 +739,37 @@ The VSEPR viewer must show that:
 - RDKit.js remains the formula and molecular-weight source;
 - PubChem/static coordinate data, when shown, is a separate 3D source.
 
-## 13. Risk Register
+## 13. Stabilization Notes — 3D Availability Pipeline
+
+The current stabilization keeps the main classroom data path focused on:
+
+```text
+Ketcher 2D input
+  -> RDKit.js validation
+  -> RDKit formula / average molecular weight / canonical SMILES
+  -> optional PubChem candidate search or curated CID lookup
+  -> source-labeled 3Dmol.js coordinate visualization
+```
+
+VSEPR remains a separate optional classroom module:
+
+- `free_draw + student`: full VSEPR panel/model viewer hidden by default;
+- `free_draw + teacher`: teacher diagnostics may show VSEPR status;
+- `activity + student`: VSEPR visible only when `ActivityTemplate.requiresVsepr` is `true`;
+- `activity + teacher`: expected VSEPR data is teacher guidance only.
+
+PubChem 3D loading now has two additional guards:
+
+- candidate formulas are compared compositionally with the current RDKit.js
+  formula before CID-based 3D SDF loading;
+- stale PubChem candidate or 3D SDF responses are ignored when the validated
+  structure changes while a request is in flight.
+
+Generated screenshots, `.test_runs/`, MP4 review videos, and external VSEPR
+reference prototypes are not part of the production app commit surface. Their
+findings should be recorded in docs instead.
+
+## 14. Risk Register
 
 | Risk | Mitigation |
 |---|---|

@@ -109,7 +109,14 @@ Student mode may show the current VSEPR analysis, center-atom selection, and
 VSEPR prediction model only when:
 
 - the user explicitly opens the optional VSEPR module; or
-- the app is in a guided classroom activity that uses VSEPR prompts.
+- the app is in a guided classroom activity whose template has
+  `requiresVsepr: true`.
+
+`free_draw + student` keeps the full VSEPR panel and VSEPR 3D model viewer
+closed by default. The visible entry point is only an optional classroom-module
+gate. `activity + student` shows VSEPR only for activities that explicitly need
+the model. This keeps the core free-draw workflow focused on Ketcher input,
+RDKit.js validation, and actual/external 3D coordinate visualization.
 
 Teacher mode may also show expected VSEPR guidance from the selected activity template and misconception check points.
 Those expected values are guidance for classroom discussion, not automatic scoring rules and not measured geometry.

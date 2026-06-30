@@ -47,8 +47,9 @@ $$$$`;
         label: '물',
         sourceType: 'pubchem',
         coordinateSource: 'PubChem CID 962',
+        sourceUrl:
+          'https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962/record/SDF?record_type=3d',
       });
-      expect(result.molecule3D.sourceUrl).toBeUndefined();
       expect(result.molecule3D.sourceNote).toContain('교육용 시각화 자료');
       expect(result.developerLogs).toContain('PubChem 3D SDF fetch succeeded: CID 962.');
     }
@@ -69,9 +70,7 @@ $$$$`;
 
     expect(result.ok).toBe(false);
     expect(result.status).toBe('noData');
-    expect(result.studentMessage).toContain(
-      'PubChem에서 이 분자의 3D 구조 데이터를 불러오지 못했습니다.',
-    );
+    expect(result.studentMessage).toContain('PubChem에 후보는 있지만 3D 좌표 데이터');
     expect(result.studentMessage).toContain(
       '2D 구조와 분자식 검증 결과는 계속 사용할 수 있습니다.',
     );
@@ -86,9 +85,7 @@ $$$$`;
 
     expect(result.ok).toBe(false);
     expect(result.status).toBe('error');
-    expect(result.studentMessage).toContain(
-      'PubChem에서 이 분자의 3D 구조 데이터를 불러오지 못했습니다.',
-    );
+    expect(result.studentMessage).toContain('외부 3D 구조 데이터를 불러오지 못했습니다.');
     expect(result.developerLogs).toEqual([
       'PubChem 3D SDF fetch failed.',
       'CID: 702',

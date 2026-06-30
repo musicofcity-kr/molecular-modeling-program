@@ -30,7 +30,10 @@ import {
   fetchPubChem3DSdf,
   type PubChem3DLoadStatus,
 } from '../services/pubchem3d';
-import { searchPubChemCandidatesByCanonicalSmiles } from '../services/pubchemSearch';
+import {
+  evaluatePubChemCandidateForCurrentStructure,
+  searchPubChemCandidatesByCanonicalSmiles,
+} from '../services/pubchemSearch';
 import { analyzeVseprFromMolBlock } from '../services/vseprEngine';
 import { hasVseprGeometryTemplate } from '../services/vseprGeometryTemplates';
 import type {
@@ -39,7 +42,12 @@ import type {
   PubChemCandidate,
   PubChemMatchStatus,
 } from '../types/molecule';
-import type { ActivityResponseState, AppMode, UserMode } from '../types/activity';
+import {
+  shouldShowVseprModule,
+  type ActivityResponseState,
+  type AppMode,
+  type UserMode,
+} from '../types/activity';
 import type { VseprAnalysis, VseprModelViewStatus } from '../types/vsepr';
 
 type PubChem3DState = {
@@ -115,6 +123,9 @@ function getVseprModelStatusForAnalysis(
 export function App() {
   const editorRef = useRef<ChemicalEditorHandle | null>(null);
   const hasLoggedEditorReadyRef = useRef(false);
+  const validationKeyRef = useRef<string | null>(null);
+  const pubChem3DRequestIdRef = useRef(0);
+  const pubChemCandidateRequestIdRef = useRef(0);
   const [appMode, setAppMode] = useState<AppMode>('free_draw');
   const [userMode, setUserMode] = useState<UserMode>('student');
   const [selectedActivityId, setSelectedActivityId] = useState(
@@ -153,16 +164,23 @@ export function App() {
       'Ketcher에서 구조를 추출한 뒤 RDKit.js 검증을 실행합니다.',
     ),
   ]);
+  const selectedActivity =
+    activityTemplates.find((template) => template.id === selectedActivityId) ??
+    activityTemplates[0];
+  const selectedActivityUsesVsepr =
+    appMode === 'activity' && selectedActivity?.requiresVsepr === true;
 
   const appendLog = (entry: WorkbenchLogEntry) => {
     setLogs((currentLogs) => [entry, ...currentLogs].slice(0, 6));
   };
 
   const resetPubChem3DState = () => {
+    pubChem3DRequestIdRef.current += 1;
     setPubChem3DState(INITIAL_PUBCHEM_3D_STATE);
   };
 
   const resetPubChemCandidateState = () => {
+    pubChemCandidateRequestIdRef.current += 1;
     setPubChemCandidateState(INITIAL_PUBCHEM_CANDIDATE_STATE);
   };
 
@@ -177,6 +195,11 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    validationKeyRef.current =
+      validationResult?.ok === true ? validationResult.canonicalSmiles : null;
+  }, [validationResult]);
+
+  useEffect(() => {
     setVseprModelStatus((currentStatus) => {
       const canRenderModel =
         vseprAnalysis.status === 'supported' &&
@@ -186,7 +209,7 @@ export function App() {
         return currentStatus;
       }
 
-      if (appMode === 'activity') {
+      if (selectedActivityUsesVsepr) {
         return 'rendered';
       }
 
@@ -196,7 +219,7 @@ export function App() {
 
       return currentStatus;
     });
-  }, [appMode, isVseprModuleOpen, vseprAnalysis]);
+  }, [isVseprModuleOpen, selectedActivityUsesVsepr, vseprAnalysis]);
 
   const extractAndValidateCurrentStructure = async (example?: ExampleMolecule) => {
     const structure = await editorRef.current?.extractStructure();
@@ -232,7 +255,7 @@ export function App() {
       const initialVseprAnalysis = analyzeVseprFromMolBlock({
         molBlock: labeledStructure.molBlock,
       });
-      const shouldAutoRenderVseprModel = appMode === 'activity';
+      const shouldAutoRenderVseprModel = selectedActivityUsesVsepr;
       const expectedFormulaWarning = example
         ? buildExpectedFormulaWarning(example, result.molecularFormula)
         : null;
@@ -353,6 +376,10 @@ export function App() {
     pubchemName?: string;
     requestLogMessage: string;
   }) => {
+    const requestId = pubChem3DRequestIdRef.current + 1;
+    const requestValidationKey = validationKeyRef.current;
+
+    pubChem3DRequestIdRef.current = requestId;
     setPubChem3DState({
       status: 'loading',
       studentMessage: `${input.label}의 PubChem 3D 구조 데이터를 불러오는 중입니다.`,
@@ -366,6 +393,19 @@ export function App() {
     });
 
     console.info('[PubChem 3D]', result.developerLogs);
+
+    if (
+      requestId !== pubChem3DRequestIdRef.current ||
+      requestValidationKey !== validationKeyRef.current
+    ) {
+      console.info('[PubChem 3D]', [
+        'Ignored stale PubChem 3D SDF response.',
+        `CID: ${input.cid}`,
+        `request validation key: ${requestValidationKey ?? 'none'}`,
+        `current validation key: ${validationKeyRef.current ?? 'none'}`,
+      ]);
+      return;
+    }
 
     if (result.ok) {
       setMolecule3DInput(result.molecule3D);
@@ -441,6 +481,10 @@ export function App() {
       warnings: [],
       studentMessage: 'PubChem 외부 데이터 후보를 검색하는 중입니다.',
     });
+    const requestId = pubChemCandidateRequestIdRef.current + 1;
+    const requestValidationKey = validationResult.canonicalSmiles;
+
+    pubChemCandidateRequestIdRef.current = requestId;
     appendLog(
       createLog(
         'info',
@@ -453,6 +497,18 @@ export function App() {
     );
 
     console.info('[PubChem candidate search]', result.developerLogs);
+
+    if (
+      requestId !== pubChemCandidateRequestIdRef.current ||
+      requestValidationKey !== validationKeyRef.current
+    ) {
+      console.info('[PubChem candidate search]', [
+        'Ignored stale PubChem candidate search response.',
+        `request canonicalSmiles: ${requestValidationKey}`,
+        `current validation key: ${validationKeyRef.current ?? 'none'}`,
+      ]);
+      return;
+    }
 
     setPubChemCandidateState({
       status: result.status,
@@ -473,10 +529,48 @@ export function App() {
   };
 
   const handleSelectPubChemCandidate = async (candidate: PubChemCandidate) => {
+    const compatibility = evaluatePubChemCandidateForCurrentStructure(
+      candidate,
+      validationResult,
+    );
+
+    console.info('[PubChem candidate compatibility]', compatibility.developerLogs);
+
+    if (!compatibility.canLoad3D) {
+      setPubChemCandidateState((currentState) => ({
+        ...currentState,
+        selectedCandidateCid: undefined,
+        warnings: [
+          ...currentState.warnings,
+          ...compatibility.warnings,
+        ],
+        studentMessage: compatibility.studentMessage ?? currentState.studentMessage,
+      }));
+      setPubChem3DState({
+        status: 'error',
+        studentMessage:
+          compatibility.studentMessage ??
+          '선택한 PubChem 후보를 현재 구조의 3D 시각화 자료로 사용할 수 없습니다.',
+      });
+      appendLog(
+        createLog(
+          'warning',
+          compatibility.studentMessage ??
+            '선택한 PubChem 후보를 현재 구조의 3D 시각화 자료로 사용할 수 없습니다.',
+        ),
+      );
+      return;
+    }
+
     setPubChemCandidateState((currentState) => ({
       ...currentState,
       selectedCandidateCid: candidate.cid,
+      warnings: [...currentState.warnings, ...compatibility.warnings],
     }));
+
+    for (const warning of compatibility.warnings) {
+      appendLog(createLog('warning', warning));
+    }
 
     await loadPubChem3DByCid({
       cid: candidate.cid,
@@ -545,7 +639,7 @@ export function App() {
       molBlock: extractedStructure.molBlock,
       selectedCentralAtomId: atomId,
     });
-    const shouldAutoRenderVseprModel = appMode === 'activity';
+    const shouldAutoRenderVseprModel = selectedActivityUsesVsepr;
     setVseprAnalysis(nextAnalysis);
     setVseprModelStatus(
       getVseprModelStatusForAnalysis(nextAnalysis, {
@@ -627,7 +721,11 @@ export function App() {
     validationResult?.ok === true &&
     Boolean(validationResult.canonicalSmiles.trim()) &&
     pubChemCandidateState.status !== 'searching';
-  const isVseprModuleVisible = appMode === 'activity' || isVseprModuleOpen;
+  const isVseprModuleVisible = shouldShowVseprModule({
+    appMode,
+    isModuleOpen: isVseprModuleOpen,
+    selectedTemplate: selectedActivity,
+  });
 
   return (
     <main className="app-shell" data-testid="app-shell">
@@ -675,10 +773,10 @@ export function App() {
             className="secondary-action"
             data-testid="toggle-vsepr-module-button"
             type="button"
-            disabled={appMode === 'activity'}
+            disabled={selectedActivityUsesVsepr}
             onClick={handleToggleVseprModule}
           >
-            {appMode === 'activity'
+            {selectedActivityUsesVsepr
               ? '수업 활동에서 표시 중'
               : isVseprModuleOpen
                 ? 'VSEPR 예측 모듈 닫기'
@@ -687,8 +785,8 @@ export function App() {
         </div>
         <p>
           자유 그리기에서는 Ketcher 입력, RDKit.js 검증, 실제/외부 3D 구조를
-          기본 흐름으로 사용합니다. VSEPR은 수업 활동 또는 사용자가 명시적으로
-          연 선택 모듈에서만 교육용 예측으로 표시합니다.
+          기본 흐름으로 사용합니다. VSEPR은 활동 템플릿이 요구하거나 사용자가
+          명시적으로 연 선택 모듈에서만 교육용 예측으로 표시합니다.
         </p>
       </section>
 

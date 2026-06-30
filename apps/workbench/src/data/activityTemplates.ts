@@ -89,6 +89,7 @@ export const activityTemplates: ActivityTemplate[] = [
       'H-O-H를 직선형으로 이해하는 오류',
       '비공유 전자쌍이 분자 모양에 영향을 주지 않는다고 보는 오류',
     ],
+    requiresVsepr: true,
     expectedVsepr: {
       axeNotation: 'AX2E2',
       molecularShapeKo: '굽은형',
@@ -115,6 +116,7 @@ export const activityTemplates: ActivityTemplate[] = [
       '메테인을 평면 십자형으로 이해하는 오류',
       '4개 결합이 모두 같은 평면 위에 있다고 보는 오류',
     ],
+    requiresVsepr: true,
     expectedVsepr: {
       axeNotation: 'AX4',
       molecularShapeKo: '정사면체',
@@ -141,6 +143,7 @@ export const activityTemplates: ActivityTemplate[] = [
       '암모니아를 삼각평면형으로 이해하는 오류',
       '비공유 전자쌍을 분자 구조 이름에 포함된 원자처럼 보는 오류',
     ],
+    requiresVsepr: true,
     expectedVsepr: {
       axeNotation: 'AX3E',
       molecularShapeKo: '삼각뿔형',
@@ -167,6 +170,7 @@ export const activityTemplates: ActivityTemplate[] = [
       '에탄올 전체 분자를 하나의 AXE 표기로 설명하려는 오류',
       '하이드록시기의 산소 주변 구조와 탄소 주변 구조를 혼동하는 오류',
     ],
+    requiresVsepr: true,
     expectedVsepr: {
       axeNotation: 'center-specific',
       molecularShapeKo: '중심 원자별 국소 분석',
@@ -192,6 +196,7 @@ export const activityTemplates: ActivityTemplate[] = [
       '방향족 고리를 단일/이중 결합이 고정된 일반 고리로만 이해하는 오류',
       'VSEPR 단일 중심 분석을 벤젠 전체 고리 구조 설명으로 과도하게 확장하는 오류',
     ],
+    requiresVsepr: true,
     expectedVsepr: {
       axeNotation: 'local aromatic centers',
       molecularShapeKo: '중심 원자별 국소 분석',

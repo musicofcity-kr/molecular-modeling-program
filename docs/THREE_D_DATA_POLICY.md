@@ -97,6 +97,15 @@ PubChem 3D loading must follow this order:
 6. If the external result is missing, ambiguous, or mismatched, the 3D viewer is blocked and the app asks for review.
 7. Only a coordinate-bearing, source-labeled result is passed to 3Dmol.js.
 
+The current prototype also stores the PubChem CID SDF request URL as
+`sourceUrl` metadata on the `Molecule3DInput`. The UI must not use that URL as
+a primary student action label, but the source metadata may be visible for
+teacher/source review.
+
+If an older PubChem candidate search or CID-based 3D SDF response returns after
+the user has validated a different structure, the app ignores that stale
+response and keeps the current RDKit.js validation result and 3D state.
+
 ## Failure Message Separation
 
 Student-facing messages should be direct and non-technical.

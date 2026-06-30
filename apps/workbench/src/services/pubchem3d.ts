@@ -26,7 +26,10 @@ export type PubChem3DLookupResult =
     };
 
 const PUBCHEM_3D_FAILURE_MESSAGE =
-  'PubChem에서 이 분자의 3D 구조 데이터를 불러오지 못했습니다. 2D 구조와 분자식 검증 결과는 계속 사용할 수 있습니다.';
+  '외부 3D 구조 데이터를 불러오지 못했습니다. 2D 구조 검증 결과는 계속 확인할 수 있습니다.';
+
+const PUBCHEM_3D_NO_DATA_MESSAGE =
+  'PubChem에 후보는 있지만 3D 좌표 데이터가 제공되지 않을 수 있습니다. 2D 구조와 분자식 검증 결과는 계속 사용할 수 있습니다.';
 
 const PUBCHEM_3D_SOURCE_NOTE =
   'PubChem PUG-REST에서 CID 기반으로 가져온 3D SDF 좌표입니다. 교육용 시각화 자료이며 분자식, 분자량, 결합각, 결합길이의 기준으로 사용하지 않습니다.';
@@ -90,7 +93,8 @@ export async function fetchPubChem3DSdf(
       return {
         ok: false,
         status,
-        studentMessage: PUBCHEM_3D_FAILURE_MESSAGE,
+        studentMessage:
+          status === 'noData' ? PUBCHEM_3D_NO_DATA_MESSAGE : PUBCHEM_3D_FAILURE_MESSAGE,
         warnings: [],
         developerLogs: [
           'PubChem 3D SDF fetch failed.',
@@ -105,7 +109,7 @@ export async function fetchPubChem3DSdf(
       return {
         ok: false,
         status: 'noData',
-        studentMessage: PUBCHEM_3D_FAILURE_MESSAGE,
+        studentMessage: PUBCHEM_3D_NO_DATA_MESSAGE,
         warnings: [],
         developerLogs: [
           'PubChem 3D SDF fetch failed.',
@@ -128,6 +132,7 @@ export async function fetchPubChem3DSdf(
         sourceNote: input.pubchemName
           ? `${PUBCHEM_3D_SOURCE_NOTE} PubChem name: ${input.pubchemName}.`
           : PUBCHEM_3D_SOURCE_NOTE,
+        sourceUrl: url,
       },
       studentMessage: `${input.label}의 PubChem 3D 구조 데이터를 불러왔습니다.`,
       warnings: [],

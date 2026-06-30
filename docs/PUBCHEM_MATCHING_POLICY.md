@@ -26,6 +26,19 @@ PubChem candidate search may return:
 
 The student-facing UI should use the phrase `외부 데이터 후보` for PubChem matches. It should not present a candidate as a confirmed structure until the user confirms it.
 
+Before a confirmed candidate is used for 3D loading, the app performs a
+frontend compatibility check against the current RDKit.js validation result:
+
+- if the candidate has a molecular formula and it is not compositionally
+  compatible with the RDKit.js molecular formula, block 3D loading;
+- compare formulas by element counts, not by raw string order, so `H3N` and
+  `NH3` are treated as the same composition;
+- if PubChem SMILES notation differs from RDKit.js canonical SMILES, keep
+  RDKit.js as the calculation source and show/log a warning instead of
+  overwriting the validated result;
+- if the RDKit validation result changes while a PubChem request is in flight,
+  ignore the stale PubChem response.
+
 ## Role Separation
 
 - Ketcher is the 2D structure input layer.
@@ -48,6 +61,10 @@ If a PubChem candidate disagrees with the current RDKit.js-validated structure, 
 - block automatic 3D loading for that candidate;
 - show a student-facing warning that an external data candidate may not match the current structure;
 - record developer logs with candidate CID, RDKit canonical SMILES, PubChem candidate metadata used for comparison, and the mismatch reason.
+
+Current MVP enforcement blocks obvious molecular-formula mismatches before CID
+3D SDF loading. More advanced structure-equivalence checks remain a later
+feature and must not replace the RDKit.js validation gate.
 
 Student-facing wording should stay short and non-technical. Developer logs should contain enough detail to reproduce or diagnose the mismatch.
 

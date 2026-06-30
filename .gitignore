@@ -1,5 +1,11 @@
 .playwright-mcp/
 .codex_*.png
+.test_runs/
+*.mp4
+
+# External VSEPR reference artifacts kept out of app commits.
+vsepr-engine.js
+분자구조_VSEPR_시뮬레이터.html
 
 node_modules/
 dist/

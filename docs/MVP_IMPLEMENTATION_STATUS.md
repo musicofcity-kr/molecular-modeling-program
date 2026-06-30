@@ -232,3 +232,28 @@ Chemistry-derived values are shown only when `MoleculeValidationResult.ok === tr
 - PubChem fetch behavior is covered with mocked service tests.
 - Formula, average molecular weight, and canonical SMILES remain RDKit.js outputs.
 - PubChem API URLs are kept inside the service and are not exposed in the student-facing 3D Viewer metadata.
+
+## 2026-06-30 — Stabilization: 3D structure availability pipeline
+
+### Current status
+
+- VSEPR remains implemented but is fixed as an optional classroom module:
+  - `free_draw + student`: full VSEPR panel and VSEPR model viewer are hidden by default.
+  - `activity + student`: VSEPR is shown only when the selected activity template has `requiresVsepr: true`.
+  - teacher mode may show VSEPR status and expected VSEPR guidance as diagnostics, not scoring.
+- PubChem candidate selection now checks candidate molecular formula against the current RDKit.js validation result before CID-based 3D SDF loading.
+- Formula comparison uses element counts so formula order differences such as `H3N` and `NH3` do not block valid candidates.
+- If a PubChem candidate clearly conflicts with the RDKit.js formula, 3D loading is blocked and the student sees a short warning while developer logs keep CID and comparison details.
+- Stale PubChem candidate-search and 3D SDF responses are ignored if the validated structure changes while the request is in flight.
+- PubChem 3D success results now carry `sourceUrl` metadata while keeping RDKit.js as the formula and average molecular weight source.
+- Generated `.test_runs/` images, review MP4 files, and external Claude VSEPR reference files are excluded from future commits through `.gitignore`.
+
+### Verification
+
+- `npx tsc --noEmit`: passed.
+- `npm test -- --run`: passed with 18 files and 98 tests after rerunning outside the sandbox because the first sandboxed attempt hit the known esbuild `spawn EPERM` restriction.
+
+### Remaining verification
+
+- `npm run build` should still be run before final commit.
+- Existing 3Dmol.js `eval` and chunk-size warnings are expected review items, not automatic build failures.

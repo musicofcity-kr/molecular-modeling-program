@@ -8,6 +8,7 @@
 - Completed: VSEPR prediction model 3D visualization MVP.
 - Completed: VSEPR UI isolation as an optional classroom module, not a core free-draw workflow.
 - Completed: student/teacher mode split MVP without login, persistence, dashboards, or automatic scoring.
+- Completed: 3D availability pipeline stabilization for optional VSEPR gating, PubChem candidate formula compatibility checks, stale PubChem response ignoring, and Git exclusion of generated review artifacts.
 - Next: keep the core free-draw MVP focused on Ketcher -> RDKit.js -> actual/external 3D, while refining VSEPR only inside guided classroom activities or explicit optional use.
 
 ## Phase 0 — Skill and Workspace Setup

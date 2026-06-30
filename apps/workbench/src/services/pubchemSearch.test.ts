@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { searchPubChemCandidatesByCanonicalSmiles } from './pubchemSearch';
+import {
+  evaluatePubChemCandidateForCurrentStructure,
+  searchPubChemCandidatesByCanonicalSmiles,
+} from './pubchemSearch';
 
 function createResponse(
   body: string,
@@ -143,5 +146,81 @@ describe('searchPubChemCandidatesByCanonicalSmiles', () => {
     expect(result.developerLogs).toContain(
       'PubChem candidate search failed before request: empty canonicalSmiles.',
     );
+  });
+});
+
+describe('evaluatePubChemCandidateForCurrentStructure', () => {
+  it('allows formula-compatible candidates even when formula order differs', () => {
+    const result = evaluatePubChemCandidateForCurrentStructure(
+      {
+        cid: 222,
+        title: 'Ammonia',
+        molecularFormula: 'NH3',
+        molecularWeight: '17.031',
+        canonicalSmiles: 'N',
+        source: 'pubchem',
+      },
+      {
+        ok: true,
+        validationStatus: 'valid',
+        source: 'smiles',
+        smiles: 'N',
+        canonicalSmiles: 'N',
+        molecularFormula: 'H3N',
+        molecularWeight: 17.031,
+        warnings: [],
+        errors: [],
+        developerLogs: [],
+      },
+    );
+
+    expect(result.canLoad3D).toBe(true);
+    expect(result.developerLogs).toContain('candidate allowed: formula compatible.');
+  });
+
+  it('blocks PubChem 3D loading when the candidate formula conflicts with RDKit', () => {
+    const result = evaluatePubChemCandidateForCurrentStructure(
+      {
+        cid: 123,
+        title: 'Wrong candidate',
+        molecularFormula: 'C2H6O',
+        molecularWeight: '46.069',
+        canonicalSmiles: 'CCO',
+        source: 'pubchem',
+      },
+      {
+        ok: true,
+        validationStatus: 'valid',
+        source: 'smiles',
+        smiles: 'O',
+        canonicalSmiles: 'O',
+        molecularFormula: 'H2O',
+        molecularWeight: 18.015,
+        warnings: [],
+        errors: [],
+        developerLogs: [],
+      },
+    );
+
+    expect(result.canLoad3D).toBe(false);
+    expect(result.studentMessage).toContain('분자식이 현재 RDKit.js 검증 결과와 달라');
+    expect(result.warnings).toContain('RDKit.js 분자식: H2O');
+    expect(result.warnings).toContain('PubChem 후보 분자식: C2H6O');
+    expect(result.developerLogs).toContain('candidate blocked: formula mismatch.');
+  });
+
+  it('blocks candidate loading without a valid RDKit result', () => {
+    const result = evaluatePubChemCandidateForCurrentStructure(
+      {
+        cid: 702,
+        title: 'Ethanol',
+        molecularFormula: 'C2H6O',
+        source: 'pubchem',
+      },
+      null,
+    );
+
+    expect(result.canLoad3D).toBe(false);
+    expect(result.studentMessage).toContain('RDKit.js 검증을 통과해야 합니다');
   });
 });
