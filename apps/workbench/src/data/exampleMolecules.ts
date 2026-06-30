@@ -1,4 +1,17 @@
+import type {
+  Molecule3DCoordinateFormat,
+  Molecule3DSourceType,
+} from '../types/molecule';
+
 export type ExampleMoleculeCategory = '기본 분자' | '유기 기초' | '생활 속 분자';
+
+export type ExampleMolecule3DStructure = {
+  format: Molecule3DCoordinateFormat;
+  data: string;
+  sourceType: Molecule3DSourceType;
+  sourceNote: string;
+  sourceUrl?: string;
+};
 
 export type ExampleMolecule = {
   id: string;
@@ -8,7 +21,11 @@ export type ExampleMolecule = {
   expectedFormula: string;
   teachingUse: string;
   category: ExampleMoleculeCategory;
+  structure3D?: ExampleMolecule3DStructure;
 };
+
+const STATIC_3D_SOURCE_NOTE =
+  '앱 내장 교육용 정적 3D 좌표입니다. 실험값, 에너지 최소화 결과, 결합각 계산용 데이터가 아닙니다.';
 
 export const exampleMolecules: ExampleMolecule[] = [
   {
@@ -19,6 +36,22 @@ export const exampleMolecules: ExampleMolecule[] = [
     expectedFormula: 'H2O',
     teachingUse: '공유 결합과 굽은형 분자 구조를 설명할 때 사용합니다.',
     category: '기본 분자',
+    structure3D: {
+      format: 'sdf',
+      sourceType: 'static-example',
+      sourceNote: STATIC_3D_SOURCE_NOTE,
+      data: `water static 3D example
+  Workbench  063026
+
+  3  2  0  0  0  0  0  0  0  0999 V2000
+    0.0000    0.0000    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+    0.9572    0.0000    0.0000 H   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.2390    0.9270    0.0000 H   0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  1  0
+  1  3  1  0
+M  END
+$$$$`,
+    },
   },
   {
     id: 'methane',
@@ -28,6 +61,26 @@ export const exampleMolecules: ExampleMolecule[] = [
     expectedFormula: 'CH4',
     teachingUse: '탄소의 네 결합과 기본 유기 분자 도입에 사용합니다.',
     category: '기본 분자',
+    structure3D: {
+      format: 'sdf',
+      sourceType: 'static-example',
+      sourceNote: STATIC_3D_SOURCE_NOTE,
+      data: `methane static 3D example
+  Workbench  063026
+
+  5  4  0  0  0  0  0  0  0  0999 V2000
+    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    0.6291    0.6291    0.6291 H   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.6291   -0.6291    0.6291 H   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.6291    0.6291   -0.6291 H   0  0  0  0  0  0  0  0  0  0  0  0
+    0.6291   -0.6291   -0.6291 H   0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  1  0
+  1  3  1  0
+  1  4  1  0
+  1  5  1  0
+M  END
+$$$$`,
+    },
   },
   {
     id: 'ammonia',

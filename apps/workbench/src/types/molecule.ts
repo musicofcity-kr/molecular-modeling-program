@@ -19,11 +19,20 @@ export type MoleculeInput = {
 
 export type Molecule3DCoordinateFormat = 'mol' | 'sdf' | 'xyz' | 'pdb';
 
+export type Molecule3DSourceType =
+  | 'static-example'
+  | 'pubchem'
+  | 'user-import'
+  | 'review-needed';
+
 export type Molecule3DInput = {
   format: Molecule3DCoordinateFormat;
   data: string;
   label: string;
+  sourceType: Molecule3DSourceType;
   coordinateSource: string;
+  sourceNote?: string;
+  sourceUrl?: string;
 };
 
 export type MoleculeValidationResult =

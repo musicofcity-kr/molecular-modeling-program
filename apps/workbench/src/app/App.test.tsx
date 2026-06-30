@@ -18,7 +18,7 @@ describe('App scaffold', () => {
     const markup = renderToStaticMarkup(<App />);
 
     expect(markup).toContain('Molecule Modeling Workbench');
-    expect(markup).toContain('Phase 5: 3D Viewer Shell');
+    expect(markup).toContain('Phase 6: 정적 3D 예제 좌표');
     expect(markup).toContain('분자 편집 영역');
     expect(markup).toContain('구조 정보');
     expect(markup).toContain('3D Viewer');

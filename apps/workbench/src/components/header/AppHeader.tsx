@@ -25,7 +25,7 @@ export function AppHeader({
       </div>
       <div className="header-actions">
         <p className="header-status" aria-label="현재 구현 상태">
-          Phase 5: 3D Viewer Shell
+          Phase 6: 정적 3D 예제 좌표
         </p>
         <label className="example-picker">
           <span>예제</span>

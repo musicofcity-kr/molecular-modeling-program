@@ -73,6 +73,47 @@ describe('exampleMolecules', () => {
     ).toBe(true);
   });
 
+  it('includes static 3D coordinate examples only for the first classroom shell set', () => {
+    const examplesWith3D = exampleMolecules
+      .filter((example) => example.structure3D)
+      .map((example) => ({
+        id: example.id,
+        format: example.structure3D?.format,
+        sourceType: example.structure3D?.sourceType,
+        sourceNote: example.structure3D?.sourceNote,
+      }));
+
+    expect(examplesWith3D).toEqual([
+      {
+        id: 'water',
+        format: 'sdf',
+        sourceType: 'static-example',
+        sourceNote:
+          '앱 내장 교육용 정적 3D 좌표입니다. 실험값, 에너지 최소화 결과, 결합각 계산용 데이터가 아닙니다.',
+      },
+      {
+        id: 'methane',
+        format: 'sdf',
+        sourceType: 'static-example',
+        sourceNote:
+          '앱 내장 교육용 정적 3D 좌표입니다. 실험값, 에너지 최소화 결과, 결합각 계산용 데이터가 아닙니다.',
+      },
+    ]);
+
+    const ethanol = exampleMolecules.find((example) => example.id === 'ethanol');
+    expect(ethanol?.structure3D).toBeUndefined();
+  });
+
+  it('stores coordinate-bearing examples as static data, not generated SMILES output', () => {
+    for (const example of exampleMolecules.filter((item) => item.structure3D)) {
+      expect(example.structure3D?.data.split('\n')[0]).toContain('static 3D example');
+      expect(example.structure3D?.data).toContain('V2000');
+      expect(example.structure3D?.data).toContain('M  END');
+      expect(example.structure3D?.data).toContain('$$$$');
+      expect(example.structure3D?.sourceNote).not.toContain('SMILES');
+    }
+  });
+
   it('builds a warning when expectedFormula and RDKit formula diverge', () => {
     expect(
       buildExpectedFormulaWarning(

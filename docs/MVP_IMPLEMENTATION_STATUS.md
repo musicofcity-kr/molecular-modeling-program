@@ -170,3 +170,33 @@ Chemistry-derived values are shown only when `MoleculeValidationResult.ok === tr
 - `npm test`: passed with 47 tests.
 - `npm run build`: passed after rerunning outside the sandbox because the sandboxed run hit the known esbuild `spawn EPERM` process restriction.
 - Build output includes a separate `3Dmol` chunk and still emits known large chunk warnings.
+
+## 2026-06-30 — Phase 6 static 3D example coordinates
+
+### Current status
+
+- Added optional `structure3D` metadata to example molecule records.
+- Added static in-app SDF coordinate examples for:
+  - 물
+  - 메테인
+- Example loading still follows the same chemistry gate:
+  - Ketcher receives the example SMILES.
+  - RDKit.js validates the extracted Ketcher structure.
+  - Formula, average molecular weight, and canonical SMILES come from RDKit.js.
+  - 3Dmol.js receives static coordinate data only when the selected validated example has `structure3D`.
+- Examples without `structure3D`, such as 에탄올, keep the student-facing message `3D 좌표 데이터가 아직 없습니다`.
+
+### Intentionally not implemented in this phase
+
+- SMILES-to-3D coordinate conversion
+- Ketcher 2D MOL block to 3D interpretation
+- PubChem lookup
+- Open Babel backend conversion
+- RDKit conformer generation
+- energy minimization
+- bond angle calculation
+
+### Verification
+
+- Static coordinates are labeled as educational visualization data only.
+- 3Dmol.js remains a coordinate visualization layer and does not provide formula or molecular weight.

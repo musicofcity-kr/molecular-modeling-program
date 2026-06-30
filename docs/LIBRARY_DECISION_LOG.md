@@ -100,6 +100,19 @@ Superseded by the adoption decision below.
 - Scope note: The viewer shell does not generate 3D conformers from SMILES, does not treat Ketcher 2D MOL blocks as 3D structures, and does not override RDKit validation.
 - Decision: adopt for viewer shell only; coordinate generation/import remains a later, separately validated feature.
 
+## 2026-06-30 — Static 3D example coordinate handoff
+
+- Purpose: Connect a small number of local example molecules to 3Dmol.js with explicit coordinate-bearing data while preserving the Ketcher -> RDKit.js validation flow.
+- Decision: Add static in-app SDF coordinate examples for water and methane only.
+- PubChem: Not integrated in this phase.
+- SMILES-to-3D conversion: Not implemented in this phase.
+- Open Babel / backend conversion: Not implemented in this phase.
+- RDKit 3D conformer generation: Not implemented in this phase.
+- 3Dmol.js role: Coordinate data visualization only. It does not validate chemistry and does not provide formula, molecular weight, canonical SMILES, energy, bond angle, or optimized geometry.
+- Source label: Static examples are labeled `예제 내장 3D 구조` and include a note that they are educational static coordinates, not experimental values, energy-minimized results, or bond-angle calculation data.
+- Safety gate: The app sends static 3D data to the viewer only after the selected example passes RDKit.js validation; examples without static coordinates keep the student-facing no-coordinate message.
+- Test added: `apps/workbench/src/data/exampleMolecules.test.ts` checks that only water and methane currently have static 3D data and that the records remain molecular-weight-free metadata.
+
 ### Open Babel
 
 - Purpose: optional backend conversion for chemical file formats.
@@ -111,3 +124,15 @@ Superseded by the adoption decision below.
 - Purpose: name/compound lookup.
 - Decision: Phase 5 candidate.
 - Risk: external API dependence and classroom network reliability.
+
+## 2026-06-30 — PubChem PUG-REST 3D structure candidate deferred
+
+- Purpose: Evaluate PubChem PUG-REST as a future source for external coordinate-bearing 3D records, such as SDF, for molecules that do not have embedded static 3D examples.
+- Official documentation checked: PubChem PUG-REST documentation at https://pubchem.ncbi.nlm.nih.gov/docs/pug-rest.
+- Decision: Defer API integration.
+- Reason for deferral: The app should first stabilize the 3Dmol.js Viewer Shell, static 3D examples, source metadata, and the 3D data trust policy before adding classroom network dependency or candidate matching logic.
+- Current boundary: No PubChem API calls, no external fetch service, no Open Babel conversion, no RDKit conformer generation, and no SMILES-to-3D conversion were added in this phase.
+- Required future gate: PubChem 3D data may be shown only after the current Ketcher structure passes RDKit.js validation and the external result is labeled with source metadata.
+- Known risk: PubChem may have no 3D coordinate record for a molecule, may return multiple candidates, or may return a structure that does not match the current RDKit-validated structure.
+- Required UI/log behavior: Student-facing failures must remain short and non-technical; developer logs must include query key, source URL or endpoint, candidate identifier when available, and mismatch/failure reason.
+- Test/verification: Documentation-only phase. Existing checks remain `npx tsc --noEmit`, `npm test`, and `npm run build`.

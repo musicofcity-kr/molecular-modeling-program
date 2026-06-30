@@ -20,13 +20,29 @@ import {
 } from '../data/exampleMolecules';
 import type { ExampleMolecule } from '../data/exampleMolecules';
 import { validateMoleculeInput } from '../services/rdkitService';
-import type { MoleculeValidationResult } from '../types/molecule';
+import type { Molecule3DInput, MoleculeValidationResult } from '../types/molecule';
 
 function createLog(level: WorkbenchLogEntry['level'], message: string): WorkbenchLogEntry {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     level,
     message,
+  };
+}
+
+function buildExample3DInput(example: ExampleMolecule): Molecule3DInput | null {
+  if (!example.structure3D) {
+    return null;
+  }
+
+  return {
+    format: example.structure3D.format,
+    data: example.structure3D.data,
+    label: example.nameKo,
+    sourceType: example.structure3D.sourceType,
+    coordinateSource: '예제 내장 3D 구조',
+    sourceNote: example.structure3D.sourceNote,
+    sourceUrl: example.structure3D.sourceUrl,
   };
 }
 
@@ -40,6 +56,9 @@ export function App() {
     useState<ExtractedStructureData | null>(null);
   const [validationResult, setValidationResult] =
     useState<MoleculeValidationResult | null>(null);
+  const [molecule3DInput, setMolecule3DInput] = useState<Molecule3DInput | null>(
+    null,
+  );
   const [logs, setLogs] = useState<WorkbenchLogEntry[]>([
     createLog(
       'info',
@@ -66,6 +85,7 @@ export function App() {
       ? { ...structure, label: example.nameKo }
       : structure;
 
+    setMolecule3DInput(null);
     setExtractedStructure(labeledStructure);
     setValidationResult(null);
     appendLog(
@@ -95,9 +115,14 @@ export function App() {
       if (expectedFormulaWarning) {
         appendLog(createLog('warning', expectedFormulaWarning));
       }
+
+      setMolecule3DInput(
+        example && !expectedFormulaWarning ? buildExample3DInput(example) : null,
+      );
     } else {
       console.info('[RDKit validation]', result.developerLogs);
       appendLog(createLog('error', result.studentMessage));
+      setMolecule3DInput(null);
     }
   };
 
@@ -105,6 +130,7 @@ export function App() {
     try {
       await extractAndValidateCurrentStructure();
     } catch (error) {
+      setMolecule3DInput(null);
       setExtractedStructure(null);
       setValidationResult(null);
       appendLog(
@@ -140,6 +166,7 @@ export function App() {
       );
       await extractAndValidateCurrentStructure(example);
     } catch (error) {
+      setMolecule3DInput(null);
       setExtractedStructure(null);
       setValidationResult(null);
       appendLog(
@@ -181,7 +208,7 @@ export function App() {
       </section>
 
       <Molecule3DViewer
-        coordinateData={null}
+        coordinateData={molecule3DInput}
         hasValidatedStructure={validationResult?.ok === true}
         validatedStructureKey={
           validationResult?.ok === true ? validationResult.canonicalSmiles : undefined

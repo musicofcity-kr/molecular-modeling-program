@@ -24,16 +24,39 @@ type Molecule3DViewerProps = {
 const NO_COORDINATES_MESSAGE = '3D 좌표 데이터가 아직 없습니다';
 const SMILES_ONLY_DEVELOPER_LOG = 'SMILES만으로는 아직 3D 구조를 생성하지 않음';
 
+function get3DmolModelFormat(format: Molecule3DInput['format']): string {
+  if (format === 'mol') {
+    return 'sdf';
+  }
+
+  return format;
+}
+
 function getInitialMessage(coordinateData?: Molecule3DInput | null): string {
   if (!coordinateData) {
     return NO_COORDINATES_MESSAGE;
   }
 
-  return `${coordinateData.label}의 3D 좌표 데이터를 표시합니다.`;
+  return `${coordinateData.label}의 교육용 3D 좌표 데이터를 표시합니다.`;
 }
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : '알 수 없는 3Dmol.js 오류';
+}
+
+function formatSourceType(sourceType?: Molecule3DInput['sourceType']): string {
+  switch (sourceType) {
+    case 'static-example':
+      return '정적 예제';
+    case 'pubchem':
+      return 'PubChem';
+    case 'user-import':
+      return '사용자 가져오기';
+    case 'review-needed':
+      return '검토 필요';
+    default:
+      return '없음';
+  }
 }
 
 export const Molecule3DViewer = forwardRef<
@@ -85,7 +108,7 @@ export const Molecule3DViewer = forwardRef<
     }
 
     viewer.clear();
-    viewer.addModel(input.data, input.format);
+    viewer.addModel(input.data, get3DmolModelFormat(input.format));
     viewer.setStyle(
       {},
       {
@@ -95,7 +118,7 @@ export const Molecule3DViewer = forwardRef<
     );
     viewer.zoomTo();
     viewer.render();
-    setStudentMessage(`${input.label}의 3D 좌표 데이터를 표시합니다.`);
+    setStudentMessage(`${input.label}의 교육용 3D 좌표 데이터를 표시합니다.`);
   }
 
   useImperativeHandle(
@@ -222,8 +245,30 @@ export const Molecule3DViewer = forwardRef<
               <dd>{coordinateData?.coordinateSource ?? '없음'}</dd>
             </div>
             <div>
+              <dt>출처 유형</dt>
+              <dd>{formatSourceType(coordinateData?.sourceType)}</dd>
+            </div>
+            <div>
               <dt>입력 형식</dt>
               <dd>{coordinateData?.format.toUpperCase() ?? '대기 중'}</dd>
+            </div>
+            {coordinateData?.sourceUrl ? (
+              <div>
+                <dt>출처 URL</dt>
+                <dd className="code-output">{coordinateData.sourceUrl}</dd>
+              </div>
+            ) : null}
+            <div>
+              <dt>계산 기준</dt>
+              <dd>분자식과 분자량은 RDKit.js 검증 결과입니다.</dd>
+            </div>
+            <div>
+              <dt>3D 역할</dt>
+              <dd>3Dmol.js는 전달받은 좌표 데이터만 시각화합니다.</dd>
+            </div>
+            <div>
+              <dt>좌표 안내</dt>
+              <dd>{coordinateData?.sourceNote ?? '표시할 3D 좌표 데이터가 없습니다.'}</dd>
             </div>
           </dl>
         </div>

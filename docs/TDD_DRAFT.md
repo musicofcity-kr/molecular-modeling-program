@@ -43,8 +43,15 @@ FastAPI Backend
 8. If validation fails, the student panel shows only a classroom-facing correction message and hides formula, average molecular weight, canonical SMILES, and raw invalid structure strings.
 9. 3Dmol.js receives a `MoleculeRenderState` only after validation passes; it does not validate chemistry.
 10. Current 3D Viewer Shell does not generate coordinates from SMILES, does not treat Ketcher 2D MOL blocks as 3D data, and does not call PubChem, Open Babel, or RDKit conformer generation.
-11. If a later import or trusted example provides coordinate-bearing `mol`, `sdf`, `xyz`, or `pdb` data, the viewer can clear the previous model, load the coordinate data, resize, and render it with a source/method label.
-12. Export service generates image output from the current validated or explicitly unvalidated drawing state, depending on export type.
+11. Static 3D example coordinates may be attached to selected local example records as `structure3D`.
+12. Example loading keeps the existing validation flow:
+   - Ketcher receives the example SMILES.
+   - RDKit.js validates the extracted Ketcher structure and provides formula, average molecular weight, and canonical SMILES.
+   - If RDKit validation succeeds and the selected example has `structure3D`, 3Dmol.js receives only that coordinate-bearing data.
+   - If the selected example has no `structure3D`, the viewer keeps the student message `3D 좌표 데이터가 아직 없습니다`.
+13. 3Dmol.js visualizes coordinate data only; it is not the source for formula, mass, or validation status.
+14. If a later import or trusted example provides coordinate-bearing `mol`, `sdf`, `xyz`, or `pdb` data, the viewer can clear the previous model, load the coordinate data, resize, and render it with a source/method label.
+15. Export service generates image output from the current validated or explicitly unvalidated drawing state, depending on export type.
 
 ## 3. Core Interfaces
 
@@ -68,7 +75,18 @@ export type Molecule3DInput = {
   format: 'mol' | 'sdf' | 'xyz' | 'pdb';
   data: string;
   label: string;
+  sourceType: 'static-example' | 'pubchem' | 'user-import' | 'review-needed';
   coordinateSource: string;
+  sourceNote?: string;
+  sourceUrl?: string;
+};
+
+export type ExampleMolecule3DStructure = {
+  format: 'mol' | 'sdf' | 'xyz' | 'pdb';
+  data: string;
+  sourceType: 'static-example' | 'pubchem' | 'user-import' | 'review-needed';
+  sourceNote: string;
+  sourceUrl?: string;
 };
 
 export type MoleculeValidationResult =
@@ -147,6 +165,7 @@ The canonical TypeScript source for these contracts is `apps/workbench/src/types
 - MOL block validation works and is preferred over SMILES when both are available.
 - 3D Viewer Shell renders the student-facing no-coordinate message when only SMILES/2D MOL data is available.
 - 3D Viewer Shell labels coordinate source and input format when coordinate-bearing data is supplied.
+- Static 3D examples are limited to explicitly curated local records and do not mutate RDKit formula/mass output.
 
 ### Integration tests
 
@@ -160,7 +179,70 @@ The canonical TypeScript source for these contracts is `apps/workbench/src/types
 - Draw or load benzene → export image.
 - Invalid structure → warning appears and no confident calculation is shown.
 
-## 7. Risk Register
+## 7. Future PubChem 3D Data Flow
+
+This section is design-only. No PubChem API call is implemented in the current phase.
+
+### Intended flow
+
+```text
+Ketcher structure
+  -> RDKit.js validation
+  -> canonicalSmiles or explicit example molecule id
+  -> PubChem lookup candidate selection
+  -> coordinate-bearing 3D record, preferably SDF when available
+  -> source/mismatch checks
+  -> Molecule3DInput with sourceType: 'pubchem'
+  -> 3Dmol.js visualization
+```
+
+### Required gates before 3D display
+
+1. RDKit validation must pass for the current Ketcher structure.
+2. PubChem lookup must be triggered from a trusted key, such as RDKit canonical SMILES or a curated example ID.
+3. The app must handle zero, multiple, or ambiguous PubChem candidates.
+4. Returned PubChem structure data must be labeled with source metadata, including source type and URL.
+5. If the returned external structure appears inconsistent with the RDKit-validated current molecule, the 3D viewer must remain blocked and the app must request review.
+6. Formula and molecular weight remain RDKit.js values; PubChem 3D data is not the calculation source.
+
+### Planned service boundary
+
+The future PubChem integration should be isolated behind a service, for example:
+
+```ts
+export type PubChem3DLookupInput = {
+  canonicalSmiles?: string;
+  exampleId?: string;
+  label: string;
+};
+
+export type PubChem3DLookupResult =
+  | {
+      ok: true;
+      molecule3D: Molecule3DInput & {
+        sourceType: 'pubchem';
+        sourceUrl: string;
+      };
+      developerLogs: string[];
+      warnings: string[];
+    }
+  | {
+      ok: false;
+      studentMessage: string;
+      developerLogs: string[];
+      warnings: string[];
+    };
+```
+
+The service should not call Open Babel, should not generate conformers, and should not modify the RDKit validation result.
+
+### Failure behavior
+
+- No PubChem 3D data: show `이 분자에는 사용할 수 있는 3D 좌표 데이터가 아직 없습니다.`
+- Network/API failure: keep the 2D editor and RDKit result visible, and show a student-friendly 3D loading failure message.
+- Candidate mismatch: block 3D display and log the mismatch reason for review.
+
+## 8. Risk Register
 
 | Risk | Mitigation |
 |---|---|
