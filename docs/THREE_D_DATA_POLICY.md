@@ -39,15 +39,17 @@ The app must not imply that 3Dmol.js can create reliable 3D molecular geometry f
 
 ## Coordinate Data Rules
 
-3D coordinate data is classroom visualization material. It must not be used as the precise basis for:
+3D coordinate data is classroom visualization material. The app may provide a limited measurement MVP only when the current payload is explicitly marked as `coordinateDimension: '3d'` and comes from a coordinate-bearing source such as static example data, PubChem SDF, trusted import SDF/MOL, XYZ, or PDB.
 
-- bond angle calculation
-- bond length calculation
+Any displayed bond length or bond angle is a measurement from the currently loaded coordinate payload. It is not an authoritative chemistry value and must not be used as the precise basis for:
+
+- experimental bond angles
+- experimental bond lengths
 - energy minimization claims
 - experimental geometry claims
 - stereochemical claims not encoded or validated elsewhere
 
-If the app later adds bond angle or bond length tools, those tools must be designed as a separate validated feature with their own data source policy and tests.
+The measurement UI must state the coordinate source and must not run on Ketcher 2D MOL blocks, SMILES-only structures, RDKit validation failures, or VSEPR template vectors.
 
 ## Source Tracking
 
@@ -106,6 +108,37 @@ If an older PubChem candidate search or CID-based 3D SDF response returns after
 the user has validated a different structure, the app ignores that stale
 response and keeps the current RDKit.js validation result and 3D state.
 
+## Actual/External 3D vs VSEPR Comparison Mode
+
+Comparison mode is a classroom observation tool. It places source-labeled
+actual/external 3D coordinate data next to a VSEPR educational prediction
+model so students can discuss what is similar and what is different.
+
+The comparison mode must keep these boundaries:
+
+- The actual/external viewer displays static example coordinates, PubChem SDF,
+  or trusted imported coordinate data.
+- The VSEPR viewer displays idealized AXE template vectors.
+- PubChem 3D data that is only formula-compatible with the current RDKit.js
+  result may be displayed as external visualization data, but it must not open
+  comparison mode until the structure match is verified.
+- The two viewers may both use 3Dmol.js as a rendering layer, but their data
+  sources and meanings are different.
+- RDKit.js formula, average molecular weight, and canonical SMILES remain the
+  validated chemistry source.
+- VSEPR ideal bond-angle labels are classroom predictions, not measured
+  PubChem/static coordinate measurements.
+- Actual/external 3D measurement tools must not be added to the VSEPR model in
+  this phase.
+- Comparison observations are student reflection prompts, not automatic
+  scoring.
+
+Recommended comparison examples are limited to simple single-center molecules
+such as water, methane, ammonia, and carbon dioxide once actual/external 3D
+data and VSEPR support are both available. Multi-center organic molecules such
+as ethanol, benzene, glucose, and aspirin require caution and should not be
+presented as one whole-molecule AXE comparison.
+
 ## Failure Message Separation
 
 Student-facing messages should be direct and non-technical.
@@ -136,9 +169,9 @@ The current MVP must not implement:
 - RDKit 3D conformer generation
 - SMILES-to-3D automatic generation
 - energy minimization
-- bond angle calculation
 - treating Ketcher 2D MOL blocks as 3D data
 - treating VSEPR template vectors as real 3D molecular coordinates
+- treating 3D viewer measurements as experimental or optimized reference geometry
 
 ## Sources Checked
 

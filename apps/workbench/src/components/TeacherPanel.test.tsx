@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { activityTemplates } from '../data/activityTemplates';
 import { exampleMolecules } from '../data/exampleMolecules';
+import { buildStructureComparisonState } from '../services/structureComparison';
 import { TeacherPanel } from './TeacherPanel';
 
 const supportedVseprAnalysis = {
@@ -19,6 +20,33 @@ const supportedVseprAnalysis = {
   warnings: [],
 };
 
+const comparisonState = buildStructureComparisonState({
+  validationResult: {
+    ok: true,
+    validationStatus: 'valid',
+    source: 'smiles',
+    smiles: 'C',
+    canonicalSmiles: 'C',
+    molecularFormula: 'CH4',
+    molecularWeight: 16.043,
+    warnings: [],
+    errors: [],
+    developerLogs: [],
+  },
+  molecule3DInput: {
+    format: 'sdf',
+    data: 'methane 3d\n  Workbench\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\nM  END',
+    label: '메테인',
+    sourceType: 'static-example',
+    coordinateDimension: '3d',
+    coordinateSource: '예제 내장 3D 구조',
+    sourceNote: '교육용 정적 좌표입니다.',
+  },
+  vseprAnalysis: supportedVseprAnalysis,
+  selectedExample: exampleMolecules[1],
+  selectedActivity: activityTemplates.find((template) => template.id === 'draw-methane'),
+});
+
 describe('TeacherPanel', () => {
   it('does not render in student mode', () => {
     const markup = renderToStaticMarkup(
@@ -32,6 +60,7 @@ describe('TeacherPanel', () => {
         validationResult={null}
         vseprAnalysis={supportedVseprAnalysis}
         molecule3DInput={null}
+        structureComparisonState={comparisonState}
         pubChem3DStatus="idle"
         pubChemCandidateStatus="not_requested"
         onSelectActivity={() => {}}
@@ -64,6 +93,7 @@ describe('TeacherPanel', () => {
         }}
         vseprAnalysis={supportedVseprAnalysis}
         molecule3DInput={null}
+        structureComparisonState={comparisonState}
         pubChem3DStatus="idle"
         pubChemCandidateStatus="not_requested"
         onSelectActivity={() => {}}
@@ -81,6 +111,8 @@ describe('TeacherPanel', () => {
     expect(markup).toContain('VSEPR 분석 상태');
     expect(markup).toContain('3D 구조 제공 상태');
     expect(markup).toContain('PubChem 연결 상태');
+    expect(markup).toContain('비교 모드 가능 여부');
+    expect(markup).toContain('비교 추천 여부');
     expect(markup).toContain('정답/오답 판정');
     expect(markup).toContain('자동 채점 없음');
   });
@@ -101,6 +133,14 @@ describe('TeacherPanel', () => {
           warnings: [],
         }}
         molecule3DInput={null}
+        structureComparisonState={{
+          ...comparisonState,
+          availability: 'missing_real_3d',
+          real3DStructureAvailable: false,
+          recommended: true,
+          studentMessage:
+            '비교 모드는 3D 좌표 데이터와 VSEPR 예측 결과가 모두 있을 때 사용할 수 있습니다.',
+        }}
         pubChem3DStatus="idle"
         pubChemCandidateStatus="not_requested"
         onSelectActivity={() => {}}
@@ -113,6 +153,7 @@ describe('TeacherPanel', () => {
     expect(markup).toContain('RDKit 검증 상태');
     expect(markup).toContain('VSEPR 분석 상태');
     expect(markup).toContain('PubChem 연결 상태');
+    expect(markup).toContain('3D 좌표 데이터 필요');
     expect(markup).not.toContain('수업용 활동 모드');
   });
 });

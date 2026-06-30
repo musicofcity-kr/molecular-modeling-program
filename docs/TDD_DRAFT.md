@@ -97,7 +97,14 @@ FastAPI Backend
    - the result is labeled as `VSEPR 예측 모형`, not as PubChem/static coordinate data.
 32. VSEPR template lookup accepts Claude-style aliases such as `AX4E0` and `AX3E1`, but the displayed app notation stays compact, such as `AX4` and `AX3E`.
 33. If a later import or trusted example provides coordinate-bearing `mol`, `sdf`, `xyz`, or `pdb` data, the actual/external 3D viewer can clear the previous model, load the coordinate data, resize, and render it with a source/method label.
-34. Export service generates image output from the current validated or explicitly unvalidated drawing state, depending on export type.
+34. The actual/external 3D viewer supports three display styles for coordinate-bearing data: `ball-and-stick`, `stick`, and `space-filling`. The default is `ball-and-stick`.
+35. Atom labels can be toggled in the actual/external 3D viewer. Student default labels use element symbols, while teacher mode or active measurement mode uses indexed labels such as `C1` and `H2`.
+36. Reset view and zoom-to-fit are viewer controls only. They are enabled only when a validated structure has coordinate-bearing 3D data.
+37. Geometry measurement is based only on the currently loaded coordinate-bearing `mol`, `sdf`, `xyz`, or `pdb` data in `Molecule3DViewer`.
+38. Bond-length mode requires two selected atoms and reports the atom-to-atom distance in angstrom-like coordinate units.
+39. Bond-angle mode requires three selected atoms and uses the second selected atom as the angle center.
+40. Geometry measurement is not attached to `Vsepr3DModelViewer` in this phase, because VSEPR vectors are educational unit directions rather than real molecular coordinates.
+41. Export service generates image output from the current validated or explicitly unvalidated drawing state, depending on export type.
 
 ## 3. Core Interfaces
 
@@ -122,15 +129,78 @@ export type Molecule3DInput = {
   data: string;
   label: string;
   sourceType: 'static-example' | 'pubchem' | 'user-import' | 'review-needed';
+  coordinateDimension: '2d' | '3d' | 'unknown';
+  structureMatchStatus?: 'verified' | 'formula-compatible' | 'review-needed';
   coordinateSource: string;
   sourceNote?: string;
   sourceUrl?: string;
 };
 
+export type Molecule3DRepresentationMode =
+  | 'ball-and-stick'
+  | 'stick'
+  | 'space-filling';
+
+export type AtomSelectionMode = 'none' | 'bond_length' | 'bond_angle';
+
+export interface SelectedAtom3D {
+  atomIndex: number;
+  element: string;
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface GeometryMeasurementResult {
+  type: 'bond_length' | 'bond_angle';
+  atomIndices: number[];
+  atomLabels: string[];
+  value: number;
+  unit: 'angstrom' | 'degree';
+  sourceNote: string;
+}
+
+export type StructureComparisonAvailability =
+  | 'available'
+  | 'missing_real_3d'
+  | 'missing_vsepr'
+  | 'low_confidence_vsepr'
+  | 'multi_center_not_recommended'
+  | 'rdkit_invalid'
+  | 'not_supported';
+
+export interface StructureComparisonState {
+  availability: StructureComparisonAvailability;
+  real3DSourceLabel: string;
+  vseprSourceLabel: string;
+  rdkitFormula?: string;
+  rdkitCanonicalSmiles?: string;
+  real3DStructureAvailable: boolean;
+  vseprModelAvailable: boolean;
+  warnings: string[];
+  studentMessage: string;
+  teacherNote?: string;
+  recommended: boolean;
+}
+
+export interface StructureComparisonObservation {
+  moleculeName?: string;
+  rdkitFormula?: string;
+  real3DSourceLabel: string;
+  vseprAxeNotation?: string;
+  vseprShapeKo?: string;
+  idealBondAngle?: string;
+  observedSimilarities: string;
+  observedDifferences: string;
+  studentReflection: string;
+}
+
 export type ExampleMolecule3DStructure = {
   format: 'mol' | 'sdf' | 'xyz' | 'pdb';
   data: string;
   sourceType: 'static-example' | 'pubchem' | 'user-import' | 'review-needed';
+  coordinateDimension: '2d' | '3d' | 'unknown';
+  structureMatchStatus?: 'verified' | 'formula-compatible' | 'review-needed';
   sourceNote: string;
   sourceUrl?: string;
 };
@@ -227,6 +297,12 @@ export interface ActivityTemplate {
   coreConcepts?: string[];
   teacherNotes?: string[];
   misconceptionChecks?: string[];
+  comparisonMode?: {
+    enabled: boolean;
+    recommended: boolean;
+    focusQuestion: string;
+    teacherNote?: string;
+  };
   expectedVsepr?: {
     axeNotation?: string;
     molecularShapeKo?: string;
@@ -343,7 +419,11 @@ The canonical TypeScript sources for these contracts are `apps/workbench/src/typ
 - Gate 11: multi-center molecules require center-atom selection and are not described as one whole-molecule VSEPR shape.
 - Gate 12: VSEPR 3D model visualization uses only explicit AXE template vectors and is labeled as an educational prediction model, not real coordinate data.
 - Gate 13: student mode hides teacher-only notes and developer logs; teacher mode shows them as guidance and diagnostics, not as scoring output.
-- Gate 14: export uses current validated structure for chemistry-bearing export, while worksheet image export may use the visible editor drawing with an explicit validation label.
+- Gate 14: actual/external 3D viewer controls and geometry measurement are enabled only for RDKit-validated, coordinate-bearing 3D data.
+- Gate 15: measured distances and angles must state their coordinate source and must not be described as experimental values, optimized conformers, or VSEPR results.
+- Gate 16: comparison mode is enabled only when RDKit.js validation succeeds, actual/external 3D coordinate data is loaded, and VSEPR analysis is supported with medium or high confidence.
+- Gate 17: comparison mode must not treat VSEPR model vectors as measured PubChem/static 3D geometry, and it must not overwrite RDKit.js formula or canonical SMILES.
+- Gate 18: export uses current validated structure for chemistry-bearing export, while worksheet image export may use the visible editor drawing with an explicit validation label.
 
 ## 5. Initial Dependencies
 
@@ -378,6 +458,13 @@ The canonical TypeScript sources for these contracts are `apps/workbench/src/typ
 - Activity panel compares student predictions with RDKit.js formula and average molecular weight by simple string match.
 - VSEPR engine parses V2000 MOL blocks, maps AXE notation, handles implicit hydrogens for simple main-group examples, and blocks unsupported cases.
 - VSEPR panel shows blocked, center-selection, supported, unsupported, and error states without claiming experimental geometry.
+- 3D measurement service parses coordinate-bearing SDF/MOL/XYZ/PDB atoms into stable 1-based atom labels.
+- 3D measurement service calculates distances from two selected coordinate atoms.
+- 3D measurement service calculates angles from three selected coordinate atoms with the second selection as the center.
+- Molecule3DViewer renders representation controls, atom-label toggle, reset/zoom controls, and measurement controls without enabling them when coordinate data is missing.
+- Structure comparison service returns `available` only when RDKit validation, actual/external 3D coordinates, and VSEPR template availability all pass.
+- Structure comparison service blocks low-confidence VSEPR output and multi-center/caution molecules from one-whole-molecule comparison.
+- Structure comparison panel hides teacher-only guidance in student mode and labels the actual/external 3D viewer separately from the VSEPR prediction viewer.
 
 ### Integration tests
 
@@ -394,6 +481,8 @@ The canonical TypeScript sources for these contracts are `apps/workbench/src/typ
 - Invalid structure → warning appears and no confident calculation is shown.
 - Activity mode: enter a predicted formula, validate a structure, and confirm the panel shows match/different without score output.
 - VSEPR mode: load water or methane and confirm AXE notation appears; load ethanol and confirm center-atom selection is required.
+- 3D viewer mode: load a coordinate-bearing example, change representation mode, toggle labels, reset/zoom the view, measure a two-atom distance, and measure a three-atom angle.
+- No-coordinate mode: load a molecule without static/PubChem/imported 3D coordinates and confirm representation and measurement controls stay disabled.
 
 ## 7. PubChem CID-Based 3D Prototype
 
@@ -536,6 +625,12 @@ export interface ActivityTemplate {
   coreConcepts?: string[];
   teacherNotes?: string[];
   misconceptionChecks?: string[];
+  comparisonMode?: {
+    enabled: boolean;
+    recommended: boolean;
+    focusQuestion: string;
+    teacherNote?: string;
+  };
   expectedVsepr?: {
     axeNotation?: string;
     molecularShapeKo?: string;
@@ -551,6 +646,7 @@ The initial MVP templates are:
 - `draw-water`: 물 분자 구조 그리기
 - `draw-methane`: 메테인 분자 구조 그리기
 - `draw-ammonia`: 암모니아 분자 구조 그리기
+- `draw-carbon-dioxide`: 이산화탄소 분자 구조 그리기
 - `draw-ethanol`: 에탄올 분자 구조 그리기
 - `draw-benzene`: 벤젠 분자 구조 그리기
 
@@ -769,7 +865,127 @@ Generated screenshots, `.test_runs/`, MP4 review videos, and external VSEPR
 reference prototypes are not part of the production app commit surface. Their
 findings should be recorded in docs instead.
 
-## 14. Risk Register
+## 14. Phase 10 — 3D Viewer Representation and Measurement MVP
+
+This phase adds classroom-facing controls to the actual/external 3D coordinate viewer without changing the chemistry validation source.
+
+### Representation controls
+
+- `Molecule3DViewer` supports `ball-and-stick`, `stick`, and `space-filling`.
+- `ball-and-stick` is the default.
+- The controls are disabled until the current structure has passed RDKit.js validation and coordinate-bearing 3D data is available.
+- Representation changes call 3Dmol.js style updates only; they do not change RDKit.js validation output, PubChem metadata, or source coordinates.
+
+### Atom labels
+
+- Atom labels are optional.
+- In student mode with no active measurement mode, labels use element symbols such as `C` and `H`.
+- In teacher mode or measurement mode, labels include stable parsed atom indices such as `C1` and `H2`.
+- Labels are derived from the currently loaded 3D coordinate payload, not from Ketcher 2D coordinates or VSEPR template vectors.
+
+### Measurement flow
+
+```text
+coordinate-bearing 3D data
+  -> parse atom coordinates from SDF/MOL/XYZ/PDB
+  -> user selects bond-length or bond-angle mode
+  -> user clicks atoms in the 3D viewer
+  -> service calculates distance or angle from current coordinates
+  -> UI displays value with coordinate-source warning
+```
+
+Measurement is intentionally scoped:
+
+- Distance mode uses two selected atoms.
+- Angle mode uses three selected atoms, and the second atom is the center.
+- Results use the loaded coordinate units as angstrom-like molecular coordinates.
+- Results are classroom visualization measurements, not experimental bond lengths, optimized conformer geometry, or VSEPR-derived values.
+- VSEPR model measurement is explicitly out of scope in this phase.
+
+### Disabled states
+
+Controls remain disabled when:
+
+- there is no 3D coordinate data;
+- RDKit.js validation has not passed;
+- the 3D viewer is still loading or failed to initialize;
+- the coordinate payload cannot be parsed into atom positions.
+
+## 15. Phase 13 — Actual/External 3D vs VSEPR Comparison Mode
+
+This phase adds a classroom comparison mode that places the actual/external 3D coordinate viewer beside the VSEPR educational prediction model.
+
+### Data flow
+
+```text
+Ketcher 2D input
+  -> RDKit.js validation
+  -> actual/external 3D coordinate data loaded from static example or PubChem SDF
+  -> VSEPR engine returns supported AXE prediction with medium/high confidence
+  -> buildStructureComparisonState(...)
+  -> StructureComparisonPanel displays both viewers and observation prompts
+```
+
+### Availability rules
+
+Comparison mode can be opened only when:
+
+- RDKit.js validation succeeds;
+- actual/external `Molecule3DInput.coordinateDimension` is `3d`;
+- PubChem 3D coordinate data is `structureMatchStatus: 'verified'` before it is used for comparison;
+- VSEPR analysis is `supported`;
+- a VSEPR geometry template exists;
+- VSEPR confidence is not `low`;
+- the molecule is not flagged as a multi-center or caution example.
+
+The disabled states are:
+
+- `rdkit_invalid`
+- `missing_real_3d`
+- `missing_vsepr`
+- `low_confidence_vsepr`
+- `multi_center_not_recommended`
+- `not_supported`
+
+### UI separation
+
+- Left viewer title: `실제/외부 3D 좌표 기반 구조`.
+- Right viewer title: `VSEPR 교육용 예측 모형`.
+- `Molecule3DViewer` keeps source-labeled coordinate visualization and coordinate-based measurement tools.
+- `Vsepr3DModelViewer` keeps idealized AXE vectors and does not gain measurement tools in this phase.
+- The shared warning is that two screens come from different sources and can look similar while meaning different things.
+
+### Classroom scope
+
+Recommended comparison molecules:
+
+- 물 H2O
+- 메테인 CH4
+- 암모니아 NH3
+- 이산화탄소 CO2
+
+Conditional comparison molecules only when example data, 3D coordinates, and VSEPR support are prepared:
+
+- BF3
+- PCl5
+- SF6
+- XeF4
+
+Caution or not recommended for one-whole-molecule comparison:
+
+- 에탄올
+- 벤젠
+- 아스피린
+- 포도당
+- 복잡한 유기분자
+- 전이금속 착물
+- 라디칼
+- 공명 구조가 중요한 분자
+
+Comparison observations are student reflection fields. They are not automatically scored and are not string-compared against a stored answer.
+PubChem candidates that are only formula-compatible may still be reviewed as external 3D visualization data, but they do not open comparison mode until the structure match is verified.
+
+## 16. Risk Register
 
 | Risk | Mitigation |
 |---|---|
@@ -781,3 +997,4 @@ findings should be recorded in docs instead.
 | Students treat VSEPR as measured geometry | Label VSEPR output as idealized educational prediction and keep it separate from 3D coordinate sources. |
 | Students confuse VSEPR model vectors with PubChem coordinates | Keep `실제/외부 3D 구조 Viewer` and `VSEPR 예측 모형` as separate panels with different labels and caveats. |
 | Teacher guidance leaks into the student screen | Keep `UserMode` gates explicit and test that student mode hides teacher notes and developer logs. |
+| Students treat viewer measurements as reference data | Display coordinate source notes and avoid calling values experimental or optimized geometry. |

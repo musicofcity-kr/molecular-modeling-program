@@ -7,7 +7,20 @@ import {
 } from 'react';
 import type { ReactNode } from 'react';
 import type { GLViewer } from '3dmol';
-import type { Molecule3DInput } from '../types/molecule';
+import type {
+  AtomSelectionMode,
+  GeometryMeasurementResult,
+  Molecule3DInput,
+  Molecule3DRepresentationMode,
+  SelectedAtom3D,
+} from '../types/molecule';
+import type { UserMode } from '../types/activity';
+import {
+  buildGeometryMeasurementResult,
+  formatAtom3DLabel,
+  getRequiredAtomCount,
+  parseAtomsFromMolecule3DInput,
+} from '../services/geometryMeasurement';
 
 export type Molecule3DViewerHandle = {
   loadStructure(input: Molecule3DInput): void;
@@ -19,12 +32,34 @@ type Molecule3DViewerProps = {
   coordinateData?: Molecule3DInput | null;
   hasValidatedStructure: boolean;
   validatedStructureKey?: string;
+  userMode?: UserMode;
   actionSlot?: ReactNode;
   onDeveloperLog?: (message: string) => void;
 };
 
 const NO_COORDINATES_MESSAGE = '3D 좌표 데이터가 아직 없습니다';
+const NO_MEASUREMENT_COORDINATES_MESSAGE =
+  '3D 좌표 데이터가 없어서 측정 도구를 사용할 수 없습니다. 2D 구조 검증 결과는 계속 확인할 수 있습니다.';
+const MEASUREMENT_LOADING_MESSAGE =
+  '3D Viewer가 좌표 데이터를 준비하는 중입니다. 준비가 끝나면 측정 도구를 사용할 수 있습니다.';
+const MEASUREMENT_VALIDATION_BLOCKED_MESSAGE =
+  'RDKit.js 검증을 통과한 3D 좌표 데이터에서만 측정 도구를 사용할 수 있습니다.';
+const MEASUREMENT_PARSE_FAILED_MESSAGE =
+  '현재 3D 좌표 데이터에서 측정 가능한 원자 좌표를 읽지 못했습니다.';
+const NOT_CONFIRMED_3D_COORDINATES_MESSAGE =
+  '3D 좌표로 확인된 데이터가 아니어서 실제/외부 3D 구조로 표시하지 않습니다.';
 const SMILES_ONLY_DEVELOPER_LOG = 'SMILES만으로는 아직 3D 구조를 생성하지 않음';
+const DEFAULT_REPRESENTATION_MODE: Molecule3DRepresentationMode = 'ball-and-stick';
+
+type ThreeDmolAtomLike = {
+  elem?: string;
+  element?: string;
+  index?: number;
+  serial?: number;
+  x?: number;
+  y?: number;
+  z?: number;
+};
 
 function get3DmolModelFormat(format: Molecule3DInput['format']): string {
   if (format === 'mol') {
@@ -37,6 +72,10 @@ function get3DmolModelFormat(format: Molecule3DInput['format']): string {
 function getInitialMessage(coordinateData?: Molecule3DInput | null): string {
   if (!coordinateData) {
     return NO_COORDINATES_MESSAGE;
+  }
+
+  if (coordinateData.coordinateDimension !== '3d') {
+    return NOT_CONFIRMED_3D_COORDINATES_MESSAGE;
   }
 
   return `${coordinateData.label}의 교육용 3D 좌표 데이터를 표시합니다.`;
@@ -61,6 +100,121 @@ function formatSourceType(sourceType?: Molecule3DInput['sourceType']): string {
   }
 }
 
+function formatRepresentationMode(mode: Molecule3DRepresentationMode): string {
+  switch (mode) {
+    case 'ball-and-stick':
+      return 'Ball-and-stick';
+    case 'stick':
+      return 'Stick';
+    case 'space-filling':
+      return 'Space-filling';
+  }
+}
+
+function getRepresentationStyle(mode: Molecule3DRepresentationMode) {
+  switch (mode) {
+    case 'stick':
+      return { stick: { radius: 0.18 } };
+    case 'space-filling':
+      return { sphere: { scale: 1.0 } };
+    case 'ball-and-stick':
+      return {
+        stick: { radius: 0.16 },
+        sphere: { scale: 0.28 },
+      };
+  }
+}
+
+function formatMeasurementMode(mode: AtomSelectionMode): string {
+  switch (mode) {
+    case 'none':
+      return '측정 안 함';
+    case 'bond_length':
+      return '결합길이 / 원자 간 거리';
+    case 'bond_angle':
+      return '결합각';
+  }
+}
+
+function formatMeasurementValue(result: GeometryMeasurementResult): string {
+  if (result.type === 'bond_length') {
+    return `${result.atomLabels.join('-')} 거리: ${result.value.toFixed(2)} Å`;
+  }
+
+  return `${result.atomLabels.join('-')} 각도: ${result.value.toFixed(1)}°`;
+}
+
+function buildMeasurementSourceNote(input: Molecule3DInput): string {
+  return `${input.coordinateSource} 기준 현재 로드된 3D 좌표 측정값입니다. 정밀 실험값이나 계산화학 최적화값으로 사용하지 마세요.`;
+}
+
+function getMeasurementNotice(input: {
+  hasCoordinateData: boolean;
+  has3DCoordinateData: boolean;
+  hasValidatedStructure: boolean;
+  viewerStatus: 'loading' | 'ready' | 'error';
+  parsedAtomCount: number;
+}): string {
+  if (!input.hasCoordinateData) {
+    return NO_MEASUREMENT_COORDINATES_MESSAGE;
+  }
+
+  if (!input.has3DCoordinateData) {
+    return NOT_CONFIRMED_3D_COORDINATES_MESSAGE;
+  }
+
+  if (!input.hasValidatedStructure) {
+    return MEASUREMENT_VALIDATION_BLOCKED_MESSAGE;
+  }
+
+  if (input.viewerStatus !== 'ready') {
+    return MEASUREMENT_LOADING_MESSAGE;
+  }
+
+  if (input.parsedAtomCount === 0) {
+    return MEASUREMENT_PARSE_FAILED_MESSAGE;
+  }
+
+  return '측정값은 현재 화면에 로드된 3D 좌표를 기준으로 계산됩니다.';
+}
+
+function findMatchingParsedAtom(
+  clickedAtom: ThreeDmolAtomLike,
+  parsedAtoms: SelectedAtom3D[],
+): SelectedAtom3D | null {
+  const zeroBasedIndex =
+    typeof clickedAtom.index === 'number'
+      ? clickedAtom.index
+      : typeof clickedAtom.serial === 'number'
+        ? clickedAtom.serial - 1
+        : null;
+
+  if (zeroBasedIndex !== null) {
+    const byIndex = parsedAtoms.find((atom) => atom.atomIndex === zeroBasedIndex + 1);
+
+    if (byIndex) {
+      return byIndex;
+    }
+  }
+
+  if (
+    typeof clickedAtom.x !== 'number' ||
+    typeof clickedAtom.y !== 'number' ||
+    typeof clickedAtom.z !== 'number'
+  ) {
+    return null;
+  }
+
+  return (
+    parsedAtoms.find(
+      (atom) =>
+        Math.abs(atom.x - clickedAtom.x!) < 0.001 &&
+        Math.abs(atom.y - clickedAtom.y!) < 0.001 &&
+        Math.abs(atom.z - clickedAtom.z!) < 0.001,
+    ) ?? null
+  );
+}
+
 export const Molecule3DViewer = forwardRef<
   Molecule3DViewerHandle,
   Molecule3DViewerProps
@@ -69,6 +223,7 @@ export const Molecule3DViewer = forwardRef<
     coordinateData = null,
     hasValidatedStructure,
     validatedStructureKey,
+    userMode = 'student',
     actionSlot,
     onDeveloperLog,
   },
@@ -76,12 +231,27 @@ export const Molecule3DViewer = forwardRef<
 ) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<GLViewer | null>(null);
+  const initialViewRef = useRef<any[] | null>(null);
   const lastNoCoordinateLogKeyRef = useRef<string | null>(null);
+  const parsedAtomsRef = useRef<SelectedAtom3D[]>([]);
+  const measurementModeRef = useRef<AtomSelectionMode>('none');
   const [viewerStatus, setViewerStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
   );
   const [studentMessage, setStudentMessage] = useState(
     getInitialMessage(coordinateData),
+  );
+  const [representationMode, setRepresentationMode] =
+    useState<Molecule3DRepresentationMode>(DEFAULT_REPRESENTATION_MODE);
+  const [showAtomLabels, setShowAtomLabels] = useState(false);
+  const [atomSelectionMode, setAtomSelectionMode] =
+    useState<AtomSelectionMode>('none');
+  const [selectedAtoms, setSelectedAtoms] = useState<SelectedAtom3D[]>([]);
+  const [measurementResults, setMeasurementResults] = useState<
+    GeometryMeasurementResult[]
+  >([]);
+  const [parsedAtoms, setParsedAtoms] = useState<SelectedAtom3D[]>(
+    parseAtomsFromMolecule3DInput(coordinateData),
   );
 
   function clearViewer() {
@@ -99,6 +269,100 @@ export const Molecule3DViewer = forwardRef<
     viewerRef.current?.resize();
   }
 
+  function addAtomLabels(viewer: GLViewer, atoms: SelectedAtom3D[]) {
+    viewer.removeAllLabels();
+
+    if (!showAtomLabels || atoms.length === 0) {
+      return;
+    }
+
+    const includeIndex = atomSelectionMode !== 'none' || userMode === 'teacher';
+
+    atoms.forEach((atom) => {
+      viewer.addLabel(formatAtom3DLabel(atom, includeIndex), {
+        position: { x: atom.x, y: atom.y + 0.18, z: atom.z },
+        fontSize: 11,
+        fontColor: '#1d2730',
+        backgroundOpacity: 0,
+      });
+    });
+  }
+
+  function applyViewerPresentation(viewer: GLViewer, atoms: SelectedAtom3D[]) {
+    viewer.setStyle({}, getRepresentationStyle(representationMode));
+    addAtomLabels(viewer, atoms);
+    viewer.setClickable({}, true, (atom: ThreeDmolAtomLike) => {
+      handleAtomClick(atom);
+    });
+    viewer.render();
+  }
+
+  function handleAtomClick(clickedAtom: ThreeDmolAtomLike) {
+    const mode = measurementModeRef.current;
+
+    if (mode === 'none') {
+      return;
+    }
+
+    const matchedAtom = findMatchingParsedAtom(clickedAtom, parsedAtomsRef.current);
+
+    if (!matchedAtom || !coordinateData) {
+      onDeveloperLog?.('3D atom click ignored: could not map clicked atom to parsed coordinates.');
+      return;
+    }
+
+    const requiredAtomCount = getRequiredAtomCount(mode);
+
+    setSelectedAtoms((currentAtoms) => {
+      const nextAtoms = [...currentAtoms, matchedAtom].slice(-requiredAtomCount);
+
+      if (nextAtoms.length === requiredAtomCount) {
+        try {
+          const result = buildGeometryMeasurementResult({
+            mode,
+            atoms: nextAtoms,
+            sourceNote: buildMeasurementSourceNote(coordinateData),
+          });
+
+          setMeasurementResults((currentResults) => [result, ...currentResults].slice(0, 4));
+        } catch (error) {
+          onDeveloperLog?.(
+            `3D geometry measurement failed: ${getErrorMessage(error)}`,
+          );
+        }
+      }
+
+      return nextAtoms;
+    });
+  }
+
+  function resetView() {
+    const viewer = viewerRef.current;
+
+    if (!viewer) {
+      return;
+    }
+
+    if (initialViewRef.current) {
+      viewer.setView(initialViewRef.current);
+    } else {
+      viewer.zoomTo();
+    }
+
+    viewer.render();
+  }
+
+  function zoomToFit() {
+    const viewer = viewerRef.current;
+
+    if (!viewer) {
+      return;
+    }
+
+    viewer.zoomTo();
+    viewer.render();
+  }
+
   function loadStructure(input: Molecule3DInput) {
     const viewer = viewerRef.current;
 
@@ -110,16 +374,21 @@ export const Molecule3DViewer = forwardRef<
       throw new Error('3D 좌표 데이터가 비어 있습니다.');
     }
 
+    if (input.coordinateDimension !== '3d') {
+      throw new Error('3D 좌표로 확인된 데이터가 아닙니다.');
+    }
+
+    const atoms = parseAtomsFromMolecule3DInput(input);
+
+    parsedAtomsRef.current = atoms;
+    setParsedAtoms(atoms);
+    setSelectedAtoms([]);
+    setMeasurementResults([]);
     viewer.clear();
     viewer.addModel(input.data, get3DmolModelFormat(input.format));
-    viewer.setStyle(
-      {},
-      {
-        stick: { radius: 0.16 },
-        sphere: { scale: 0.28 },
-      },
-    );
+    applyViewerPresentation(viewer, atoms);
     viewer.zoomTo();
+    initialViewRef.current = viewer.getView();
     viewer.render();
     setStudentMessage(`${input.label}의 교육용 3D 좌표 데이터를 표시합니다.`);
   }
@@ -131,8 +400,16 @@ export const Molecule3DViewer = forwardRef<
       clear: clearViewer,
       resize: resizeViewer,
     }),
-    [],
+    [representationMode, showAtomLabels, atomSelectionMode, userMode],
   );
+
+  useEffect(() => {
+    parsedAtomsRef.current = parsedAtoms;
+  }, [parsedAtoms]);
+
+  useEffect(() => {
+    measurementModeRef.current = atomSelectionMode;
+  }, [atomSelectionMode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -191,7 +468,26 @@ export const Molecule3DViewer = forwardRef<
 
     if (!coordinateData) {
       clearViewer();
+      initialViewRef.current = null;
+      parsedAtomsRef.current = [];
+      setParsedAtoms([]);
+      setSelectedAtoms([]);
+      setMeasurementResults([]);
+      setAtomSelectionMode('none');
       setStudentMessage(NO_COORDINATES_MESSAGE);
+      return;
+    }
+
+    if (coordinateData.coordinateDimension !== '3d') {
+      clearViewer();
+      initialViewRef.current = null;
+      parsedAtomsRef.current = [];
+      setParsedAtoms([]);
+      setSelectedAtoms([]);
+      setMeasurementResults([]);
+      setAtomSelectionMode('none');
+      setStudentMessage(NOT_CONFIRMED_3D_COORDINATES_MESSAGE);
+      onDeveloperLog?.('3D structure load blocked: coordinateDimension is not 3d.');
       return;
     }
 
@@ -199,10 +495,32 @@ export const Molecule3DViewer = forwardRef<
       loadStructure(coordinateData);
     } catch (error) {
       clearViewer();
+      initialViewRef.current = null;
+      parsedAtomsRef.current = [];
+      setParsedAtoms([]);
+      setSelectedAtoms([]);
+      setMeasurementResults([]);
+      setAtomSelectionMode('none');
       setStudentMessage('3D 좌표 데이터를 표시하지 못했습니다.');
       onDeveloperLog?.(`3Dmol.js structure load failed: ${getErrorMessage(error)}`);
     }
   }, [coordinateData, onDeveloperLog, viewerStatus]);
+
+  useEffect(() => {
+    if (viewerStatus !== 'ready' || !coordinateData || !viewerRef.current) {
+      return;
+    }
+
+    applyViewerPresentation(viewerRef.current, parsedAtoms);
+  }, [
+    atomSelectionMode,
+    coordinateData,
+    parsedAtoms,
+    representationMode,
+    showAtomLabels,
+    userMode,
+    viewerStatus,
+  ]);
 
   useEffect(() => {
     if (!hasValidatedStructure || coordinateData || !validatedStructureKey) {
@@ -219,6 +537,33 @@ export const Molecule3DViewer = forwardRef<
 
   const displayedStudentMessage =
     coordinateData || viewerStatus === 'error' ? studentMessage : NO_COORDINATES_MESSAGE;
+  const hasCoordinateData = Boolean(coordinateData);
+  const has3DCoordinateData = coordinateData?.coordinateDimension === '3d';
+  const canUseCoordinateControls =
+    viewerStatus === 'ready' &&
+    hasCoordinateData &&
+    has3DCoordinateData &&
+    hasValidatedStructure;
+  const canUseParsedAtomTools = canUseCoordinateControls && parsedAtoms.length > 0;
+  const measurementNotice = getMeasurementNotice({
+    hasCoordinateData,
+    has3DCoordinateData,
+    hasValidatedStructure,
+    viewerStatus,
+    parsedAtomCount: parsedAtoms.length,
+  });
+  const requiredAtomCount = getRequiredAtomCount(atomSelectionMode);
+  const measurementInstruction =
+    atomSelectionMode === 'bond_length'
+      ? '원자 2개를 차례로 선택하면 두 원자 사이 거리를 계산합니다.'
+      : atomSelectionMode === 'bond_angle'
+        ? '원자 3개를 선택하면 두 번째 원자를 중심으로 각도를 계산합니다.'
+        : '측정 모드를 선택한 뒤 3D 구조의 원자를 클릭하세요.';
+
+  const handleMeasurementModeChange = (nextMode: AtomSelectionMode) => {
+    setAtomSelectionMode(nextMode);
+    setSelectedAtoms([]);
+  };
 
   return (
     <section className="workspace-panel viewer-panel" data-testid="molecule-3d-viewer">
@@ -237,6 +582,69 @@ export const Molecule3DViewer = forwardRef<
       </div>
 
       {actionSlot ? <div className="viewer-action-slot">{actionSlot}</div> : null}
+
+      <div className="viewer-control-panel" data-testid="viewer-control-panel">
+        <div className="viewer-control-group">
+          <label>
+            <span>표현 방식</span>
+            <select
+              data-testid="representation-mode-select"
+              disabled={!canUseCoordinateControls}
+              value={representationMode}
+              onChange={(event) => {
+                setRepresentationMode(
+                  event.currentTarget.value as Molecule3DRepresentationMode,
+                );
+              }}
+            >
+              <option value="ball-and-stick">Ball-and-stick</option>
+              <option value="stick">Stick</option>
+              <option value="space-filling">Space-filling</option>
+            </select>
+          </label>
+          <p>3D 좌표 데이터가 있는 경우에만 입체 표현 방식을 바꿀 수 있습니다.</p>
+        </div>
+
+        <div className="viewer-control-group">
+          <label className="viewer-checkbox-control">
+            <input
+              checked={showAtomLabels}
+              data-testid="atom-label-toggle"
+              disabled={!canUseParsedAtomTools}
+              type="checkbox"
+              onChange={(event) => {
+                setShowAtomLabels(event.currentTarget.checked);
+              }}
+            />
+            <span>원자 라벨 표시</span>
+          </label>
+          <p>
+            기본 라벨은 원소 기호입니다. 교사 모드 또는 측정 모드에서는 C1, H2처럼
+            원자 식별 번호를 함께 표시합니다.
+          </p>
+        </div>
+
+        <div className="viewer-button-row">
+          <button
+            className="secondary-action"
+            data-testid="reset-view-button"
+            disabled={!canUseCoordinateControls}
+            type="button"
+            onClick={resetView}
+          >
+            Reset view
+          </button>
+          <button
+            className="secondary-action"
+            data-testid="zoom-to-fit-button"
+            disabled={!canUseCoordinateControls}
+            type="button"
+            onClick={zoomToFit}
+          >
+            Zoom to fit
+          </button>
+        </div>
+      </div>
 
       <div className="viewer-content">
         <div
@@ -260,7 +668,7 @@ export const Molecule3DViewer = forwardRef<
               <dt>입력 형식</dt>
               <dd>{coordinateData?.format.toUpperCase() ?? '대기 중'}</dd>
             </div>
-            {coordinateData?.sourceUrl ? (
+            {coordinateData?.sourceUrl && userMode === 'teacher' ? (
               <div>
                 <dt>출처 URL</dt>
                 <dd className="code-output">{coordinateData.sourceUrl}</dd>
@@ -275,11 +683,157 @@ export const Molecule3DViewer = forwardRef<
               <dd>3Dmol.js는 전달받은 좌표 데이터만 시각화합니다.</dd>
             </div>
             <div>
+              <dt>표현 방식</dt>
+              <dd>{formatRepresentationMode(representationMode)}</dd>
+            </div>
+            <div>
               <dt>좌표 안내</dt>
               <dd>{coordinateData?.sourceNote ?? '표시할 3D 좌표 데이터가 없습니다.'}</dd>
             </div>
           </dl>
         </div>
+      </div>
+
+      <div
+        className="geometry-measurement-panel"
+        data-testid="geometry-measurement-panel"
+      >
+        <div className="panel-heading measurement-heading">
+          <div>
+            <p className="section-label">좌표 기준 측정</p>
+            <h3>결합길이/결합각 측정 MVP</h3>
+          </div>
+          <span className={canUseParsedAtomTools ? 'status-pill ready' : 'status-pill'}>
+            {canUseParsedAtomTools ? '측정 가능' : '측정 비활성화'}
+          </span>
+        </div>
+
+        <p className="measurement-notice">
+          {measurementNotice}
+        </p>
+
+        <div className="measurement-mode-buttons">
+          <button
+            className={
+              atomSelectionMode === 'none' ? 'secondary-action active' : 'secondary-action'
+            }
+            type="button"
+            onClick={() => {
+              handleMeasurementModeChange('none');
+            }}
+          >
+            측정 안 함
+          </button>
+          <button
+            className={
+              atomSelectionMode === 'bond_length'
+                ? 'secondary-action active'
+                : 'secondary-action'
+            }
+            data-testid="bond-length-mode-button"
+            disabled={!canUseParsedAtomTools}
+            type="button"
+            onClick={() => {
+              handleMeasurementModeChange('bond_length');
+            }}
+          >
+            결합길이 측정
+          </button>
+          <button
+            className={
+              atomSelectionMode === 'bond_angle'
+                ? 'secondary-action active'
+                : 'secondary-action'
+            }
+            data-testid="bond-angle-mode-button"
+            disabled={!canUseParsedAtomTools}
+            type="button"
+            onClick={() => {
+              handleMeasurementModeChange('bond_angle');
+            }}
+          >
+            결합각 측정
+          </button>
+        </div>
+
+        <dl className="measurement-state-grid">
+          <div>
+            <dt>현재 측정 모드</dt>
+            <dd>{formatMeasurementMode(atomSelectionMode)}</dd>
+          </div>
+          <div>
+            <dt>파싱된 원자 수</dt>
+            <dd>{parsedAtoms.length > 0 ? `${parsedAtoms.length}개` : '좌표 없음'}</dd>
+          </div>
+          <div>
+            <dt>선택한 원자</dt>
+            <dd>
+              {selectedAtoms.length > 0
+                ? selectedAtoms.map((atom) => formatAtom3DLabel(atom)).join(', ')
+                : '아직 선택하지 않음'}
+            </dd>
+          </div>
+          <div>
+            <dt>필요한 선택 수</dt>
+            <dd>
+              {requiredAtomCount > 0
+                ? `${selectedAtoms.length}/${requiredAtomCount}`
+                : '측정 모드 선택 전'}
+            </dd>
+          </div>
+        </dl>
+
+        <p className="measurement-instruction">{measurementInstruction}</p>
+
+        <div className="viewer-button-row">
+          <button
+            className="secondary-action"
+            data-testid="clear-selected-atoms-button"
+            disabled={selectedAtoms.length === 0}
+            type="button"
+            onClick={() => {
+              setSelectedAtoms([]);
+            }}
+          >
+            선택 초기화
+          </button>
+          <button
+            className="secondary-action"
+            data-testid="clear-measurement-results-button"
+            disabled={measurementResults.length === 0}
+            type="button"
+            onClick={() => {
+              setMeasurementResults([]);
+            }}
+          >
+            결과 초기화
+          </button>
+        </div>
+
+        {measurementResults.length > 0 ? (
+          <ol className="measurement-result-list" data-testid="measurement-result-list">
+            {measurementResults.map((result) => (
+              <li key={`${result.type}-${result.atomIndices.join('-')}-${result.value}`}>
+                <strong>{formatMeasurementValue(result)}</strong>
+                <p>
+                  {result.type === 'bond_angle'
+                    ? '두 번째로 선택한 원자를 중심으로 계산한 각도입니다.'
+                    : '선택한 두 원자 사이 거리입니다. 실제 결합 여부를 단정하지 않습니다.'}
+                </p>
+                <p>{result.sourceNote}</p>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="measurement-empty-result">최근 측정 결과가 없습니다.</p>
+        )}
+
+        {userMode === 'teacher' ? (
+          <p className="measurement-teacher-note">
+            교사용 안내: 정적 좌표, PubChem 좌표, VSEPR 예측 모형 좌표는 출처와
+            의미가 다릅니다. 수업에서는 측정값의 출처를 구분해 지도하세요.
+          </p>
+        ) : null}
       </div>
     </section>
   );

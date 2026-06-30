@@ -34,6 +34,13 @@ describe('activityTemplates', () => {
         recommendedExampleId: 'ammonia',
       },
       {
+        id: 'draw-carbon-dioxide',
+        title: '이산화탄소 분자 구조 그리기',
+        targetMoleculeName: '이산화탄소',
+        targetSmiles: 'O=C=O',
+        recommendedExampleId: 'carbon-dioxide',
+      },
+      {
         id: 'draw-ethanol',
         title: '에탄올 분자 구조 그리기',
         targetMoleculeName: '에탄올',
@@ -75,6 +82,7 @@ describe('activityTemplates', () => {
       expect(template.misconceptionChecks?.length).toBeGreaterThan(0);
       expect(template.requiresVsepr).toBe(true);
       expect(template.expectedVsepr).toBeTruthy();
+      expect(template.comparisonMode).toBeTruthy();
       expect('molecularWeight' in template).toBe(false);
       expect('expectedFormula' in template).toBe(false);
     }
@@ -103,11 +111,48 @@ describe('activityTemplates', () => {
       centralAtom: 'N',
       lonePairCount: 1,
     });
+    expect(guidance['draw-carbon-dioxide']).toMatchObject({
+      axeNotation: 'AX2',
+      molecularShapeKo: '선형',
+      centralAtom: 'C',
+      lonePairCount: 0,
+    });
 
     expect(
       activityTemplates
         .find((template) => template.id === 'draw-methane')
         ?.misconceptionChecks?.join(' '),
     ).toContain('평면 십자형');
+  });
+
+  it('limits comparison mode recommendations to single-center classroom examples', () => {
+    const comparisonById = Object.fromEntries(
+      activityTemplates.map((template) => [template.id, template.comparisonMode]),
+    );
+
+    expect(comparisonById['draw-water']).toMatchObject({
+      enabled: true,
+      recommended: true,
+    });
+    expect(comparisonById['draw-methane']).toMatchObject({
+      enabled: true,
+      recommended: true,
+    });
+    expect(comparisonById['draw-ammonia']).toMatchObject({
+      enabled: true,
+      recommended: true,
+    });
+    expect(comparisonById['draw-carbon-dioxide']).toMatchObject({
+      enabled: true,
+      recommended: true,
+    });
+    expect(comparisonById['draw-ethanol']).toMatchObject({
+      enabled: false,
+      recommended: false,
+    });
+    expect(comparisonById['draw-benzene']).toMatchObject({
+      enabled: false,
+      recommended: false,
+    });
   });
 });

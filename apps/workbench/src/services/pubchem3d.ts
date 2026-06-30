@@ -1,4 +1,7 @@
-import type { Molecule3DInput } from '../types/molecule';
+import type {
+  Molecule3DInput,
+  Molecule3DStructureMatchStatus,
+} from '../types/molecule';
 
 export type PubChem3DLoadStatus = 'idle' | 'loading' | 'success' | 'noData' | 'error';
 
@@ -6,6 +9,7 @@ export type PubChem3DLookupInput = {
   cid: number;
   label: string;
   pubchemName?: string;
+  structureMatchStatus?: Molecule3DStructureMatchStatus;
 };
 
 export type PubChem3DLookupResult =
@@ -128,6 +132,8 @@ export async function fetchPubChem3DSdf(
         data: responseText,
         label: input.label,
         sourceType: 'pubchem',
+        coordinateDimension: '3d',
+        structureMatchStatus: input.structureMatchStatus ?? 'verified',
         coordinateSource: `PubChem CID ${input.cid}`,
         sourceNote: input.pubchemName
           ? `${PUBCHEM_3D_SOURCE_NOTE} PubChem name: ${input.pubchemName}.`

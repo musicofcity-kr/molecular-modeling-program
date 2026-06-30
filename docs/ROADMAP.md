@@ -9,6 +9,8 @@
 - Completed: VSEPR UI isolation as an optional classroom module, not a core free-draw workflow.
 - Completed: student/teacher mode split MVP without login, persistence, dashboards, or automatic scoring.
 - Completed: 3D availability pipeline stabilization for optional VSEPR gating, PubChem candidate formula compatibility checks, stale PubChem response ignoring, and Git exclusion of generated review artifacts.
+- Completed: 3D Viewer representation controls and coordinate-based bond length/bond angle measurement MVP with explicit source warnings.
+- Completed: actual/external 3D structure vs VSEPR educational model comparison mode with student observation prompts and teacher caution notes.
 - Next: keep the core free-draw MVP focused on Ketcher -> RDKit.js -> actual/external 3D, while refining VSEPR only inside guided classroom activities or explicit optional use.
 
 ## Phase 0 — Skill and Workspace Setup
@@ -44,6 +46,7 @@
 - Load known 3D example structures first.
 - Add method/source labels.
 - Add geometry explanation panel.
+- Add representation mode, atom label, reset/zoom, and coordinate-based measurement controls. (MVP complete)
 
 ## Phase 5 — Advanced Chemistry and Import/Export
 
@@ -53,7 +56,7 @@
 
 ## Phase 6 — Student Activity Integration
 
-- Add guided tasks. (MVP complete: water, methane, ammonia, ethanol, benzene activities)
+- Add guided tasks. (MVP complete: water, methane, ammonia, carbon dioxide, ethanol, benzene activities)
 - Add VSEPR prediction prompts. (MVP complete: center atom, bonding domains, lone pairs, shape, VSEPR model observations, and 2D-vs-VSEPR reflection)
 - Add student/teacher UI split. (MVP complete: simple mode switch, no auth)
 - Add report export.
@@ -67,6 +70,7 @@
 - Keep VSEPR output separate from measured 3D coordinates. (MVP complete)
 - Add idealized VSEPR template visualization in 3Dmol.js with explicit teaching-model labels. (MVP complete)
 - Keep VSEPR hidden from the default free-draw workflow unless the user explicitly opens the optional module. (MVP complete)
+- Add comparison mode between actual/external 3D coordinates and VSEPR educational prediction models. (MVP complete)
 - Next: refine VSEPR model interactions only for supported guided classroom examples.
 
 ## Near-Term Next Step — Teacher Template Authoring

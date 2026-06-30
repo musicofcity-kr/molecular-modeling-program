@@ -9,6 +9,7 @@ import type {
   MoleculeValidationResult,
   PubChemMatchStatus,
 } from '../types/molecule';
+import type { StructureComparisonState } from '../types/structureComparison';
 import type { PubChem3DLoadStatus } from '../services/pubchem3d';
 import type { VseprAnalysis } from '../types/vsepr';
 
@@ -22,6 +23,7 @@ type TeacherPanelProps = {
   validationResult: MoleculeValidationResult | null;
   vseprAnalysis: VseprAnalysis;
   molecule3DInput: Molecule3DInput | null;
+  structureComparisonState: StructureComparisonState;
   pubChem3DStatus: PubChem3DLoadStatus;
   pubChemCandidateStatus: PubChemMatchStatus;
   onSelectActivity: (activityId: string) => void;
@@ -37,6 +39,7 @@ export function TeacherPanel({
   validationResult,
   vseprAnalysis,
   molecule3DInput,
+  structureComparisonState,
   pubChem3DStatus,
   pubChemCandidateStatus,
   onSelectActivity,
@@ -189,7 +192,24 @@ export function TeacherPanel({
                   )}
                 </dd>
               </div>
+              <div>
+                <dt>비교 모드 가능 여부</dt>
+                <dd>{formatStructureComparisonStatus(structureComparisonState)}</dd>
+              </div>
+              <div>
+                <dt>비교 추천 여부</dt>
+                <dd>
+                  {structureComparisonState.recommended
+                    ? '단일 중심 원자 비교 추천'
+                    : '조건부 또는 주의 필요'}
+                </dd>
+              </div>
             </dl>
+            {structureComparisonState.teacherNote ? (
+              <p className="teacher-boundary-note">
+                {structureComparisonState.teacherNote}
+              </p>
+            ) : null}
             <p className="teacher-boundary-note">
               교사용 정보는 지도 참고용입니다. 이 단계에서는 정답/오답 판정,
               학생별 저장, 점수화를 수행하지 않습니다.
@@ -199,6 +219,25 @@ export function TeacherPanel({
       </div>
     </section>
   );
+}
+
+function formatStructureComparisonStatus(state: StructureComparisonState): string {
+  switch (state.availability) {
+    case 'available':
+      return `비교 가능 / ${state.real3DSourceLabel} / ${state.vseprSourceLabel}`;
+    case 'missing_real_3d':
+      return '3D 좌표 데이터 필요';
+    case 'missing_vsepr':
+      return 'VSEPR 예측 결과 필요';
+    case 'low_confidence_vsepr':
+      return 'VSEPR confidence 낮음';
+    case 'multi_center_not_recommended':
+      return '단일 중심 원자 비교 비추천';
+    case 'rdkit_invalid':
+      return 'RDKit 검증 필요';
+    case 'not_supported':
+      return '현재 비교 모드에서 지원하지 않음';
+  }
 }
 
 function TeacherList({

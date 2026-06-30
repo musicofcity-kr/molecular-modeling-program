@@ -3,6 +3,7 @@ import type {
   PubChemCandidateSearchResult,
   PubChemMatchStatus,
   MoleculeValidationResult,
+  Molecule3DStructureMatchStatus,
 } from '../types/molecule';
 
 type PubChemPropertyRecord = {
@@ -149,6 +150,7 @@ export function evaluatePubChemCandidateForCurrentStructure(
 ): {
   canLoad3D: boolean;
   studentMessage?: string;
+  structureMatchStatus?: Molecule3DStructureMatchStatus;
   warnings: string[];
   developerLogs: string[];
 } {
@@ -183,6 +185,7 @@ export function evaluatePubChemCandidateForCurrentStructure(
 
     return {
       canLoad3D: true,
+      structureMatchStatus: 'review-needed',
       warnings,
       developerLogs: [
         ...developerLogs,
@@ -213,10 +216,19 @@ export function evaluatePubChemCandidateForCurrentStructure(
     );
   }
 
+  const structureMatchStatus =
+    candidate.canonicalSmiles === validationResult.canonicalSmiles
+      ? 'verified'
+      : 'formula-compatible';
+
   return {
     canLoad3D: true,
+    structureMatchStatus,
     warnings,
-    developerLogs: [...developerLogs, 'candidate allowed: formula compatible.'],
+    developerLogs: [
+      ...developerLogs,
+      `candidate allowed: ${structureMatchStatus}.`,
+    ],
   };
 }
 

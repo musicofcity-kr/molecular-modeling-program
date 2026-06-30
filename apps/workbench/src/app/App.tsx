@@ -11,6 +11,7 @@ import {
   type WorkbenchLogEntry,
 } from '../components/validation/ValidationLogPanel';
 import { PubChemCandidatePanel } from '../components/pubchem/PubChemCandidatePanel';
+import { StructureComparisonPanel } from '../components/comparison/StructureComparisonPanel';
 import { ActivityPanel } from '../components/activity/ActivityPanel';
 import { VseprPanel } from '../components/vsepr/VseprPanel';
 import { Vsepr3DModelViewer } from '../components/Vsepr3DModelViewer';
@@ -36,8 +37,10 @@ import {
 } from '../services/pubchemSearch';
 import { analyzeVseprFromMolBlock } from '../services/vseprEngine';
 import { hasVseprGeometryTemplate } from '../services/vseprGeometryTemplates';
+import { buildStructureComparisonState } from '../services/structureComparison';
 import type {
   Molecule3DInput,
+  Molecule3DStructureMatchStatus,
   MoleculeValidationResult,
   PubChemCandidate,
   PubChemMatchStatus,
@@ -48,6 +51,7 @@ import {
   type AppMode,
   type UserMode,
 } from '../types/activity';
+import type { StructureComparisonObservation } from '../types/structureComparison';
 import type { VseprAnalysis, VseprModelViewStatus } from '../types/vsepr';
 
 type PubChem3DState = {
@@ -76,6 +80,11 @@ const INITIAL_VSEPR_ANALYSIS: VseprAnalysis = {
   studentMessage:
     'RDKit.js 검증을 통과한 MOL block이 있을 때 VSEPR 예측을 실행할 수 있습니다.',
 };
+const INITIAL_STRUCTURE_COMPARISON_OBSERVATION = {
+  observedSimilarities: '',
+  observedDifferences: '',
+  studentReflection: '',
+};
 
 function createLog(level: WorkbenchLogEntry['level'], message: string): WorkbenchLogEntry {
   return {
@@ -95,6 +104,8 @@ function buildExample3DInput(example: ExampleMolecule): Molecule3DInput | null {
     data: example.structure3D.data,
     label: example.nameKo,
     sourceType: example.structure3D.sourceType,
+    coordinateDimension: example.structure3D.coordinateDimension,
+    structureMatchStatus: example.structure3D.structureMatchStatus,
     coordinateSource: '예제 내장 3D 구조',
     sourceNote: example.structure3D.sourceNote,
     sourceUrl: example.structure3D.sourceUrl,
@@ -147,6 +158,11 @@ export function App() {
   const [vseprModelStatus, setVseprModelStatus] =
     useState<VseprModelViewStatus>('not_requested');
   const [isVseprModuleOpen, setIsVseprModuleOpen] = useState(false);
+  const [isStructureComparisonOpen, setIsStructureComparisonOpen] = useState(false);
+  const [
+    structureComparisonObservationText,
+    setStructureComparisonObservationText,
+  ] = useState(INITIAL_STRUCTURE_COMPARISON_OBSERVATION);
   const [selectedVseprCentralAtomId, setSelectedVseprCentralAtomId] =
     useState<string>('');
   const [validatedExampleId, setValidatedExampleId] = useState<string | null>(null);
@@ -188,6 +204,11 @@ export function App() {
     setSelectedVseprCentralAtomId('');
     setVseprAnalysis(INITIAL_VSEPR_ANALYSIS);
     setVseprModelStatus('not_requested');
+  };
+
+  const resetStructureComparison = () => {
+    setIsStructureComparisonOpen(false);
+    setStructureComparisonObservationText(INITIAL_STRUCTURE_COMPARISON_OBSERVATION);
   };
 
   const handle3DDeveloperLog = useCallback((message: string) => {
@@ -236,6 +257,7 @@ export function App() {
     setValidatedExampleId(null);
     resetPubChem3DState();
     resetPubChemCandidateState();
+    resetStructureComparison();
     setExtractedStructure(labeledStructure);
     setValidationResult(null);
     resetVseprAnalysis();
@@ -323,6 +345,7 @@ export function App() {
       setValidatedExampleId(null);
       resetPubChem3DState();
       resetPubChemCandidateState();
+      resetStructureComparison();
       setExtractedStructure(null);
       setValidationResult(null);
       resetVseprAnalysis();
@@ -371,11 +394,12 @@ export function App() {
   };
 
   const loadPubChem3DByCid = async (input: {
-    cid: number;
-    label: string;
-    pubchemName?: string;
-    requestLogMessage: string;
-  }) => {
+  cid: number;
+  label: string;
+  pubchemName?: string;
+  structureMatchStatus?: Molecule3DStructureMatchStatus;
+  requestLogMessage: string;
+}) => {
     const requestId = pubChem3DRequestIdRef.current + 1;
     const requestValidationKey = validationKeyRef.current;
 
@@ -390,6 +414,7 @@ export function App() {
       cid: input.cid,
       label: input.label,
       pubchemName: input.pubchemName,
+      structureMatchStatus: input.structureMatchStatus,
     });
 
     console.info('[PubChem 3D]', result.developerLogs);
@@ -576,6 +601,7 @@ export function App() {
       cid: candidate.cid,
       label: candidate.title ?? `PubChem CID ${candidate.cid}`,
       pubchemName: candidate.title,
+      structureMatchStatus: compatibility.structureMatchStatus,
       requestLogMessage: `외부 데이터 후보 CID ${candidate.cid}로 3D SDF를 요청합니다. PubChem 후보값은 RDKit.js 검증값을 대체하지 않습니다.`,
     });
   };
@@ -605,6 +631,7 @@ export function App() {
       setValidatedExampleId(null);
       resetPubChem3DState();
       resetPubChemCandidateState();
+      resetStructureComparison();
       setExtractedStructure(null);
       setValidationResult(null);
       resetVseprAnalysis();
@@ -711,7 +738,27 @@ export function App() {
   };
 
   const selectedExample = findSelectedExample();
+  const currentValidatedExample = validatedExampleId
+    ? exampleMolecules.find((example) => example.id === validatedExampleId)
+    : undefined;
   const currentActivityResponses = activityResponsesById[selectedActivityId] ?? {};
+  const structureComparisonState = buildStructureComparisonState({
+    validationResult,
+    molecule3DInput,
+    vseprAnalysis,
+    selectedExample: currentValidatedExample,
+    selectedActivity: appMode === 'activity' ? selectedActivity : null,
+  });
+  const structureComparisonObservation: StructureComparisonObservation = {
+    moleculeName:
+      currentValidatedExample?.nameKo ?? extractedStructure?.label ?? '현재 구조',
+    rdkitFormula: validationResult?.ok === true ? validationResult.molecularFormula : undefined,
+    real3DSourceLabel: structureComparisonState.real3DSourceLabel,
+    vseprAxeNotation: vseprAnalysis.axeNotation,
+    vseprShapeKo: vseprAnalysis.molecularShapeKo,
+    idealBondAngle: vseprAnalysis.idealBondAngles?.join(', '),
+    ...structureComparisonObservationText,
+  };
   const canLoadPubChem3D =
     Boolean(selectedExample?.pubchemCid) &&
     validatedExampleId === selectedExample?.id &&
@@ -726,6 +773,18 @@ export function App() {
     isModuleOpen: isVseprModuleOpen,
     selectedTemplate: selectedActivity,
   });
+  const handleStructureComparisonObservationChange = (
+    field: keyof Pick<
+      StructureComparisonObservation,
+      'observedSimilarities' | 'observedDifferences' | 'studentReflection'
+    >,
+    value: string,
+  ) => {
+    setStructureComparisonObservationText((currentObservation) => ({
+      ...currentObservation,
+      [field]: value,
+    }));
+  };
 
   return (
     <main className="app-shell" data-testid="app-shell">
@@ -833,6 +892,7 @@ export function App() {
         validationResult={validationResult}
         vseprAnalysis={vseprAnalysis}
         molecule3DInput={molecule3DInput}
+        structureComparisonState={structureComparisonState}
         pubChem3DStatus={pubChem3DState.status}
         pubChemCandidateStatus={pubChemCandidateState.status}
         onSelectActivity={setSelectedActivityId}
@@ -850,9 +910,30 @@ export function App() {
         onSelectCandidate={handleSelectPubChemCandidate}
       />
 
+      <StructureComparisonPanel
+        userMode={userMode}
+        state={structureComparisonState}
+        molecule3DInput={molecule3DInput}
+        vseprAnalysis={vseprAnalysis}
+        vseprModelStatus={vseprModelStatus}
+        isOpen={isStructureComparisonOpen}
+        observation={structureComparisonObservation}
+        focusQuestion={
+          appMode === 'activity'
+            ? selectedActivity?.comparisonMode?.focusQuestion
+            : undefined
+        }
+        onToggleOpen={() => {
+          setIsStructureComparisonOpen((current) => !current);
+        }}
+        onObservationChange={handleStructureComparisonObservationChange}
+        onDeveloperLog={handle3DDeveloperLog}
+      />
+
       <Molecule3DViewer
         coordinateData={molecule3DInput}
         hasValidatedStructure={validationResult?.ok === true}
+        userMode={userMode}
         validatedStructureKey={
           validationResult?.ok === true ? validationResult.canonicalSmiles : undefined
         }

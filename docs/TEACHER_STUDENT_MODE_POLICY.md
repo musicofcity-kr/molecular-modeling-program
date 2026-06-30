@@ -25,7 +25,7 @@ It may show:
 - VSEPR analysis result only inside an explicit optional module or a VSEPR-required activity
 - actual/external 3D viewer
 - VSEPR prediction model viewer only as an educational prediction model
-- actual 3D vs VSEPR comparison questions
+- actual/external 3D vs VSEPR comparison mode, including observation prompts and source-limit warnings
 - student reflection fields
 
 It must hide:
@@ -55,6 +55,8 @@ It may show:
 - VSEPR analysis status
 - 3D structure availability
 - PubChem connection status
+- actual/external 3D vs VSEPR comparison availability
+- VSEPR confidence and comparison caution reason
 - misconception check points
 - collapsible developer logs
 
@@ -109,3 +111,33 @@ VSEPR is not a permanent default panel in free-draw student mode.
 
 This boundary prevents students from confusing VSEPR teaching models with
 actual/external 3D coordinate structures.
+
+## Comparison Mode Boundary
+
+Student mode may show:
+
+- comparison mode open/close control;
+- separate labels for `실제/외부 3D 좌표 기반 구조` and `VSEPR 교육용 예측 모형`;
+- observation prompts for similarities, differences, and why VSEPR cannot fully
+  replace real coordinate data;
+- short warnings that PubChem/static coordinates and VSEPR predictions are
+  different sources.
+
+Student mode must hide:
+
+- comparison developer logs;
+- raw PubChem response details;
+- HTTP status details;
+- internal availability enum names;
+- teacher-only caution notes.
+
+Teacher mode may show:
+
+- comparison availability;
+- VSEPR confidence;
+- 3D coordinate source;
+- whether the selected molecule is recommended for comparison;
+- caution notes for multi-center or complex molecules.
+
+Comparison observations are not scored, saved to a database, or treated as a
+submitted assessment in this phase.

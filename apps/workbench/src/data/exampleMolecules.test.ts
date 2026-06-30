@@ -73,7 +73,7 @@ describe('exampleMolecules', () => {
     ).toBe(true);
   });
 
-  it('registers PubChem CIDs only for the initial CID-based 3D prototype examples', () => {
+  it('registers PubChem CIDs for curated 3D and comparison-mode examples', () => {
     expect(
       exampleMolecules
         .filter((example) => example.pubchemCid)
@@ -94,6 +94,18 @@ describe('exampleMolecules', () => {
         id: 'methane',
         pubchemCid: 297,
         pubchemName: 'Methane',
+        external3DSource: 'pubchem',
+      },
+      {
+        id: 'ammonia',
+        pubchemCid: 222,
+        pubchemName: 'Ammonia',
+        external3DSource: 'pubchem',
+      },
+      {
+        id: 'carbon-dioxide',
+        pubchemCid: 280,
+        pubchemName: 'Carbon dioxide',
         external3DSource: 'pubchem',
       },
       {
@@ -124,6 +136,8 @@ describe('exampleMolecules', () => {
         id: example.id,
         format: example.structure3D?.format,
         sourceType: example.structure3D?.sourceType,
+        coordinateDimension: example.structure3D?.coordinateDimension,
+        structureMatchStatus: example.structure3D?.structureMatchStatus,
         sourceNote: example.structure3D?.sourceNote,
       }));
 
@@ -132,6 +146,8 @@ describe('exampleMolecules', () => {
         id: 'water',
         format: 'sdf',
         sourceType: 'static-example',
+        coordinateDimension: '3d',
+        structureMatchStatus: 'verified',
         sourceNote:
           '앱 내장 교육용 정적 3D 좌표입니다. 실험값, 에너지 최소화 결과, 결합각 계산용 데이터가 아닙니다.',
       },
@@ -139,6 +155,8 @@ describe('exampleMolecules', () => {
         id: 'methane',
         format: 'sdf',
         sourceType: 'static-example',
+        coordinateDimension: '3d',
+        structureMatchStatus: 'verified',
         sourceNote:
           '앱 내장 교육용 정적 3D 좌표입니다. 실험값, 에너지 최소화 결과, 결합각 계산용 데이터가 아닙니다.',
       },

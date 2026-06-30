@@ -46,6 +46,8 @@ $$$$`;
         data: sdf,
         label: '물',
         sourceType: 'pubchem',
+        coordinateDimension: '3d',
+        structureMatchStatus: 'verified',
         coordinateSource: 'PubChem CID 962',
         sourceUrl:
           'https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962/record/SDF?record_type=3d',

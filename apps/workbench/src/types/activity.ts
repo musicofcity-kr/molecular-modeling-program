@@ -1,4 +1,5 @@
 import type { MoleculeValidationResult } from './molecule';
+import type { ActivityComparisonModeConfig } from './structureComparison';
 
 export type AppMode = 'free_draw' | 'activity';
 export type UserMode = 'student' | 'teacher';
@@ -22,6 +23,7 @@ export interface ActivityTemplate {
   teacherNotes?: string[];
   misconceptionChecks?: string[];
   requiresVsepr?: boolean;
+  comparisonMode?: ActivityComparisonModeConfig;
   expectedVsepr?: {
     axeNotation?: string;
     molecularShapeKo?: string;

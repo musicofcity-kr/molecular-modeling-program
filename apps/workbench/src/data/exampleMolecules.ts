@@ -1,5 +1,7 @@
 import type {
+  Molecule3DCoordinateDimension,
   Molecule3DCoordinateFormat,
+  Molecule3DStructureMatchStatus,
   Molecule3DSourceType,
 } from '../types/molecule';
 
@@ -9,6 +11,8 @@ export type ExampleMolecule3DStructure = {
   format: Molecule3DCoordinateFormat;
   data: string;
   sourceType: Molecule3DSourceType;
+  coordinateDimension: Molecule3DCoordinateDimension;
+  structureMatchStatus?: Molecule3DStructureMatchStatus;
   sourceNote: string;
   sourceUrl?: string;
 };
@@ -47,6 +51,8 @@ export const exampleMolecules: ExampleMolecule[] = [
     structure3D: {
       format: 'sdf',
       sourceType: 'static-example',
+      coordinateDimension: '3d',
+      structureMatchStatus: 'verified',
       sourceNote: STATIC_3D_SOURCE_NOTE,
       data: `water static 3D example
   Workbench  063026
@@ -75,6 +81,8 @@ $$$$`,
     structure3D: {
       format: 'sdf',
       sourceType: 'static-example',
+      coordinateDimension: '3d',
+      structureMatchStatus: 'verified',
       sourceNote: STATIC_3D_SOURCE_NOTE,
       data: `methane static 3D example
   Workbench  063026
@@ -101,7 +109,9 @@ $$$$`,
     expectedFormula: 'H3N',
     teachingUse: '비공유 전자쌍과 삼각뿔형 분자 구조를 설명할 때 사용합니다.',
     category: '기본 분자',
-    external3DSource: 'none',
+    pubchemCid: 222,
+    pubchemName: 'Ammonia',
+    external3DSource: 'pubchem',
   },
   {
     id: 'carbon-dioxide',
@@ -111,7 +121,9 @@ $$$$`,
     expectedFormula: 'CO2',
     teachingUse: '이중 결합과 직선형 분자 구조를 비교할 때 사용합니다.',
     category: '기본 분자',
-    external3DSource: 'none',
+    pubchemCid: 280,
+    pubchemName: 'Carbon dioxide',
+    external3DSource: 'pubchem',
   },
   {
     id: 'ethanol',

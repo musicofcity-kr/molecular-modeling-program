@@ -175,7 +175,37 @@ describe('evaluatePubChemCandidateForCurrentStructure', () => {
     );
 
     expect(result.canLoad3D).toBe(true);
-    expect(result.developerLogs).toContain('candidate allowed: formula compatible.');
+    expect(result.structureMatchStatus).toBe('verified');
+    expect(result.developerLogs).toContain('candidate allowed: verified.');
+  });
+
+  it('marks formula-compatible but different canonical SMILES candidates as not comparison-verified', () => {
+    const result = evaluatePubChemCandidateForCurrentStructure(
+      {
+        cid: 999,
+        title: 'Formula-compatible candidate',
+        molecularFormula: 'C2H6O',
+        molecularWeight: '46.069',
+        canonicalSmiles: 'COC',
+        source: 'pubchem',
+      },
+      {
+        ok: true,
+        validationStatus: 'valid',
+        source: 'smiles',
+        smiles: 'CCO',
+        canonicalSmiles: 'CCO',
+        molecularFormula: 'C2H6O',
+        molecularWeight: 46.069,
+        warnings: [],
+        errors: [],
+        developerLogs: [],
+      },
+    );
+
+    expect(result.canLoad3D).toBe(true);
+    expect(result.structureMatchStatus).toBe('formula-compatible');
+    expect(result.warnings.join('\n')).toContain('PubChem SMILES 표기');
   });
 
   it('blocks PubChem 3D loading when the candidate formula conflicts with RDKit', () => {

@@ -278,6 +278,273 @@ select {
   display: grid;
 }
 
+.viewer-control-panel,
+.geometry-measurement-panel {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #d7e0e2;
+  border-radius: 8px;
+  background: #fbfcfc;
+  padding: 12px;
+}
+
+.viewer-control-panel {
+  grid-template-columns: minmax(200px, 1fr) minmax(220px, 1fr) auto;
+  align-items: start;
+}
+
+.viewer-control-group,
+.viewer-control-group label {
+  display: grid;
+  gap: 6px;
+}
+
+.viewer-control-group label span,
+.measurement-state-grid dt {
+  color: #42636c;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.viewer-control-group select {
+  min-height: 38px;
+  border: 1px solid #bfd0d4;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1d2730;
+  padding: 7px 10px;
+}
+
+.viewer-control-group p,
+.measurement-notice,
+.measurement-instruction,
+.measurement-empty-result,
+.measurement-result-list p,
+.measurement-teacher-note {
+  margin: 0;
+  color: #34464d;
+  line-height: 1.5;
+}
+
+.viewer-checkbox-control {
+  display: inline-flex !important;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  width: fit-content;
+}
+
+.viewer-checkbox-control input {
+  width: 16px;
+  height: 16px;
+}
+
+.viewer-button-row,
+.measurement-mode-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.secondary-action.active {
+  border-color: #2f6f7b;
+  background: #eef7f8;
+  color: #245965;
+}
+
+.measurement-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 0;
+}
+
+.measurement-heading h3 {
+  margin: 4px 0 0;
+  font-size: 1rem;
+}
+
+.measurement-state-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.measurement-state-grid div {
+  border: 1px solid #d7e0e2;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px 12px;
+}
+
+.measurement-state-grid dd {
+  margin: 4px 0 0;
+  color: #21313a;
+  overflow-wrap: anywhere;
+}
+
+.measurement-result-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.measurement-result-list li {
+  border: 1px solid #bfd0d4;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px 12px;
+}
+
+.measurement-result-list strong {
+  color: #21313a;
+}
+
+.measurement-teacher-note {
+  border: 1px solid #dfcf95;
+  border-radius: 8px;
+  background: #fff9e8;
+  color: #6b5618;
+  padding: 10px 12px;
+}
+
+.structure-comparison-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.comparison-heading,
+.comparison-heading-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.comparison-heading-actions {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.comparison-student-message,
+.comparison-viewer-intro p,
+.comparison-observation-panel p,
+.comparison-teacher-panel p {
+  margin: 0;
+  color: #34464d;
+  line-height: 1.5;
+}
+
+.comparison-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.comparison-summary-grid div {
+  border: 1px solid #d7e0e2;
+  border-radius: 8px;
+  background: #fbfcfc;
+  padding: 10px 12px;
+}
+
+.comparison-summary-grid dt {
+  color: #42636c;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.comparison-summary-grid dd {
+  margin: 4px 0 0;
+  color: #21313a;
+  overflow-wrap: anywhere;
+}
+
+.comparison-warning-list,
+.comparison-guidance-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.comparison-warning-list li {
+  border: 1px solid #dfcf95;
+  border-radius: 8px;
+  background: #fff9e8;
+  color: #6b5618;
+  padding: 10px 12px;
+}
+
+.comparison-viewer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.comparison-viewer-column {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.comparison-viewer-intro,
+.comparison-observation-panel,
+.comparison-teacher-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #d7e0e2;
+  border-radius: 8px;
+  background: #fbfcfc;
+  padding: 12px;
+}
+
+.comparison-viewer-intro h3,
+.comparison-observation-panel h3 {
+  margin: 2px 0 0;
+  color: #21313a;
+  font-size: 1rem;
+}
+
+.comparison-question {
+  display: grid;
+  gap: 6px;
+}
+
+.comparison-question span {
+  color: #21313a;
+  font-weight: 700;
+}
+
+.comparison-question textarea {
+  min-height: 72px;
+  resize: vertical;
+  border: 1px solid #bfd0d4;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1d2730;
+  padding: 10px 12px;
+}
+
+.comparison-guidance-list li {
+  border-left: 3px solid #7fb59a;
+  background: #eff9f3;
+  color: #27493a;
+  padding: 8px 10px;
+}
+
+.comparison-teacher-panel {
+  border-color: #dfcf95;
+  background: #fff9e8;
+}
+
 .pubchem-3d-control {
   display: flex;
   align-items: center;
@@ -971,7 +1238,9 @@ select {
   .teacher-layout,
   .teacher-grid,
   .teacher-question-columns,
-  .teacher-info-grid {
+  .teacher-info-grid,
+  .comparison-summary-grid,
+  .comparison-viewer-grid {
     grid-template-columns: 1fr;
   }
 
@@ -985,6 +1254,11 @@ select {
   }
 
   .viewer-content {
+    grid-template-columns: 1fr;
+  }
+
+  .viewer-control-panel,
+  .measurement-state-grid {
     grid-template-columns: 1fr;
   }
 

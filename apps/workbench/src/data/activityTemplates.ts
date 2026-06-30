@@ -90,6 +90,13 @@ export const activityTemplates: ActivityTemplate[] = [
       '비공유 전자쌍이 분자 모양에 영향을 주지 않는다고 보는 오류',
     ],
     requiresVsepr: true,
+    comparisonMode: {
+      enabled: true,
+      recommended: true,
+      focusQuestion: '물의 실제/외부 3D 구조와 VSEPR 굽은형 예측 모형이 어떻게 비슷하고 다른지 관찰해 보세요.',
+      teacherNote:
+        '물은 단일 중심 원자와 비공유 전자쌍 2쌍을 비교하기 좋은 예입니다. 단, VSEPR 모형의 각도는 이상화된 설명임을 강조하세요.',
+    },
     expectedVsepr: {
       axeNotation: 'AX2E2',
       molecularShapeKo: '굽은형',
@@ -117,6 +124,13 @@ export const activityTemplates: ActivityTemplate[] = [
       '4개 결합이 모두 같은 평면 위에 있다고 보는 오류',
     ],
     requiresVsepr: true,
+    comparisonMode: {
+      enabled: true,
+      recommended: true,
+      focusQuestion: '메테인의 실제/외부 3D 구조와 VSEPR 정사면체 예측 모형이 왜 비슷하게 보이는지 관찰해 보세요.',
+      teacherNote:
+        '메테인은 VSEPR AX4 정사면체 모형과 실제/외부 3D 구조가 유사하게 보일 수 있는 대표 예입니다.',
+    },
     expectedVsepr: {
       axeNotation: 'AX4',
       molecularShapeKo: '정사면체',
@@ -144,6 +158,13 @@ export const activityTemplates: ActivityTemplate[] = [
       '비공유 전자쌍을 분자 구조 이름에 포함된 원자처럼 보는 오류',
     ],
     requiresVsepr: true,
+    comparisonMode: {
+      enabled: true,
+      recommended: true,
+      focusQuestion: '암모니아에서 비공유 전자쌍 1쌍이 삼각뿔형 모양을 만드는 이유를 두 화면으로 비교해 보세요.',
+      teacherNote:
+        '암모니아는 삼각평면형 오개념을 바로잡기 좋은 비교 예입니다. PubChem 좌표가 없으면 먼저 외부 3D 구조를 불러오게 하세요.',
+    },
     expectedVsepr: {
       axeNotation: 'AX3E',
       molecularShapeKo: '삼각뿔형',
@@ -151,6 +172,40 @@ export const activityTemplates: ActivityTemplate[] = [
       lonePairCount: 1,
     },
     recommendedExampleId: 'ammonia',
+  },
+  {
+    id: 'draw-carbon-dioxide',
+    title: '이산화탄소 분자 구조 그리기',
+    targetMoleculeName: '이산화탄소',
+    targetSmiles: 'O=C=O',
+    learningGoal: '이중 결합도 VSEPR 전자쌍 영역에서는 한 방향으로 세어 선형 구조를 예측한다.',
+    prompt: '탄소 원자 양쪽에 산소 원자가 이중 결합으로 연결된 구조를 그려 보세요.',
+    predictionQuestions,
+    reflectionQuestions,
+    coreConcepts: ['이중 결합', '전자쌍 영역', '선형 구조'],
+    teacherNotes: [
+      '이중 결합은 VSEPR에서 전자쌍 영역 1개 방향으로 취급한다는 점을 강조합니다.',
+      '실제/외부 3D 구조와 VSEPR AX2 예측 모형이 모두 선형으로 보일 수 있지만 출처가 다름을 지도합니다.',
+    ],
+    misconceptionChecks: [
+      '이중 결합을 전자쌍 영역 2개 방향으로 세는 오류',
+      'O=C=O를 굽은형으로 예상하는 오류',
+    ],
+    requiresVsepr: true,
+    comparisonMode: {
+      enabled: true,
+      recommended: true,
+      focusQuestion: '이산화탄소에서 두 이중 결합 방향이 VSEPR 선형 예측과 어떻게 연결되는지 관찰해 보세요.',
+      teacherNote:
+        '이산화탄소는 이중 결합도 VSEPR 전자쌍 영역 1개로 다룬다는 점을 지도하기 좋은 비교 예입니다.',
+    },
+    expectedVsepr: {
+      axeNotation: 'AX2',
+      molecularShapeKo: '선형',
+      centralAtom: 'C',
+      lonePairCount: 0,
+    },
+    recommendedExampleId: 'carbon-dioxide',
   },
   {
     id: 'draw-ethanol',
@@ -171,6 +226,13 @@ export const activityTemplates: ActivityTemplate[] = [
       '하이드록시기의 산소 주변 구조와 탄소 주변 구조를 혼동하는 오류',
     ],
     requiresVsepr: true,
+    comparisonMode: {
+      enabled: false,
+      recommended: false,
+      focusQuestion: '에탄올은 중심 원자별 국소 구조로만 비교하세요.',
+      teacherNote:
+        '에탄올 전체를 하나의 VSEPR 모형으로 단정하지 않도록 지도합니다. 비교 모드에서는 비추천으로 처리합니다.',
+    },
     expectedVsepr: {
       axeNotation: 'center-specific',
       molecularShapeKo: '중심 원자별 국소 분석',
@@ -197,6 +259,13 @@ export const activityTemplates: ActivityTemplate[] = [
       'VSEPR 단일 중심 분석을 벤젠 전체 고리 구조 설명으로 과도하게 확장하는 오류',
     ],
     requiresVsepr: true,
+    comparisonMode: {
+      enabled: false,
+      recommended: false,
+      focusQuestion: '벤젠은 VSEPR 단일 중심 비교보다 방향족 고리와 평면성 설명에 집중하세요.',
+      teacherNote:
+        '벤젠은 공명과 방향족성을 함께 다루어야 하므로 전체 분자를 하나의 AXE 구조로 비교하지 않습니다.',
+    },
     expectedVsepr: {
       axeNotation: 'local aromatic centers',
       molecularShapeKo: '중심 원자별 국소 분석',

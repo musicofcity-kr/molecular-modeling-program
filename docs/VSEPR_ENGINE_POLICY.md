@@ -98,6 +98,34 @@ The VSEPR model viewer must remain separate from the actual/external 3D structur
 The VSEPR model viewer may use 3Dmol.js only as a rendering layer for these explicit vectors.
 It must not imply that 3Dmol.js, RDKit.js, PubChem, or Ketcher generated an optimized VSEPR conformer.
 
+## Comparison Mode Boundary
+
+The actual/external 3D vs VSEPR comparison mode is a classroom observation
+workflow, not a chemistry calculation or automatic grading workflow.
+
+Comparison mode may open only when:
+
+- RDKit.js validation succeeds;
+- actual/external 3D coordinates are loaded;
+- VSEPR analysis is supported;
+- VSEPR confidence is medium or high;
+- the molecule is suitable for a single-center VSEPR comparison.
+
+The comparison mode must not:
+
+- present VSEPR template vectors as PubChem, static example, imported, or
+  experimental coordinates;
+- add bond-length or bond-angle measurement tools to the VSEPR viewer;
+- describe complex multi-center molecules such as ethanol, benzene, glucose,
+  or aspirin as one whole-molecule AXE shape;
+- use VSEPR output to replace RDKit.js formula, molecular weight, or canonical
+  SMILES.
+
+Recommended classroom comparison targets are water, methane, ammonia, and
+carbon dioxide when the actual/external 3D coordinate data is available.
+Conditional targets such as BF3, PCl5, SF6, and XeF4 require prepared examples,
+3D coordinates, and teacher review.
+
 ## Student/Teacher Display Boundary
 
 Student free-draw mode should not show VSEPR as a permanent core panel.

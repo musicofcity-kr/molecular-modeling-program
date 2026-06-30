@@ -257,3 +257,93 @@ Chemistry-derived values are shown only when `MoleculeValidationResult.ok === tr
 
 - `npm run build` should still be run before final commit.
 - Existing 3Dmol.js `eval` and chunk-size warnings are expected review items, not automatic build failures.
+
+## 2026-06-30 — Phase 10 3D Viewer representation and measurement MVP
+
+### Current status
+
+- Added representation controls to the actual/external 3D viewer:
+  - `ball-and-stick`
+  - `stick`
+  - `space-filling`
+- Added atom label toggle. Student default labels use element symbols, while teacher mode or measurement mode uses indexed labels such as `C1` and `H2`.
+- Added reset-view and zoom-to-fit controls.
+- Added coordinate-based measurement MVP:
+  - bond length / atom distance from two selected atoms
+  - bond angle from three selected atoms, with the second selected atom as the center
+- Added `coordinateDimension` to 3D data contracts so Ketcher 2D MOL blocks are not treated as actual 3D coordinate payloads.
+- Measurement runs only on RDKit-validated, explicitly 3D coordinate-bearing `mol`, `sdf`, `xyz`, or `pdb` data.
+- VSEPR prediction model measurement remains out of scope. VSEPR template vectors are not treated as measurable molecular coordinates.
+
+### Intentionally not implemented in this phase
+
+- RDKit 3D conformer generation
+- Open Babel backend conversion
+- SMILES-to-3D generation
+- energy minimization
+- treating Ketcher 2D MOL blocks as 3D coordinates
+- applying measurement tools to VSEPR template vectors
+- presenting bond lengths or bond angles as experimental or optimized reference values
+
+### Verification
+
+- `npx tsc --noEmit`: passed.
+- `npm test -- --run`: passed with 19 files and 109 tests after rerunning outside the sandbox because the sandboxed attempt hit the known esbuild `spawn EPERM` restriction.
+- `npm run build`: passed with the known 3Dmol.js `eval` warning and existing large chunk warnings.
+
+## 2026-06-30 — Phase 13 actual/external 3D vs VSEPR comparison mode
+
+### Current status
+
+- Added `StructureComparisonState` and `StructureComparisonObservation` contracts.
+- Added `apps/workbench/src/services/structureComparison.ts` to compute comparison availability from:
+  - RDKit.js validation result
+  - actual/external 3D coordinate availability
+  - VSEPR analysis status and confidence
+  - selected example/activity comparison recommendations
+- Added `apps/workbench/src/components/comparison/StructureComparisonPanel.tsx`.
+- Added `structureMatchStatus` to 3D data contracts so formula-compatible PubChem candidates can remain external 3D visualization data without automatically becoming comparison-mode data.
+- The comparison panel:
+  - shows a comparison-mode open/close control;
+  - places `Molecule3DViewer` and `Vsepr3DModelViewer` side by side only when comparison is available and opened;
+  - labels the left side as actual/external 3D coordinate data;
+  - labels the right side as a VSEPR educational prediction model;
+  - provides student observation fields for similarities, differences, and reflection;
+  - shows teacher-only comparison guidance in teacher mode.
+- Added comparison mode configuration to activity templates.
+- Added PubChem CID metadata for ammonia and carbon dioxide so recommended comparison examples can load external 3D coordinates when available.
+
+### Recommended comparison examples
+
+- 물
+- 메테인
+- 암모니아
+- 이산화탄소
+
+### Caution examples
+
+- 에탄올
+- 벤젠
+- 아스피린
+- 포도당
+- 복잡한 유기분자
+- 전이금속 착물
+- 라디칼
+- 공명 구조가 중요한 분자
+
+### Intentionally not implemented in this phase
+
+- automatic scoring of comparison observations
+- database persistence
+- student login
+- treating VSEPR vectors as measured 3D coordinates
+- adding measurement tools to the VSEPR viewer
+- SMILES-to-3D generation
+- Open Babel backend conversion
+- RDKit 3D conformer generation
+
+### Verification
+
+- `npx tsc --noEmit`: passed.
+- `npm test -- --run`: passed with 21 files and 123 tests.
+- `npm run build`: passed with the known 3Dmol.js `eval` warning and existing large chunk warnings.

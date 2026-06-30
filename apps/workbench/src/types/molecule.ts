@@ -19,10 +19,41 @@ export type MoleculeInput = {
 
 export type Molecule3DCoordinateFormat = 'mol' | 'sdf' | 'xyz' | 'pdb';
 
+export type Molecule3DCoordinateDimension = '2d' | '3d' | 'unknown';
+
+export type Molecule3DRepresentationMode =
+  | 'ball-and-stick'
+  | 'stick'
+  | 'space-filling';
+
+export type AtomSelectionMode = 'none' | 'bond_length' | 'bond_angle';
+
+export interface SelectedAtom3D {
+  atomIndex: number;
+  element: string;
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface GeometryMeasurementResult {
+  type: 'bond_length' | 'bond_angle';
+  atomIndices: number[];
+  atomLabels: string[];
+  value: number;
+  unit: 'angstrom' | 'degree';
+  sourceNote: string;
+}
+
 export type Molecule3DSourceType =
   | 'static-example'
   | 'pubchem'
   | 'user-import'
+  | 'review-needed';
+
+export type Molecule3DStructureMatchStatus =
+  | 'verified'
+  | 'formula-compatible'
   | 'review-needed';
 
 export type Molecule3DInput = {
@@ -30,6 +61,8 @@ export type Molecule3DInput = {
   data: string;
   label: string;
   sourceType: Molecule3DSourceType;
+  coordinateDimension: Molecule3DCoordinateDimension;
+  structureMatchStatus?: Molecule3DStructureMatchStatus;
   coordinateSource: string;
   sourceNote?: string;
   sourceUrl?: string;
