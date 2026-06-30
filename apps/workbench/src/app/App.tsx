@@ -10,6 +10,7 @@ import {
   ValidationLogPanel,
   type WorkbenchLogEntry,
 } from '../components/validation/ValidationLogPanel';
+import { PubChemCandidatePanel } from '../components/pubchem/PubChemCandidatePanel';
 import type {
   ChemicalEditorHandle,
   ExtractedStructureData,
@@ -24,14 +25,33 @@ import {
   fetchPubChem3DSdf,
   type PubChem3DLoadStatus,
 } from '../services/pubchem3d';
-import type { Molecule3DInput, MoleculeValidationResult } from '../types/molecule';
+import { searchPubChemCandidatesByCanonicalSmiles } from '../services/pubchemSearch';
+import type {
+  Molecule3DInput,
+  MoleculeValidationResult,
+  PubChemCandidate,
+  PubChemMatchStatus,
+} from '../types/molecule';
 
 type PubChem3DState = {
   status: PubChem3DLoadStatus;
   studentMessage?: string;
 };
 
+type PubChemCandidateSearchState = {
+  status: PubChemMatchStatus;
+  candidates: PubChemCandidate[];
+  warnings: string[];
+  studentMessage?: string;
+  selectedCandidateCid?: number;
+};
+
 const INITIAL_PUBCHEM_3D_STATE: PubChem3DState = { status: 'idle' };
+const INITIAL_PUBCHEM_CANDIDATE_STATE: PubChemCandidateSearchState = {
+  status: 'not_requested',
+  candidates: [],
+  warnings: [],
+};
 
 function createLog(level: WorkbenchLogEntry['level'], message: string): WorkbenchLogEntry {
   return {
@@ -74,6 +94,8 @@ export function App() {
   const [pubChem3DState, setPubChem3DState] = useState<PubChem3DState>(
     INITIAL_PUBCHEM_3D_STATE,
   );
+  const [pubChemCandidateState, setPubChemCandidateState] =
+    useState<PubChemCandidateSearchState>(INITIAL_PUBCHEM_CANDIDATE_STATE);
   const [logs, setLogs] = useState<WorkbenchLogEntry[]>([
     createLog(
       'info',
@@ -87,6 +109,10 @@ export function App() {
 
   const resetPubChem3DState = () => {
     setPubChem3DState(INITIAL_PUBCHEM_3D_STATE);
+  };
+
+  const resetPubChemCandidateState = () => {
+    setPubChemCandidateState(INITIAL_PUBCHEM_CANDIDATE_STATE);
   };
 
   const handle3DDeveloperLog = useCallback((message: string) => {
@@ -107,6 +133,7 @@ export function App() {
     setMolecule3DInput(null);
     setValidatedExampleId(null);
     resetPubChem3DState();
+    resetPubChemCandidateState();
     setExtractedStructure(labeledStructure);
     setValidationResult(null);
     appendLog(
@@ -156,6 +183,7 @@ export function App() {
       setMolecule3DInput(null);
       setValidatedExampleId(null);
       resetPubChem3DState();
+      resetPubChemCandidateState();
       setExtractedStructure(null);
       setValidationResult(null);
       appendLog(
@@ -199,6 +227,46 @@ export function App() {
   const handleSelectExample = (exampleId: string) => {
     setSelectedExampleId(exampleId);
     resetPubChem3DState();
+    resetPubChemCandidateState();
+  };
+
+  const loadPubChem3DByCid = async (input: {
+    cid: number;
+    label: string;
+    pubchemName?: string;
+    requestLogMessage: string;
+  }) => {
+    setPubChem3DState({
+      status: 'loading',
+      studentMessage: `${input.label}의 PubChem 3D 구조 데이터를 불러오는 중입니다.`,
+    });
+    appendLog(createLog('info', input.requestLogMessage));
+
+    const result = await fetchPubChem3DSdf({
+      cid: input.cid,
+      label: input.label,
+      pubchemName: input.pubchemName,
+    });
+
+    console.info('[PubChem 3D]', result.developerLogs);
+
+    if (result.ok) {
+      setMolecule3DInput(result.molecule3D);
+      setPubChem3DState({
+        status: 'success',
+        studentMessage: result.studentMessage,
+      });
+      appendLog(createLog('info', result.studentMessage));
+      return;
+    }
+
+    setPubChem3DState({
+      status: result.status,
+      studentMessage: result.studentMessage,
+    });
+    appendLog(
+      createLog(result.status === 'noData' ? 'warning' : 'error', result.studentMessage),
+    );
   };
 
   const handleLoadPubChem3D = async () => {
@@ -227,42 +295,78 @@ export function App() {
       return;
     }
 
-    setPubChem3DState({
-      status: 'loading',
-      studentMessage: `${example.nameKo}의 PubChem 3D 구조 데이터를 불러오는 중입니다.`,
+    await loadPubChem3DByCid({
+      cid: example.pubchemCid,
+      label: example.nameKo,
+      pubchemName: example.pubchemName,
+      requestLogMessage: `${example.nameKo} 예제의 PubChem CID ${example.pubchemCid}로 3D SDF를 요청합니다.`,
+    });
+  };
+
+  const handleSearchPubChemCandidates = async () => {
+    if (validationResult?.ok !== true || !validationResult.canonicalSmiles.trim()) {
+      const message =
+        'PubChem 후보 검색은 RDKit.js 검증을 통과한 canonical SMILES가 있을 때만 실행할 수 있습니다.';
+
+      setPubChemCandidateState({
+        status: 'not_requested',
+        candidates: [],
+        warnings: [],
+        studentMessage: message,
+      });
+      appendLog(createLog('warning', message));
+      return;
+    }
+
+    setPubChemCandidateState({
+      status: 'searching',
+      candidates: [],
+      warnings: [],
+      studentMessage: 'PubChem 외부 데이터 후보를 검색하는 중입니다.',
     });
     appendLog(
       createLog(
         'info',
-        `${example.nameKo} 예제의 PubChem CID ${example.pubchemCid}로 3D SDF를 요청합니다.`,
+        `RDKit.js canonical SMILES(${validationResult.canonicalSmiles})로 PubChem 후보 검색을 요청합니다.`,
       ),
     );
 
-    const result = await fetchPubChem3DSdf({
-      cid: example.pubchemCid,
-      label: example.nameKo,
-      pubchemName: example.pubchemName,
-    });
+    const result = await searchPubChemCandidatesByCanonicalSmiles(
+      validationResult.canonicalSmiles,
+    );
 
-    console.info('[PubChem 3D]', result.developerLogs);
+    console.info('[PubChem candidate search]', result.developerLogs);
 
-    if (result.ok) {
-      setMolecule3DInput(result.molecule3D);
-      setPubChem3DState({
-        status: 'success',
-        studentMessage: result.studentMessage,
-      });
-      appendLog(createLog('info', result.studentMessage));
-      return;
-    }
-
-    setPubChem3DState({
+    setPubChemCandidateState({
       status: result.status,
+      candidates: result.candidates,
+      warnings: result.warnings,
       studentMessage: result.studentMessage,
     });
     appendLog(
-      createLog(result.status === 'noData' ? 'warning' : 'error', result.studentMessage),
+      createLog(
+        result.status === 'error' ? 'error' : result.status === 'no_match' ? 'warning' : 'info',
+        result.studentMessage,
+      ),
     );
+
+    for (const warning of result.warnings) {
+      appendLog(createLog('warning', warning));
+    }
+  };
+
+  const handleSelectPubChemCandidate = async (candidate: PubChemCandidate) => {
+    setPubChemCandidateState((currentState) => ({
+      ...currentState,
+      selectedCandidateCid: candidate.cid,
+    }));
+
+    await loadPubChem3DByCid({
+      cid: candidate.cid,
+      label: candidate.title ?? `PubChem CID ${candidate.cid}`,
+      pubchemName: candidate.title,
+      requestLogMessage: `외부 데이터 후보 CID ${candidate.cid}로 3D SDF를 요청합니다. PubChem 후보값은 RDKit.js 검증값을 대체하지 않습니다.`,
+    });
   };
 
   const handleLoadExample = async () => {
@@ -289,6 +393,7 @@ export function App() {
       setMolecule3DInput(null);
       setValidatedExampleId(null);
       resetPubChem3DState();
+      resetPubChemCandidateState();
       setExtractedStructure(null);
       setValidationResult(null);
       appendLog(
@@ -306,6 +411,10 @@ export function App() {
     validatedExampleId === selectedExample?.id &&
     validationResult?.ok === true &&
     pubChem3DState.status !== 'loading';
+  const canSearchPubChemCandidates =
+    validationResult?.ok === true &&
+    Boolean(validationResult.canonicalSmiles.trim()) &&
+    pubChemCandidateState.status !== 'searching';
 
   return (
     <main className="app-shell" data-testid="app-shell">
@@ -335,6 +444,18 @@ export function App() {
           validationResult={validationResult}
         />
       </section>
+
+      <PubChemCandidatePanel
+        canSearch={canSearchPubChemCandidates}
+        status={pubChemCandidateState.status}
+        candidates={pubChemCandidateState.candidates}
+        warnings={pubChemCandidateState.warnings}
+        studentMessage={pubChemCandidateState.studentMessage}
+        selectedCandidateCid={pubChemCandidateState.selectedCandidateCid}
+        isLoading3D={pubChem3DState.status === 'loading'}
+        onSearch={handleSearchPubChemCandidates}
+        onSelectCandidate={handleSelectPubChemCandidate}
+      />
 
       <Molecule3DViewer
         coordinateData={molecule3DInput}

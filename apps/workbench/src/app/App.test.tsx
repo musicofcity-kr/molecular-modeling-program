@@ -18,9 +18,12 @@ describe('App scaffold', () => {
     const markup = renderToStaticMarkup(<App />);
 
     expect(markup).toContain('Molecule Modeling Workbench');
-    expect(markup).toContain('Phase 7: PubChem CID 3D 프로토타입');
+    expect(markup).toContain('Phase 8: 수동 PubChem 후보 검색');
     expect(markup).toContain('분자 편집 영역');
     expect(markup).toContain('구조 정보');
+    expect(markup).toContain('PubChem 후보 검색');
+    expect(markup).toContain('외부 데이터베이스에서 3D 구조 후보를 찾아봅니다.');
+    expect(markup).toContain('RDKit.js 검증을 통과한 구조에서만');
     expect(markup).toContain('3D Viewer');
     expect(markup).toContain('3D 좌표 데이터가 아직 없습니다');
     expect(markup).toContain('PubChem 3D');

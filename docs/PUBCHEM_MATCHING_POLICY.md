@@ -2,9 +2,9 @@
 
 ## Purpose
 
-This policy defines how Molecule Modeling Workbench may later connect a user-drawn structure to PubChem without implying that an external match is automatically correct.
+This policy defines how Molecule Modeling Workbench connects or may later extend user-drawn structure matching to PubChem without implying that an external match is automatically correct.
 
-The current phase is policy and type design only. It does not implement automatic PubChem search, automatic candidate selection, or user-drawn SMILES lookup.
+The current prototype supports manual candidate search only after RDKit.js validation. It does not implement automatic PubChem search, automatic candidate selection, or hidden user-drawn SMILES lookup.
 
 ## Matching Gate
 
@@ -13,6 +13,7 @@ The current phase is policy and type design only. It does not implement automati
 3. The app may use the RDKit.js `canonicalSmiles` as a future PubChem candidate-search input.
 4. The app must not assume that a valid `canonicalSmiles` necessarily exists in PubChem.
 5. The app must not search PubChem automatically as a hidden side effect of drawing or validation.
+6. The user must explicitly click `PubChem 후보 검색` before PubChem receives the canonical SMILES.
 
 ## Candidate Outcomes
 
@@ -50,14 +51,14 @@ If a PubChem candidate disagrees with the current RDKit.js-validated structure, 
 
 Student-facing wording should stay short and non-technical. Developer logs should contain enough detail to reproduce or diagnose the mismatch.
 
-## Future Manual Lookup Flow
+## Manual Lookup Flow
 
 ```text
 User draws structure in Ketcher
   -> Ketcher exports SMILES/MOL
   -> RDKit.js validates structure
   -> RDKit.js returns canonicalSmiles, formula, average molecular weight
-  -> user explicitly requests PubChem candidate search
+  -> user explicitly clicks PubChem 후보 검색
   -> app shows PubChem result as 외부 데이터 후보
   -> user reviews 0/1/multiple candidates
   -> user confirms one candidate
@@ -94,12 +95,31 @@ export interface PubChemCandidate {
   molecularFormula?: string;
   molecularWeight?: string;
   canonicalSmiles?: string;
+  isomericSmiles?: string;
   source: 'pubchem';
 }
 
+export type PubChemCandidateSearchResult =
+  | {
+      ok: true;
+      status: 'no_match' | 'single_candidate' | 'multiple_candidates';
+      candidates: PubChemCandidate[];
+      studentMessage: string;
+      warnings: string[];
+      developerLogs: string[];
+    }
+  | {
+      ok: false;
+      status: 'error';
+      candidates: [];
+      studentMessage: string;
+      warnings: string[];
+      developerLogs: string[];
+    };
+
 export type SearchPubChemCandidatesByCanonicalSmiles = (
   canonicalSmiles: string,
-) => Promise<PubChemCandidate[]>;
+) => Promise<PubChemCandidateSearchResult>;
 ```
 
-This function signature is a future contract only. No service implementation is included in this phase.
+The current service returns student-facing messages and developer logs with the candidates so the UI can separate classroom feedback from diagnostics.

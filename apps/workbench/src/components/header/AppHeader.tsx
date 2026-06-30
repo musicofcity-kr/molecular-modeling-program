@@ -25,7 +25,7 @@ export function AppHeader({
       </div>
       <div className="header-actions">
         <p className="header-status" aria-label="현재 구현 상태">
-          Phase 7: PubChem CID 3D 프로토타입
+          Phase 8: 수동 PubChem 후보 검색
         </p>
         <label className="example-picker">
           <span>예제</span>

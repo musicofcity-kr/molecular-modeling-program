@@ -49,14 +49,31 @@ export interface PubChemCandidate {
   molecularFormula?: string;
   molecularWeight?: string;
   canonicalSmiles?: string;
+  isomericSmiles?: string;
   source: 'pubchem';
 }
 
-// Future service contract only. Do not implement automatic PubChem matching until
-// user confirmation and candidate review gates are designed in the UI.
+export type PubChemCandidateSearchResult =
+  | {
+      ok: true;
+      status: Exclude<PubChemMatchStatus, 'not_requested' | 'searching' | 'error'>;
+      candidates: PubChemCandidate[];
+      studentMessage: string;
+      warnings: string[];
+      developerLogs: string[];
+    }
+  | {
+      ok: false;
+      status: 'error';
+      candidates: [];
+      studentMessage: string;
+      warnings: string[];
+      developerLogs: string[];
+    };
+
 export type SearchPubChemCandidatesByCanonicalSmiles = (
   canonicalSmiles: string,
-) => Promise<PubChemCandidate[]>;
+) => Promise<PubChemCandidateSearchResult>;
 
 export type MoleculeValidationResult =
   | {

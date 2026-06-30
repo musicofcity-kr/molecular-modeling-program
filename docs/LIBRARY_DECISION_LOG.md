@@ -166,3 +166,18 @@ Superseded by the adoption decision below.
 - Risk: Automatic matching could show a plausible but wrong external 3D structure for a student-drawn molecule, especially when stereochemistry, salts, tautomers, charges, or ambiguous representations are involved.
 - Implementation note: This phase adds only policy documentation and TypeScript draft types. It does not implement `searchPubChemCandidatesByCanonicalSmiles`, automatic search, candidate ranking, or automatic 3D loading from user input.
 - Test/verification: `npx tsc --noEmit` and `npm run build`; existing CID-based 3D prototype tests remain unchanged.
+
+## 2026-06-30 — PubChem manual candidate search UI prototype
+
+- Purpose: Let the user explicitly request PubChem external data candidates for an RDKit.js-validated structure, then manually choose a candidate for existing CID-based 3D SDF loading.
+- Official documentation checked: PubChem PUG-REST documentation at https://pubchem.ncbi.nlm.nih.gov/docs/pug-rest and the `compound/smiles/property/.../JSON` PUG-REST endpoint shape.
+- License: No new dependency was added. PubChem remains an external NCBI service.
+- Browser compatibility: Uses browser `fetch` through `src/services/pubchemSearch.ts`; no backend proxy or Open Babel conversion was introduced.
+- Bundle size / performance risk: Low for bundle size because no package was added. Runtime risk remains classroom network availability and PubChem response latency.
+- Security/privacy risk: Medium. The search sends only RDKit.js canonical SMILES after a user clicks `PubChem 후보 검색`; it does not run as a hidden automatic lookup.
+- Why not automatic matching: PubChem search can return zero, one, or multiple candidates, and a plausible candidate can still be wrong for salts, charges, stereochemistry, or alternate representations.
+- Auto-selection policy: The app does not auto-select a candidate, including the single-candidate case.
+- Chemistry boundary: RDKit.js remains the source for formula, average molecular weight, canonical SMILES, and validation status. PubChem molecular formula and molecular weight are candidate metadata only.
+- 3D loading boundary: Candidate selection reuses `fetchPubChem3DSdf(...)`; no second 3D SDF fetch path was added.
+- Test added: `apps/workbench/src/services/pubchemSearch.test.ts` covers successful mapping, no-match responses, HTTP errors, and empty canonical SMILES. `apps/workbench/src/components/pubchem/PubChemCandidatePanel.test.tsx` covers disabled pre-validation UI and external candidate display.
+- Decision: adopt as a manual candidate-search prototype only.

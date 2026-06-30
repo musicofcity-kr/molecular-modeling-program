@@ -144,12 +144,31 @@ export interface PubChemCandidate {
   molecularFormula?: string;
   molecularWeight?: string;
   canonicalSmiles?: string;
+  isomericSmiles?: string;
   source: 'pubchem';
 }
 
+export type PubChemCandidateSearchResult =
+  | {
+      ok: true;
+      status: 'no_match' | 'single_candidate' | 'multiple_candidates';
+      candidates: PubChemCandidate[];
+      studentMessage: string;
+      warnings: string[];
+      developerLogs: string[];
+    }
+  | {
+      ok: false;
+      status: 'error';
+      candidates: [];
+      studentMessage: string;
+      warnings: string[];
+      developerLogs: string[];
+    };
+
 export type SearchPubChemCandidatesByCanonicalSmiles = (
   canonicalSmiles: string,
-) => Promise<PubChemCandidate[]>;
+) => Promise<PubChemCandidateSearchResult>;
 
 export type MoleculeValidationResult =
   | {
@@ -231,6 +250,9 @@ The canonical TypeScript source for these contracts is `apps/workbench/src/types
 - PubChem 3D service maps successful CID-based SDF responses to `Molecule3DInput` with `sourceType: 'pubchem'`.
 - PubChem 3D service separates `noData` and `error` failures and keeps student messages separate from developer logs.
 - PubChem 3D UI enables loading only for the currently RDKit-validated selected example with a curated `pubchemCid`.
+- PubChem candidate search service maps manual canonical SMILES search results to external data candidates without auto-selecting a candidate.
+- PubChem candidate panel renders candidates as `외부 데이터 후보` and keeps PubChem formula/mass as auxiliary metadata only.
+- Selecting a candidate reuses the CID-based 3D SDF loading service instead of creating a second 3D fetch path.
 
 ### Integration tests
 
@@ -285,9 +307,9 @@ Selected example molecule
 - 3Dmol.js visualizes PubChem-provided coordinates only.
 - The app does not display PubChem molecular weight, PubChem formula, bond angles, bond lengths, energy, or conformer quality as the student-facing calculation source.
 
-## 8. Future PubChem Search Data Flow
+## 8. Manual PubChem Candidate Search Flow
 
-This section remains design-only. User-input SMILES based PubChem search is not implemented in the current phase.
+This phase implements a manual candidate search prototype. User-drawn structures are not searched automatically; PubChem is called only when the user clicks `PubChem 후보 검색` after RDKit.js validation succeeds.
 
 ### Separate flows
 
@@ -302,11 +324,11 @@ The app now has two intentionally separate PubChem-related paths:
    - starts from Ketcher output drawn by the user;
    - requires RDKit.js validation first;
    - uses RDKit.js `canonicalSmiles` only as a candidate-search key;
-   - requires the user to explicitly request candidate search;
+   - requires the user to explicitly request candidate search with `PubChem 후보 검색`;
    - presents PubChem results as `외부 데이터 후보`;
    - requires user review before CID-based 3D loading.
 
-The future matching flow must not automatically select a PubChem candidate, even when only one candidate is returned. A single candidate is still external data that needs user confirmation.
+The matching flow must not automatically select a PubChem candidate, even when only one candidate is returned. A single candidate is still external data that needs user confirmation.
 
 ### Intended flow
 
@@ -317,7 +339,7 @@ Ketcher structure
   -> user explicitly requests PubChem candidate search
   -> PubChem returns 0, 1, or multiple external data candidates
   -> user reviews and confirms a candidate
-  -> app requests coordinate-bearing 3D record, preferably SDF when available
+  -> app reuses fetchPubChem3DSdf(candidate.cid)
   -> source/mismatch checks
   -> Molecule3DInput with sourceType: 'pubchem'
   -> 3Dmol.js visualization
@@ -336,17 +358,17 @@ Ketcher structure
 
 ### Planned service boundary
 
-The future PubChem candidate search should be isolated behind a service. This is a type-level design only; no implementation is present in the current phase:
+PubChem candidate search is isolated behind `src/services/pubchemSearch.ts`:
 
 ```ts
 searchPubChemCandidatesByCanonicalSmiles(
   canonicalSmiles: string,
-): Promise<PubChemCandidate[]>;
+): Promise<PubChemCandidateSearchResult>;
 ```
 
-Candidate search and CID-based 3D SDF loading must remain separate services. Candidate search identifies possible PubChem CIDs; CID-based 3D loading fetches coordinate-bearing data only after a candidate is confirmed.
+Candidate search and CID-based 3D SDF loading remain separate services. Candidate search identifies possible PubChem CIDs; CID-based 3D loading fetches coordinate-bearing data only after a candidate is confirmed. Candidate selection uses the existing `fetchPubChem3DSdf(...)` path.
 
-The future service should not call Open Babel, should not generate conformers, and should not modify the RDKit validation result.
+The service does not call Open Babel, does not generate conformers, and does not modify the RDKit validation result.
 
 ### Failure behavior
 
@@ -355,6 +377,7 @@ The future service should not call Open Babel, should not generate conformers, a
 - Candidate mismatch: block 3D display and log the mismatch reason for review.
 - Candidate search returns zero results: show that no external data candidate was found.
 - Candidate search returns multiple results: require user review instead of selecting one automatically.
+- Candidate search HTTP/network error: keep RDKit.js formula, average molecular weight, and canonical SMILES visible; show a short student message and log endpoint type, canonical SMILES, HTTP status, response excerpt, or error message for developers.
 
 ## 9. Risk Register
 
