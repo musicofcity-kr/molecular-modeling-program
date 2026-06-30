@@ -36,6 +36,9 @@ describe('ActivityPanel', () => {
     expect(markup).toContain('수업용 활동 모드');
     expect(markup).toContain('물 분자 구조 그리기');
     expect(markup).toContain('예상 분자식');
+    expect(markup).toContain('중심 원자는 무엇인가요?');
+    expect(markup).toContain('VSEPR 이론에 따른 분자 구조는 무엇인가요?');
+    expect(markup).toContain('2D 구조와 VSEPR 예측 구조는 어떻게 다른가요?');
     expect(markup).toContain('RDKit 검증 분자식');
     expect(markup).toContain('아직 검증 전');
     expect(markup).toContain('자동 채점 없음');

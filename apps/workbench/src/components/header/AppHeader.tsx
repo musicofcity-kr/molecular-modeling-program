@@ -30,7 +30,7 @@ export function AppHeader({
       </div>
       <div className="header-actions">
         <p className="header-status" aria-label="현재 구현 상태">
-          Phase 9: 수업 활동 모드 MVP
+          Phase 10: VSEPR 예측 엔진 MVP
         </p>
         <div className="mode-switch" aria-label="앱 모드 전환">
           <button

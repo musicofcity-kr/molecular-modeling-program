@@ -3,7 +3,8 @@
 ## Current Implementation Status
 
 - Completed: manual PubChem candidate search UI prototype.
-- In progress: classroom activity mode MVP with local templates and RDKit result comparison.
+- Completed: classroom activity mode MVP with local templates and RDKit result comparison.
+- In progress: VSEPR educational prediction engine MVP.
 - Next: separate student-facing and teacher-facing modes before adding persistence or dashboards.
 
 ## Phase 0 — Skill and Workspace Setup
@@ -49,9 +50,17 @@
 ## Phase 6 — Student Activity Integration
 
 - Add guided tasks. (MVP complete: water, ethanol, benzene activities)
+- Add VSEPR prediction prompts. (MVP complete: center atom, bonding domains, lone pairs, shape, and 2D-vs-VSEPR reflection)
 - Add report export.
 - Add teacher-designed templates.
 - Add local save/load.
+
+## Phase 7 — Educational Structure Prediction
+
+- Add RDKit-gated VSEPR prediction panel. (MVP complete)
+- Add center-atom selection for multi-center molecules. (MVP complete)
+- Keep VSEPR output separate from measured 3D coordinates. (MVP complete)
+- Next: optional idealized VSEPR template visualization in 3Dmol.js with explicit teaching-model labels.
 
 ## Near-Term Next Step — Student/Teacher Mode Split
 

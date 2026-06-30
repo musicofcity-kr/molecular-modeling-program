@@ -44,9 +44,14 @@ describe('activityTemplates', () => {
         'predictedFormula',
         'predictedMolecularWeight',
         'drawingReason',
+        'predictedCentralAtom',
+        'predictedBondingDomains',
+        'predictedLonePairs',
+        'predictedVseprShape',
       ]);
       expect(template.reflectionQuestions.map((question) => question.id)).toEqual([
         'afterValidationReflection',
+        'vseprReflection',
       ]);
       expect('molecularWeight' in template).toBe(false);
       expect('expectedFormula' in template).toBe(false);

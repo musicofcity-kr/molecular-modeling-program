@@ -33,7 +33,7 @@ function formatComparisonStatus(status: ActivityComparisonStatus): string {
 }
 
 function isLongAnswerQuestion(questionId: string): boolean {
-  return questionId === 'drawingReason' || questionId === 'afterValidationReflection';
+  return questionId === 'drawingReason' || questionId.endsWith('Reflection');
 }
 
 export function ActivityPanel({

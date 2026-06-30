@@ -18,11 +18,13 @@ describe('App scaffold', () => {
     const markup = renderToStaticMarkup(<App />);
 
     expect(markup).toContain('Molecule Modeling Workbench');
-    expect(markup).toContain('Phase 9: 수업 활동 모드 MVP');
+    expect(markup).toContain('Phase 10: VSEPR 예측 엔진 MVP');
     expect(markup).toContain('자유 그리기');
     expect(markup).toContain('수업 활동');
     expect(markup).toContain('분자 편집 영역');
     expect(markup).toContain('구조 정보');
+    expect(markup).toContain('분자 구조 예측');
+    expect(markup).toContain('VSEPR 결과는 전자쌍 반발 이론에 따른 교육용 예측입니다.');
     expect(markup).toContain('PubChem 후보 검색');
     expect(markup).toContain('외부 데이터베이스에서 3D 구조 후보를 찾아봅니다.');
     expect(markup).toContain('RDKit.js 검증을 통과한 구조에서만');

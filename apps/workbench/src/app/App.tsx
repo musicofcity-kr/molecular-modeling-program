@@ -12,6 +12,7 @@ import {
 } from '../components/validation/ValidationLogPanel';
 import { PubChemCandidatePanel } from '../components/pubchem/PubChemCandidatePanel';
 import { ActivityPanel } from '../components/activity/ActivityPanel';
+import { VseprPanel } from '../components/vsepr/VseprPanel';
 import type {
   ChemicalEditorHandle,
   ExtractedStructureData,
@@ -28,6 +29,7 @@ import {
   type PubChem3DLoadStatus,
 } from '../services/pubchem3d';
 import { searchPubChemCandidatesByCanonicalSmiles } from '../services/pubchemSearch';
+import { analyzeVseprFromMolBlock } from '../services/vseprEngine';
 import type {
   Molecule3DInput,
   MoleculeValidationResult,
@@ -35,6 +37,7 @@ import type {
   PubChemMatchStatus,
 } from '../types/molecule';
 import type { ActivityResponseState, AppMode } from '../types/activity';
+import type { VseprAnalysis } from '../types/vsepr';
 
 type PubChem3DState = {
   status: PubChem3DLoadStatus;
@@ -54,6 +57,13 @@ const INITIAL_PUBCHEM_CANDIDATE_STATE: PubChemCandidateSearchState = {
   status: 'not_requested',
   candidates: [],
   warnings: [],
+};
+const INITIAL_VSEPR_ANALYSIS: VseprAnalysis = {
+  status: 'not_requested',
+  confidence: 'low',
+  warnings: [],
+  studentMessage:
+    'RDKit.js 검증을 통과한 MOL block이 있을 때 VSEPR 예측을 실행할 수 있습니다.',
 };
 
 function createLog(level: WorkbenchLogEntry['level'], message: string): WorkbenchLogEntry {
@@ -97,6 +107,11 @@ export function App() {
     useState<ExtractedStructureData | null>(null);
   const [validationResult, setValidationResult] =
     useState<MoleculeValidationResult | null>(null);
+  const [vseprAnalysis, setVseprAnalysis] = useState<VseprAnalysis>(
+    INITIAL_VSEPR_ANALYSIS,
+  );
+  const [selectedVseprCentralAtomId, setSelectedVseprCentralAtomId] =
+    useState<string>('');
   const [validatedExampleId, setValidatedExampleId] = useState<string | null>(null);
   const [molecule3DInput, setMolecule3DInput] = useState<Molecule3DInput | null>(
     null,
@@ -125,6 +140,11 @@ export function App() {
     setPubChemCandidateState(INITIAL_PUBCHEM_CANDIDATE_STATE);
   };
 
+  const resetVseprAnalysis = () => {
+    setSelectedVseprCentralAtomId('');
+    setVseprAnalysis(INITIAL_VSEPR_ANALYSIS);
+  };
+
   const handle3DDeveloperLog = useCallback((message: string) => {
     console.info('[3Dmol viewer]', message);
   }, []);
@@ -146,6 +166,7 @@ export function App() {
     resetPubChemCandidateState();
     setExtractedStructure(labeledStructure);
     setValidationResult(null);
+    resetVseprAnalysis();
     appendLog(
       createLog(
         'info',
@@ -159,6 +180,9 @@ export function App() {
     setValidationResult(result);
 
     if (result.ok) {
+      const initialVseprAnalysis = analyzeVseprFromMolBlock({
+        molBlock: labeledStructure.molBlock,
+      });
       const expectedFormulaWarning = example
         ? buildExpectedFormulaWarning(example, result.molecularFormula)
         : null;
@@ -174,6 +198,24 @@ export function App() {
         appendLog(createLog('warning', expectedFormulaWarning));
       }
 
+      setVseprAnalysis(initialVseprAnalysis);
+      setSelectedVseprCentralAtomId(initialVseprAnalysis.centralAtomId ?? '');
+      if (initialVseprAnalysis.status === 'supported') {
+        appendLog(
+          createLog(
+            'info',
+            `VSEPR 예측 완료: ${initialVseprAnalysis.axeNotation}, ${initialVseprAnalysis.molecularShapeKo}`,
+          ),
+        );
+      } else if (initialVseprAnalysis.studentMessage) {
+        appendLog(
+          createLog(
+            initialVseprAnalysis.status === 'needs_central_atom' ? 'warning' : 'info',
+            initialVseprAnalysis.studentMessage,
+          ),
+        );
+      }
+
       setValidatedExampleId(example && !expectedFormulaWarning ? example.id : null);
       setMolecule3DInput(
         example && !expectedFormulaWarning ? buildExample3DInput(example) : null,
@@ -183,6 +225,7 @@ export function App() {
       appendLog(createLog('error', result.studentMessage));
       setValidatedExampleId(null);
       setMolecule3DInput(null);
+      resetVseprAnalysis();
     }
   };
 
@@ -196,6 +239,7 @@ export function App() {
       resetPubChemCandidateState();
       setExtractedStructure(null);
       setValidationResult(null);
+      resetVseprAnalysis();
       appendLog(
         createLog(
           'error',
@@ -406,6 +450,7 @@ export function App() {
       resetPubChemCandidateState();
       setExtractedStructure(null);
       setValidationResult(null);
+      resetVseprAnalysis();
       appendLog(
         createLog(
           'error',
@@ -423,6 +468,32 @@ export function App() {
         [questionId]: value,
       },
     }));
+  };
+
+  const handleSelectVseprCentralAtom = (atomId: string) => {
+    setSelectedVseprCentralAtomId(atomId);
+
+    if (validationResult?.ok !== true || !extractedStructure?.molBlock) {
+      setVseprAnalysis(INITIAL_VSEPR_ANALYSIS);
+      return;
+    }
+
+    const nextAnalysis = analyzeVseprFromMolBlock({
+      molBlock: extractedStructure.molBlock,
+      selectedCentralAtomId: atomId,
+    });
+    setVseprAnalysis(nextAnalysis);
+
+    if (nextAnalysis.status === 'supported') {
+      appendLog(
+        createLog(
+          'info',
+          `선택한 중심 원자 ${nextAnalysis.centralAtomSymbol}${nextAnalysis.centralAtomId}의 VSEPR 예측: ${nextAnalysis.axeNotation}, ${nextAnalysis.molecularShapeKo}`,
+        ),
+      );
+    } else if (nextAnalysis.studentMessage) {
+      appendLog(createLog('warning', nextAnalysis.studentMessage));
+    }
   };
 
   const selectedExample = findSelectedExample();
@@ -467,6 +538,12 @@ export function App() {
           validationResult={validationResult}
         />
       </section>
+
+      <VseprPanel
+        analysis={vseprAnalysis}
+        selectedCentralAtomId={selectedVseprCentralAtomId}
+        onSelectCentralAtom={handleSelectVseprCentralAtom}
+      />
 
       <ActivityPanel
         appMode={appMode}

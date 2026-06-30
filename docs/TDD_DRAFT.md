@@ -9,6 +9,7 @@ React/Vite App
  ├─ Ketcher Editor Component
  ├─ Structure State Service
  ├─ RDKit Validation Service
+ ├─ VSEPR Prediction Engine
  ├─ Molecule Result Panel
  ├─ Activity Panel
  ├─ 3Dmol.js Viewer Shell
@@ -68,8 +69,15 @@ FastAPI Backend
 19. Activity comparison is intentionally a simple string comparison. It does not score answers and does not try to normalize chemically equivalent formula notation.
 20. Activity templates store prompts and target SMILES for classroom guidance, but they do not store molecular weight or override RDKit-calculated formula/mass.
 21. This phase does not implement student login, persistence, teacher dashboards, PDF/image export, or automatic grading.
-22. If a later import or trusted example provides coordinate-bearing `mol`, `sdf`, `xyz`, or `pdb` data, the viewer can clear the previous model, load the coordinate data, resize, and render it with a source/method label.
-23. Export service generates image output from the current validated or explicitly unvalidated drawing state, depending on export type.
+22. VSEPR analysis is a separate educational prediction layer:
+   - it runs only after RDKit.js validation succeeds;
+   - it reads the validated Ketcher V2000 MOL block as a local atom/bond graph;
+   - it does not compute formula, mass, canonical SMILES, energy, real bond lengths, or measured bond angles;
+   - it returns center-atom-local AXE notation, electron-domain geometry, molecular shape, idealized angle labels, confidence, and warnings.
+23. If a molecule has multiple plausible centers, such as ethanol, the app does not assign one global VSEPR shape. It asks the user to select a center atom and then performs local VSEPR analysis for that atom.
+24. Activity mode includes VSEPR prediction prompts, but those student answers are not automatically scored in this phase.
+25. If a later import or trusted example provides coordinate-bearing `mol`, `sdf`, `xyz`, or `pdb` data, the viewer can clear the previous model, load the coordinate data, resize, and render it with a source/method label.
+26. Export service generates image output from the current validated or explicitly unvalidated drawing state, depending on export type.
 
 ## 3. Core Interfaces
 
@@ -200,6 +208,38 @@ export interface ActivityTemplate {
 
 export type ActivityResponseState = Record<string, string>;
 
+export type VseprStatus =
+  | 'not_requested'
+  | 'needs_central_atom'
+  | 'supported'
+  | 'unsupported'
+  | 'error';
+
+export interface VseprAnalysis {
+  status: VseprStatus;
+  centralAtomId?: string;
+  centralAtomSymbol?: string;
+  bondedAtomCount?: number;
+  lonePairCount?: number;
+  stericNumber?: number;
+  axeNotation?: string;
+  electronDomainGeometryKo?: string;
+  molecularShapeKo?: string;
+  idealBondAngles?: string[];
+  confidence: 'high' | 'medium' | 'low';
+  warnings: string[];
+}
+
+export interface VseprTemplateGeometry {
+  axeNotation: string;
+  vectors: Array<{
+    x: number;
+    y: number;
+    z: number;
+    kind: 'bond' | 'lonePair';
+  }>;
+}
+
 export type MoleculeValidationResult =
   | {
       ok: true;
@@ -242,7 +282,7 @@ export type MoleculeRenderState = {
 };
 ```
 
-The canonical TypeScript sources for these contracts are `apps/workbench/src/types/molecule.ts` and `apps/workbench/src/types/activity.ts`.
+The canonical TypeScript sources for these contracts are `apps/workbench/src/types/molecule.ts`, `apps/workbench/src/types/activity.ts`, and `apps/workbench/src/types/vsepr.ts`.
 
 ## 4. Validation Gates
 
@@ -254,7 +294,10 @@ The canonical TypeScript sources for these contracts are `apps/workbench/src/typ
 - Gate 6: 3Dmol.js receives only validated structure state plus explicit coordinate-bearing 3D data and does not compute validation.
 - Gate 7: activity mode reads RDKit.js validation results but does not create calculated chemistry values itself.
 - Gate 8: activity comparison is shown as `아직 검증 전`, `예상값 입력 전`, `일치`, or `다름`; it is not an automatic score.
-- Gate 9: export uses current validated structure for chemistry-bearing export, while worksheet image export may use the visible editor drawing with an explicit validation label.
+- Gate 9: VSEPR analysis reads MOL block data only after RDKit.js validation succeeds.
+- Gate 10: VSEPR results are labeled as educational predictions, not measured geometry, optimized conformers, or 3D coordinate data.
+- Gate 11: multi-center molecules require center-atom selection and are not described as one whole-molecule VSEPR shape.
+- Gate 12: export uses current validated structure for chemistry-bearing export, while worksheet image export may use the visible editor drawing with an explicit validation label.
 
 ## 5. Initial Dependencies
 
@@ -287,6 +330,8 @@ The canonical TypeScript sources for these contracts are `apps/workbench/src/typ
 - Selecting a candidate reuses the CID-based 3D SDF loading service instead of creating a second 3D fetch path.
 - Activity templates include only classroom prompts, target molecule references, and prediction/reflection questions.
 - Activity panel compares student predictions with RDKit.js formula and average molecular weight by simple string match.
+- VSEPR engine parses V2000 MOL blocks, maps AXE notation, handles implicit hydrogens for simple main-group examples, and blocks unsupported cases.
+- VSEPR panel shows blocked, center-selection, supported, unsupported, and error states without claiming experimental geometry.
 
 ### Integration tests
 
@@ -294,6 +339,7 @@ The canonical TypeScript sources for these contracts are `apps/workbench/src/typ
 - Example molecule can be loaded into editor and extracted back.
 - RDKit service initializes once and handles repeated calls.
 - Switching from `free_draw` to `activity` reveals the activity panel without removing the editor, validation panel, 3D viewer, or PubChem candidate panel.
+- Loading a validated example updates the VSEPR panel while keeping RDKit formula/mass as the source for calculated values.
 
 ### E2E tests
 
@@ -301,6 +347,7 @@ The canonical TypeScript sources for these contracts are `apps/workbench/src/typ
 - Draw or load benzene → export image.
 - Invalid structure → warning appears and no confident calculation is shown.
 - Activity mode: enter a predicted formula, validate a structure, and confirm the panel shows match/different without score output.
+- VSEPR mode: load water or methane and confirm AXE notation appears; load ethanol and confirm center-atom selection is required.
 
 ## 7. PubChem CID-Based 3D Prototype
 
@@ -477,7 +524,79 @@ The comparison is not a grade. It does not normalize formula order, significant 
 - No automatic scoring.
 - No activity result PDF/image export.
 
-## 10. Risk Register
+## 10. VSEPR Prediction Engine MVP
+
+The VSEPR engine is an educational structure-prediction layer. It is not part of RDKit.js validation, PubChem lookup, or 3Dmol.js coordinate rendering.
+
+### Data flow
+
+```text
+Ketcher V2000 MOL block
+  -> RDKit.js validation succeeds
+  -> VSEPR engine parses local atom/bond graph
+  -> app selects one clear center or asks user to select a center atom
+  -> VSEPR panel displays AXE notation and idealized classroom geometry
+```
+
+### Service boundary
+
+`apps/workbench/src/services/vseprEngine.ts` is a pure TypeScript service:
+
+- parses V2000 atom and bond blocks;
+- reads atom charge codes and `M  CHG` lines where present;
+- treats single, double, triple, and aromatic bonds as one VSEPR electron-domain direction for geometry counting;
+- estimates implicit hydrogens only from a small common-valence table;
+- estimates lone pairs with:
+
+```text
+lonePairs = (valenceElectrons - sumBondOrder - formalCharge) / 2
+```
+
+If the estimate is negative, non-integer, or outside the MVP mapping table, the result is `unsupported`.
+
+### Supported MVP centers
+
+- High-confidence main-group centers: C, N, O, F, P, S, Cl.
+- Lower-confidence centers when simple enough: Br, I.
+- Unsupported or review-needed: transition metals, radicals, malformed MOL blocks, unsupported bond/query types, complex resonance-heavy cases, and steric numbers outside the mapping table.
+
+### Supported AXE mappings
+
+- AX2: 선형
+- AX3: 삼각 평면
+- AX2E: 굽은형
+- AX4: 정사면체
+- AX3E: 삼각뿔형
+- AX2E2: 굽은형
+- AX5: 삼각쌍뿔
+- AX4E: 시소형
+- AX3E2: T자형
+- AX2E3: 선형
+- AX6: 팔면체
+- AX5E: 사각뿔형
+- AX4E2: 사각평면형
+
+### UI behavior
+
+- Before RDKit validation: show a blocked VSEPR state.
+- Single clear center: auto-display local VSEPR result.
+- Multiple centers: show center atom dropdown.
+- Unsupported center: hide confident geometry and show review-needed warnings.
+- 3Dmol.js is not used to generate or validate VSEPR geometry in this phase.
+
+### Activity mode additions
+
+The guided activity panel now asks students to predict:
+
+- center atom;
+- bonding electron-domain count;
+- lone-pair count;
+- VSEPR molecular shape;
+- how 2D connectivity differs from VSEPR structure prediction.
+
+These answers are reflection prompts only. They are not automatically scored.
+
+## 11. Risk Register
 
 | Risk | Mitigation |
 |---|---|
@@ -486,3 +605,4 @@ The comparison is not a grade. It does not normalize formula order, significant 
 | 2D-to-3D conversion is not trivial | Current shell does not generate conformers; add a coordinate source only after a validated import or explicit generation method exists. |
 | Licensing ambiguity | Keep dependency decision log. |
 | Students misinterpret generated 3D geometry | Add method/source label to viewer. |
+| Students treat VSEPR as measured geometry | Label VSEPR output as idealized educational prediction and keep it separate from 3D coordinate sources. |
