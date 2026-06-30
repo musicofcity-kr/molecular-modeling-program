@@ -141,3 +141,40 @@ Teacher mode may show:
 
 Comparison observations are not scored, saved to a database, or treated as a
 submitted assessment in this phase.
+
+## Activity Result Export Boundary
+
+Student mode may show:
+
+- activity result summary
+- local browser save
+- JSON export
+- Markdown export
+- TXT export
+- clipboard copy
+- browser print
+- a notice that local save is only available in the current browser
+- a notice that exported results are classroom records, not automatic scores
+
+Student mode must still hide:
+
+- developer logs
+- raw PubChem response text
+- HTTP status details
+- raw SDF or MOL block payloads
+- internal type names and debug messages
+- teacher-only misconception explanations
+
+Teacher mode may show:
+
+- whether a result snapshot can be generated
+- RDKit validation status
+- actual/external 3D coordinate source
+- PubChem usage status
+- VSEPR analysis status
+- comparison mode status
+- measurement source warnings
+- an export-included/excluded-item explanation
+
+The export panel must not introduce login, database storage, Firebase,
+student-specific submission lists, automatic grading, or a teacher dashboard.

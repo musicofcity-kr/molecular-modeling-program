@@ -34,6 +34,7 @@ type Molecule3DViewerProps = {
   validatedStructureKey?: string;
   userMode?: UserMode;
   actionSlot?: ReactNode;
+  onMeasurementResultsChange?: (results: GeometryMeasurementResult[]) => void;
   onDeveloperLog?: (message: string) => void;
 };
 
@@ -225,6 +226,7 @@ export const Molecule3DViewer = forwardRef<
     validatedStructureKey,
     userMode = 'student',
     actionSlot,
+    onMeasurementResultsChange,
     onDeveloperLog,
   },
   ref,
@@ -410,6 +412,10 @@ export const Molecule3DViewer = forwardRef<
   useEffect(() => {
     measurementModeRef.current = atomSelectionMode;
   }, [atomSelectionMode]);
+
+  useEffect(() => {
+    onMeasurementResultsChange?.(measurementResults);
+  }, [measurementResults, onMeasurementResultsChange]);
 
   useEffect(() => {
     let cancelled = false;

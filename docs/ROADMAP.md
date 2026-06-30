@@ -11,7 +11,8 @@
 - Completed: 3D availability pipeline stabilization for optional VSEPR gating, PubChem candidate formula compatibility checks, stale PubChem response ignoring, and Git exclusion of generated review artifacts.
 - Completed: 3D Viewer representation controls and coordinate-based bond length/bond angle measurement MVP with explicit source warnings.
 - Completed: actual/external 3D structure vs VSEPR educational model comparison mode with student observation prompts and teacher caution notes.
-- Next: keep the core free-draw MVP focused on Ketcher -> RDKit.js -> actual/external 3D, while refining VSEPR only inside guided classroom activities or explicit optional use.
+- Completed: local activity result save and JSON/Markdown/TXT/clipboard/print export MVP for Classroom MVP Release Candidate.
+- Next: classroom pilot QA, accessibility polish, and teacher template authoring/import/export after the release candidate is stable.
 
 ## Phase 0 — Skill and Workspace Setup
 
@@ -59,9 +60,9 @@
 - Add guided tasks. (MVP complete: water, methane, ammonia, carbon dioxide, ethanol, benzene activities)
 - Add VSEPR prediction prompts. (MVP complete: center atom, bonding domains, lone pairs, shape, VSEPR model observations, and 2D-vs-VSEPR reflection)
 - Add student/teacher UI split. (MVP complete: simple mode switch, no auth)
-- Add report export.
+- Add report export. (MVP complete: JSON, Markdown, TXT, clipboard, browser print)
 - Add teacher-designed templates.
-- Add local save/load.
+- Add local save/load. (MVP complete: latest localStorage snapshots, no server persistence)
 
 ## Phase 7 — Educational Structure Prediction
 
@@ -78,5 +79,6 @@
 - Student mode is now focused on drawing, validation, prediction, reflection, and external 3D candidate review.
 - Teacher mode now shows activity template information, misconception checks, validation/VSEPR/3D/PubChem status, and collapsible logs.
 - Free-draw student mode now treats VSEPR as an optional education module rather than a permanent core panel.
+- Classroom MVP RC now supports local activity-result snapshots and JSON/Markdown/TXT/clipboard/print export without login or a database.
 - Next teacher-facing step: local template editing/import/export after the mode split is stable.
-- Keep storage, login, dashboards, automatic grading, and export out of scope until the classroom flow is stable.
+- Keep server storage, login, dashboards, automatic grading, PDF export, and 3D viewer capture out of scope until the classroom flow is stable.

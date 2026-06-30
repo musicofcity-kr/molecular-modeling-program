@@ -985,7 +985,82 @@ Caution or not recommended for one-whole-molecule comparison:
 Comparison observations are student reflection fields. They are not automatically scored and are not string-compared against a stored answer.
 PubChem candidates that are only formula-compatible may still be reviewed as external 3D visualization data, but they do not open comparison mode until the structure match is verified.
 
-## 16. Risk Register
+## 16. Phase 15 — Activity Result Save and Export MVP
+
+This phase prepares the Classroom MVP Release Candidate by adding local activity-result snapshots and lightweight export formats.
+
+### Data flow
+
+```text
+Ketcher input
+  -> RDKit.js validation result
+  -> optional actual/external 3D coordinate observation and measurements
+  -> optional VSEPR educational prediction
+  -> optional actual/external 3D vs VSEPR comparison observation
+  -> ActivityResultSnapshot
+  -> localStorage / JSON / Markdown / TXT / clipboard / browser print
+```
+
+`ActivityResultSnapshot` lives in `apps/workbench/src/types/activityResult.ts`.
+The snapshot is a classroom record, not a chemistry validation source. It stores
+student predictions, RDKit.js validation output, source-labeled 3D observation
+metadata, coordinate-based measurement results, optional VSEPR summary,
+comparison observations, and activity answers.
+
+### Storage boundary
+
+- `apps/workbench/src/services/activityResultStorage.ts` stores snapshots in
+  `localStorage` under `molecule-workbench-activity-results`.
+- The app keeps only the latest local snapshots, currently capped at 10.
+- This is browser-local temporary storage. It is not a database, not Firebase,
+  not a student account, and not a teacher submission list.
+- Storage failures return a student-facing message and developer logs without
+  changing RDKit.js validation state.
+
+### Export boundary
+
+`apps/workbench/src/services/activityResultExport.ts` supports:
+
+- JSON export of `ActivityResultSnapshot`
+- Markdown export for classroom submission
+- TXT export
+- Markdown clipboard copy
+- browser print through `window.print()`
+
+Default exports intentionally exclude:
+
+- developer logs
+- raw PubChem responses
+- HTTP status details
+- raw SDF payloads
+- raw MOL blocks
+- raw Ketcher editor state
+
+### Validation gates
+
+- RDKit.js remains the source for formula, average molecular weight, and
+  canonical SMILES in exported records.
+- PubChem/static 3D data contributes only coordinate source and observation
+  context.
+- 3D measurements are exported only as values from the currently loaded
+  coordinate-bearing 3D payload with a source note.
+- VSEPR is exported only as an educational prediction summary.
+- Export and local save must not make an invalid structure valid and must not
+  hide RDKit validation failure messages.
+
+### UI boundary
+
+`ActivityResultPanel` is attached as an `App` sibling panel rather than being
+embedded into `ActivityPanel`, `Molecule3DViewer`, or `StructureComparisonPanel`.
+This keeps save/export orchestration separate from drawing, validation,
+visualization, and comparison responsibilities.
+
+Student mode shows local save/export controls and a classroom result summary.
+Teacher mode adds guidance that the output is not automatic scoring and lists
+what the export includes/excludes. Developer logs remain outside the exported
+student result.
+
+## 17. Risk Register
 
 | Risk | Mitigation |
 |---|---|

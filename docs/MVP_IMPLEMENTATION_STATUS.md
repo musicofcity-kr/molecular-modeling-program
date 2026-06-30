@@ -347,3 +347,45 @@ Chemistry-derived values are shown only when `MoleculeValidationResult.ok === tr
 - `npx tsc --noEmit`: passed.
 - `npm test -- --run`: passed with 21 files and 123 tests.
 - `npm run build`: passed with the known 3Dmol.js `eval` warning and existing large chunk warnings.
+
+## 2026-06-30 — Phase 15 Classroom MVP Release Candidate: local save and export
+
+### Current status
+
+- Added `ActivityResultSnapshot` as the student activity result contract.
+- Added browser-local snapshot storage through `localStorage`.
+- Added an `ActivityResultPanel` that summarizes:
+  - activity information
+  - student prediction values
+  - RDKit.js validation result
+  - actual/external 3D source and observation
+  - coordinate-based measurement results
+  - optional VSEPR educational prediction result
+  - actual/external 3D vs VSEPR comparison observation
+  - activity question answers and final reflection
+- Added JSON, Markdown, TXT, clipboard copy, and browser print export flows.
+- Exported records keep RDKit.js as the formula, average molecular weight, and
+  canonical SMILES source.
+- Exported records do not include raw SDF, raw MOL block, raw PubChem response,
+  HTTP status detail, Ketcher internals, or developer logs.
+- Main actual/external `Molecule3DViewer` now reports measurement results to
+  `App` so current coordinate-based measurements can be included in the
+  activity snapshot.
+
+### Intentionally not implemented in this phase
+
+- student login
+- Firebase or database persistence
+- student-specific submission lists
+- automatic grading
+- PDF export
+- 3D viewer image capture
+- RDKit 3D conformer generation
+- Open Babel backend conversion
+- energy minimization
+
+### Verification
+
+- `npx tsc --noEmit`: passed during implementation.
+- `npm test -- --run`: passed with 24 files and 131 tests during implementation.
+- Final build verification should still be run immediately before commit.

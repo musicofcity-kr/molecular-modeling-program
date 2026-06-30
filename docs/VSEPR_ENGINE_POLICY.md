@@ -153,3 +153,20 @@ Those expected values are guidance for classroom discussion, not automatic scori
 
 The MVP follows standard classroom VSEPR assumptions, including the distinction between electron-domain geometry and molecular shape and treating multiple bonds as one electron-domain direction for geometry prediction.
 OpenStax Chemistry 2e, Section 7.6, was used as a reference for these classroom VSEPR boundaries.
+
+## Activity Result Export Boundary
+
+Activity result export may record VSEPR output only as an educational prediction
+summary:
+
+- AXE notation
+- electron-domain geometry
+- molecular shape
+- idealized bond-angle label
+- confidence
+- student reflection about the model
+
+Exports must not describe VSEPR template vectors as actual coordinates,
+PubChem structures, optimized conformers, or measured geometry. VSEPR export
+fields must not replace RDKit.js formula, average molecular weight, or
+canonical SMILES.

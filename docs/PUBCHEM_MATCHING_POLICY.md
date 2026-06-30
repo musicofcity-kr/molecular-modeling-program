@@ -140,3 +140,21 @@ export type SearchPubChemCandidatesByCanonicalSmiles = (
 ```
 
 The current service returns student-facing messages and developer logs with the candidates so the UI can separate classroom feedback from diagnostics.
+
+## Activity Result Export Boundary
+
+Activity result export may record PubChem only as an external 3D source label
+or source note after the user explicitly loads a CID-based 3D structure or
+selects a manual candidate.
+
+Default student exports must not include:
+
+- raw PubChem API responses
+- HTTP status details
+- raw SDF payloads
+- PubChem molecular weight as a replacement for RDKit.js molecular weight
+- PubChem formula as a replacement for RDKit.js formula
+
+If PubChem loading fails, exported records may still include RDKit.js validation
+values and student reflection, but they should not imply that PubChem 3D data
+was available.

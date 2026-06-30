@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppHeader } from '../components/header/AppHeader';
 import {
   KetcherEditor,
@@ -12,6 +12,7 @@ import {
 } from '../components/validation/ValidationLogPanel';
 import { PubChemCandidatePanel } from '../components/pubchem/PubChemCandidatePanel';
 import { StructureComparisonPanel } from '../components/comparison/StructureComparisonPanel';
+import { ActivityResultPanel } from '../components/export/ActivityResultPanel';
 import { ActivityPanel } from '../components/activity/ActivityPanel';
 import { VseprPanel } from '../components/vsepr/VseprPanel';
 import { Vsepr3DModelViewer } from '../components/Vsepr3DModelViewer';
@@ -38,7 +39,17 @@ import {
 import { analyzeVseprFromMolBlock } from '../services/vseprEngine';
 import { hasVseprGeometryTemplate } from '../services/vseprGeometryTemplates';
 import { buildStructureComparisonState } from '../services/structureComparison';
+import {
+  copyActivityResultMarkdown,
+  downloadActivityResultFile,
+} from '../services/activityResultExport';
+import {
+  createActivityResultSnapshot,
+  loadActivityResults,
+  saveActivityResult,
+} from '../services/activityResultStorage';
 import type {
+  GeometryMeasurementResult,
   Molecule3DInput,
   Molecule3DStructureMatchStatus,
   MoleculeValidationResult,
@@ -52,6 +63,7 @@ import {
   type UserMode,
 } from '../types/activity';
 import type { StructureComparisonObservation } from '../types/structureComparison';
+import type { ActivityResultSnapshot } from '../types/activityResult';
 import type { VseprAnalysis, VseprModelViewStatus } from '../types/vsepr';
 
 type PubChem3DState = {
@@ -169,6 +181,16 @@ export function App() {
   const [molecule3DInput, setMolecule3DInput] = useState<Molecule3DInput | null>(
     null,
   );
+  const [measurementResults, setMeasurementResults] = useState<
+    GeometryMeasurementResult[]
+  >([]);
+  const [savedActivityResults, setSavedActivityResults] = useState<
+    ActivityResultSnapshot[]
+  >([]);
+  const [previewActivityResultId, setPreviewActivityResultId] =
+    useState<string | null>(null);
+  const [activityResultStatusMessage, setActivityResultStatusMessage] =
+    useState<string>('');
   const [pubChem3DState, setPubChem3DState] = useState<PubChem3DState>(
     INITIAL_PUBCHEM_3D_STATE,
   );
@@ -219,6 +241,17 @@ export function App() {
     validationKeyRef.current =
       validationResult?.ok === true ? validationResult.canonicalSmiles : null;
   }, [validationResult]);
+
+  useEffect(() => {
+    const result = loadActivityResults();
+
+    setSavedActivityResults(result.data);
+
+    if (!result.ok) {
+      setActivityResultStatusMessage(result.studentMessage);
+      console.info('[Activity result storage]', result.developerLogs);
+    }
+  }, []);
 
   useEffect(() => {
     setVseprModelStatus((currentStatus) => {
@@ -759,6 +792,34 @@ export function App() {
     idealBondAngle: vseprAnalysis.idealBondAngles?.join(', '),
     ...structureComparisonObservationText,
   };
+  const currentActivityResultSnapshot = useMemo(
+    () =>
+      createActivityResultSnapshot({
+        appMode,
+        userMode,
+        activityTemplate: appMode === 'activity' ? selectedActivity : null,
+        responses: currentActivityResponses,
+        validationResult,
+        molecule3DInput,
+        measurementResults,
+        vseprAnalysis,
+        comparisonObservation: structureComparisonObservation,
+      }),
+    [
+      appMode,
+      currentActivityResponses,
+      molecule3DInput,
+      measurementResults,
+      selectedActivity,
+      structureComparisonObservation,
+      userMode,
+      validationResult,
+      vseprAnalysis,
+    ],
+  );
+  const previewActivityResult =
+    savedActivityResults.find((result) => result.id === previewActivityResultId) ??
+    null;
   const canLoadPubChem3D =
     Boolean(selectedExample?.pubchemCid) &&
     validatedExampleId === selectedExample?.id &&
@@ -784,6 +845,55 @@ export function App() {
       ...currentObservation,
       [field]: value,
     }));
+  };
+  const handleSaveActivityResult = () => {
+    const snapshot = createActivityResultSnapshot({
+      appMode,
+      userMode,
+      activityTemplate: appMode === 'activity' ? selectedActivity : null,
+      responses: currentActivityResponses,
+      validationResult,
+      molecule3DInput,
+      measurementResults,
+      vseprAnalysis,
+      comparisonObservation: structureComparisonObservation,
+    });
+    const result = saveActivityResult(snapshot);
+
+    setActivityResultStatusMessage(result.studentMessage);
+    console.info('[Activity result storage]', result.developerLogs);
+
+    if (result.ok) {
+      setSavedActivityResults((currentResults) => [
+        snapshot,
+        ...currentResults.filter((item) => item.id !== snapshot.id),
+      ].slice(0, 10));
+      setPreviewActivityResultId(snapshot.id);
+    }
+  };
+  const handleExportActivityResult = (format: 'json' | 'md' | 'txt') => {
+    const snapshot = previewActivityResult ?? currentActivityResultSnapshot;
+    const result = downloadActivityResultFile(snapshot, format);
+
+    setActivityResultStatusMessage(result.studentMessage);
+    console.info('[Activity result export]', result.developerLogs);
+  };
+  const handleCopyActivityResultMarkdown = async () => {
+    const snapshot = previewActivityResult ?? currentActivityResultSnapshot;
+    const result = await copyActivityResultMarkdown(snapshot);
+
+    setActivityResultStatusMessage(result.studentMessage);
+    console.info('[Activity result export]', result.developerLogs);
+  };
+  const handlePrintActivityResult = () => {
+    if (typeof window === 'undefined') {
+      setActivityResultStatusMessage('현재 환경에서는 인쇄 기능을 사용할 수 없습니다.');
+      console.info('[Activity result export]', ['window is not available for print.']);
+      return;
+    }
+
+    window.print();
+    setActivityResultStatusMessage('인쇄용 화면을 열었습니다.');
   };
 
   return (
@@ -961,6 +1071,28 @@ export function App() {
           </div>
         }
         onDeveloperLog={handle3DDeveloperLog}
+        onMeasurementResultsChange={setMeasurementResults}
+      />
+
+      <ActivityResultPanel
+        userMode={userMode}
+        currentSnapshot={currentActivityResultSnapshot}
+        previewSnapshot={previewActivityResult}
+        savedResults={savedActivityResults}
+        statusMessage={activityResultStatusMessage}
+        onSave={handleSaveActivityResult}
+        onPreviewSavedResult={setPreviewActivityResultId}
+        onExportJson={() => {
+          handleExportActivityResult('json');
+        }}
+        onExportMarkdown={() => {
+          handleExportActivityResult('md');
+        }}
+        onExportTxt={() => {
+          handleExportActivityResult('txt');
+        }}
+        onCopyMarkdown={() => void handleCopyActivityResultMarkdown()}
+        onPrint={handlePrintActivityResult}
       />
 
       <ValidationLogPanel

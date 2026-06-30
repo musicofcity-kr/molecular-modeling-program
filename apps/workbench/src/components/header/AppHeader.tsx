@@ -34,7 +34,7 @@ export function AppHeader({
       </div>
       <div className="header-actions">
         <p className="header-status" aria-label="현재 구현 상태">
-          Phase 11: 학생/교사 모드 분리 MVP
+          Phase 15: Classroom MVP Release Candidate
         </p>
         <div className="mode-group" aria-label="사용자 모드 전환">
           <span>사용자</span>

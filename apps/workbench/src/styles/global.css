@@ -978,6 +978,136 @@ select {
   line-height: 1.5;
 }
 
+.activity-result-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.activity-result-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 0;
+}
+
+.activity-result-notice,
+.activity-result-storage-note,
+.activity-result-status,
+.activity-result-card p {
+  margin: 0;
+  color: #34464d;
+  line-height: 1.5;
+}
+
+.activity-result-storage-note {
+  border: 1px solid #dfcf95;
+  border-radius: 8px;
+  background: #fff9e8;
+  color: #6b5618;
+  padding: 10px 12px;
+}
+
+.activity-result-status {
+  border: 1px solid #7fb59a;
+  border-radius: 8px;
+  background: #eff9f3;
+  color: #1f6a47;
+  padding: 10px 12px;
+}
+
+.activity-result-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.activity-result-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  gap: 14px;
+  align-items: start;
+}
+
+.activity-result-summary,
+.activity-result-side {
+  display: grid;
+  gap: 12px;
+}
+
+.activity-result-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #d7e0e2;
+  border-radius: 8px;
+  background: #fbfcfc;
+  padding: 12px;
+}
+
+.teacher-export-card {
+  border-color: #dfcf95;
+  background: #fff9e8;
+}
+
+.activity-result-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 180px) minmax(0, 1fr);
+  gap: 10px;
+  margin: 0;
+}
+
+.activity-result-row dt {
+  color: #42636c;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.activity-result-row dd {
+  margin: 0;
+  color: #21313a;
+  overflow-wrap: anywhere;
+}
+
+.activity-result-list,
+.saved-result-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activity-result-list li {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #d7e0e2;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px 12px;
+}
+
+.activity-result-list strong,
+.saved-result-list strong {
+  color: #21313a;
+}
+
+.activity-result-list small,
+.saved-result-list small {
+  color: #586e75;
+  line-height: 1.4;
+}
+
+.saved-result-list li {
+  display: grid;
+  gap: 5px;
+}
+
+.saved-result-list .secondary-action {
+  width: 100%;
+  text-align: left;
+}
+
 .teacher-panel {
   display: grid;
   gap: 14px;
@@ -1234,6 +1364,8 @@ select {
   .activity-question-grid,
   .activity-target dl,
   .comparison-row,
+  .activity-result-layout,
+  .activity-result-row,
   .vsepr-result-grid,
   .teacher-layout,
   .teacher-grid,
@@ -1287,5 +1419,45 @@ select {
 
   .editor-panel {
     min-height: 360px;
+  }
+}
+
+@media print {
+  body {
+    background: #ffffff;
+  }
+
+  .app-header,
+  .workbench-layout,
+  .vsepr-module-gate,
+  .vsepr-panel,
+  .vsepr-model-panel,
+  .activity-panel,
+  .teacher-panel,
+  .pubchem-candidate-panel,
+  .structure-comparison-panel,
+  .viewer-panel,
+  .log-panel,
+  .activity-result-actions,
+  .saved-result-list {
+    display: none !important;
+  }
+
+  .app-shell {
+    display: block;
+    padding: 0;
+  }
+
+  .activity-result-panel {
+    border: 0;
+    padding: 0;
+  }
+
+  .activity-result-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .activity-result-card {
+    break-inside: avoid;
   }
 }

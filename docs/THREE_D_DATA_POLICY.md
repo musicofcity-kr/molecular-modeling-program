@@ -173,6 +173,23 @@ The current MVP must not implement:
 - treating VSEPR template vectors as real 3D molecular coordinates
 - treating 3D viewer measurements as experimental or optimized reference geometry
 
+## Activity Result Export Boundary
+
+Activity result export may include 3D information only as classroom observation
+metadata:
+
+- whether coordinate-bearing 3D data was loaded;
+- the student-readable coordinate source label;
+- the source note;
+- coordinate-based measurement results from the current actual/external 3D
+  payload.
+
+Exports must not include raw SDF/PDB/XYZ/MOL payloads by default. They must not
+present PubChem/static coordinates as the source for RDKit.js formula or
+average molecular weight. Measurement values remain current-coordinate
+measurements and must keep the warning that they are not precise experimental,
+literature, or optimized geometry values.
+
 ## Sources Checked
 
 - PubChem PUG-REST documentation: https://pubchem.ncbi.nlm.nih.gov/docs/pug-rest
