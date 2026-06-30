@@ -79,6 +79,39 @@ select {
   flex-wrap: wrap;
 }
 
+.mode-switch {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid #bfd0d4;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.mode-action {
+  min-height: 38px;
+  border: 0;
+  border-right: 1px solid #bfd0d4;
+  background: transparent;
+  color: #2f5f67;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 8px 12px;
+}
+
+.mode-action:last-child {
+  border-right: 0;
+}
+
+.mode-action:hover,
+.mode-action:focus-visible {
+  background: #eef5f6;
+}
+
+.mode-action.active {
+  background: #2f6f7b;
+  color: #ffffff;
+}
+
 .example-picker {
   display: flex;
   align-items: center;
@@ -342,6 +375,186 @@ select {
   color: #34464d;
 }
 
+.activity-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.activity-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 0;
+}
+
+.activity-layout {
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.activity-list {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.activity-template-button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-height: 58px;
+  border: 1px solid #d7e0e2;
+  border-radius: 8px;
+  background: #fbfcfc;
+  color: #21313a;
+  cursor: pointer;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.activity-template-button:hover,
+.activity-template-button:focus-visible {
+  border-color: #7ea3aa;
+  background: #eef5f6;
+}
+
+.activity-template-button.active {
+  border-color: #7fb59a;
+  background: #eff9f3;
+}
+
+.activity-template-button span {
+  font-weight: 700;
+}
+
+.activity-template-button small {
+  color: #586e75;
+}
+
+.activity-content {
+  display: grid;
+  gap: 14px;
+}
+
+.activity-target {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #d7e0e2;
+  border-radius: 8px;
+  background: #fbfcfc;
+  padding: 12px;
+}
+
+.activity-target h3,
+.activity-target p {
+  margin: 0;
+}
+
+.activity-target h3 {
+  font-size: 1rem;
+}
+
+.activity-target p {
+  color: #34464d;
+  line-height: 1.5;
+}
+
+.activity-target dl,
+.activity-comparison {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.activity-target dl {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.activity-target dt,
+.comparison-row span,
+.activity-question span {
+  color: #42636c;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.activity-target dd {
+  margin: 3px 0 0;
+  color: #21313a;
+}
+
+.activity-question-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.activity-question-grid > div {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.activity-question {
+  display: grid;
+  gap: 6px;
+}
+
+.activity-question input,
+.activity-question textarea {
+  width: 100%;
+  border: 1px solid #bfd0d4;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1d2730;
+  padding: 9px 10px;
+}
+
+.activity-question textarea {
+  min-height: 86px;
+  resize: vertical;
+}
+
+.activity-comparison {
+  border: 1px solid #d7e0e2;
+  border-radius: 8px;
+  background: #fbfcfc;
+  padding: 12px;
+}
+
+.comparison-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 180px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.comparison-row strong {
+  color: #21313a;
+  overflow-wrap: anywhere;
+}
+
+.comparison-row.match strong {
+  color: #1f6a47;
+}
+
+.comparison-row.different strong {
+  color: #8a2f2f;
+}
+
+.comparison-row.not_validated strong,
+.comparison-row.not_answered strong {
+  color: #6b5618;
+}
+
+.activity-comparison p {
+  margin: 4px 0 0;
+  color: #586e75;
+  line-height: 1.5;
+}
+
 .viewer-content {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
@@ -486,7 +699,24 @@ select {
     white-space: normal;
   }
 
+  .mode-switch {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .mode-action {
+    width: 100%;
+  }
+
   .workbench-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .activity-layout,
+  .activity-question-grid,
+  .activity-target dl,
+  .comparison-row {
     grid-template-columns: 1fr;
   }
 

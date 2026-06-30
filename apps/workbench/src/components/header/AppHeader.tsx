@@ -1,6 +1,9 @@
 import type { ExampleMolecule } from '../../data/exampleMolecules';
+import type { AppMode } from '../../types/activity';
 
 type AppHeaderProps = {
+  appMode: AppMode;
+  onModeChange: (mode: AppMode) => void;
   onExtractAndValidate: () => void;
   examples: ExampleMolecule[];
   selectedExampleId: string;
@@ -9,6 +12,8 @@ type AppHeaderProps = {
 };
 
 export function AppHeader({
+  appMode,
+  onModeChange,
   onExtractAndValidate,
   examples,
   selectedExampleId,
@@ -25,8 +30,32 @@ export function AppHeader({
       </div>
       <div className="header-actions">
         <p className="header-status" aria-label="현재 구현 상태">
-          Phase 8: 수동 PubChem 후보 검색
+          Phase 9: 수업 활동 모드 MVP
         </p>
+        <div className="mode-switch" aria-label="앱 모드 전환">
+          <button
+            className={
+              appMode === 'free_draw' ? 'mode-action active' : 'mode-action'
+            }
+            data-testid="mode-free-draw"
+            type="button"
+            onClick={() => {
+              onModeChange('free_draw');
+            }}
+          >
+            자유 그리기
+          </button>
+          <button
+            className={appMode === 'activity' ? 'mode-action active' : 'mode-action'}
+            data-testid="mode-activity"
+            type="button"
+            onClick={() => {
+              onModeChange('activity');
+            }}
+          >
+            수업 활동
+          </button>
+        </div>
         <label className="example-picker">
           <span>예제</span>
           <select

@@ -18,7 +18,9 @@ describe('App scaffold', () => {
     const markup = renderToStaticMarkup(<App />);
 
     expect(markup).toContain('Molecule Modeling Workbench');
-    expect(markup).toContain('Phase 8: 수동 PubChem 후보 검색');
+    expect(markup).toContain('Phase 9: 수업 활동 모드 MVP');
+    expect(markup).toContain('자유 그리기');
+    expect(markup).toContain('수업 활동');
     expect(markup).toContain('분자 편집 영역');
     expect(markup).toContain('구조 정보');
     expect(markup).toContain('PubChem 후보 검색');
@@ -40,6 +42,7 @@ describe('App scaffold', () => {
     expect(markup).toContain('아스피린 (Aspirin)');
     expect(markup).toContain('구조 검증하기');
     expect(markup).toContain('RDKit.js 미검증');
+    expect(markup).not.toContain('수업용 활동 모드');
     expect(markup).not.toContain('data-testid="formula-output"');
     expect(markup).not.toContain('data-testid="molecular-weight-output"');
   });

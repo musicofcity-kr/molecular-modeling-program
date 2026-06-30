@@ -11,6 +11,7 @@ import {
   type WorkbenchLogEntry,
 } from '../components/validation/ValidationLogPanel';
 import { PubChemCandidatePanel } from '../components/pubchem/PubChemCandidatePanel';
+import { ActivityPanel } from '../components/activity/ActivityPanel';
 import type {
   ChemicalEditorHandle,
   ExtractedStructureData,
@@ -19,6 +20,7 @@ import {
   buildExpectedFormulaWarning,
   exampleMolecules,
 } from '../data/exampleMolecules';
+import { activityTemplates } from '../data/activityTemplates';
 import type { ExampleMolecule } from '../data/exampleMolecules';
 import { validateMoleculeInput } from '../services/rdkitService';
 import {
@@ -32,6 +34,7 @@ import type {
   PubChemCandidate,
   PubChemMatchStatus,
 } from '../types/molecule';
+import type { ActivityResponseState, AppMode } from '../types/activity';
 
 type PubChem3DState = {
   status: PubChem3DLoadStatus;
@@ -80,6 +83,13 @@ function buildExample3DInput(example: ExampleMolecule): Molecule3DInput | null {
 export function App() {
   const editorRef = useRef<ChemicalEditorHandle | null>(null);
   const hasLoggedEditorReadyRef = useRef(false);
+  const [appMode, setAppMode] = useState<AppMode>('free_draw');
+  const [selectedActivityId, setSelectedActivityId] = useState(
+    activityTemplates[0]?.id ?? '',
+  );
+  const [activityResponsesById, setActivityResponsesById] = useState<
+    Record<string, ActivityResponseState>
+  >({});
   const [selectedExampleId, setSelectedExampleId] = useState(
     exampleMolecules[0]?.id ?? '',
   );
@@ -405,7 +415,18 @@ export function App() {
     }
   };
 
+  const handleActivityResponseChange = (questionId: string, value: string) => {
+    setActivityResponsesById((currentResponses) => ({
+      ...currentResponses,
+      [selectedActivityId]: {
+        ...(currentResponses[selectedActivityId] ?? {}),
+        [questionId]: value,
+      },
+    }));
+  };
+
   const selectedExample = findSelectedExample();
+  const currentActivityResponses = activityResponsesById[selectedActivityId] ?? {};
   const canLoadPubChem3D =
     Boolean(selectedExample?.pubchemCid) &&
     validatedExampleId === selectedExample?.id &&
@@ -419,6 +440,8 @@ export function App() {
   return (
     <main className="app-shell" data-testid="app-shell">
       <AppHeader
+        appMode={appMode}
+        onModeChange={setAppMode}
         examples={exampleMolecules}
         selectedExampleId={selectedExampleId}
         onSelectExample={handleSelectExample}
@@ -444,6 +467,16 @@ export function App() {
           validationResult={validationResult}
         />
       </section>
+
+      <ActivityPanel
+        appMode={appMode}
+        templates={activityTemplates}
+        selectedActivityId={selectedActivityId}
+        responses={currentActivityResponses}
+        validationResult={validationResult}
+        onSelectActivity={setSelectedActivityId}
+        onResponseChange={handleActivityResponseChange}
+      />
 
       <PubChemCandidatePanel
         canSearch={canSearchPubChemCandidates}

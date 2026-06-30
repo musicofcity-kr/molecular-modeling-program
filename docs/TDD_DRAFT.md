@@ -10,6 +10,7 @@ React/Vite App
  ├─ Structure State Service
  ├─ RDKit Validation Service
  ├─ Molecule Result Panel
+ ├─ Activity Panel
  ├─ 3Dmol.js Viewer Shell
  ├─ Export Service
  └─ Example Molecule Library
@@ -60,8 +61,15 @@ FastAPI Backend
    - returned SDF is converted only into `Molecule3DInput`
    - 3Dmol.js displays the coordinate-bearing SDF
 16. PubChem loading failure does not clear RDKit.js formula, average molecular weight, or canonical SMILES. The student sees a short failure message, while developer logs keep CID, HTTP status, response excerpt, or fetch error.
-17. If a later import or trusted example provides coordinate-bearing `mol`, `sdf`, `xyz`, or `pdb` data, the viewer can clear the previous model, load the coordinate data, resize, and render it with a source/method label.
-18. Export service generates image output from the current validated or explicitly unvalidated drawing state, depending on export type.
+17. The app has two modes:
+   - `free_draw`: default mode for open molecule drawing, RDKit validation, 3D viewer, and PubChem candidate search.
+   - `activity`: guided classroom mode that keeps the same editor and validation flow but adds prompts, student predictions, and reflection fields.
+18. Activity mode compares student-entered predicted formula and predicted molecular weight against RDKit.js validation results only after `validationResult.ok === true`.
+19. Activity comparison is intentionally a simple string comparison. It does not score answers and does not try to normalize chemically equivalent formula notation.
+20. Activity templates store prompts and target SMILES for classroom guidance, but they do not store molecular weight or override RDKit-calculated formula/mass.
+21. This phase does not implement student login, persistence, teacher dashboards, PDF/image export, or automatic grading.
+22. If a later import or trusted example provides coordinate-bearing `mol`, `sdf`, `xyz`, or `pdb` data, the viewer can clear the previous model, load the coordinate data, resize, and render it with a source/method label.
+23. Export service generates image output from the current validated or explicitly unvalidated drawing state, depending on export type.
 
 ## 3. Core Interfaces
 
@@ -170,6 +178,28 @@ export type SearchPubChemCandidatesByCanonicalSmiles = (
   canonicalSmiles: string,
 ) => Promise<PubChemCandidateSearchResult>;
 
+export type AppMode = 'free_draw' | 'activity';
+
+export interface ActivityQuestion {
+  id: string;
+  label: string;
+  placeholder?: string;
+}
+
+export interface ActivityTemplate {
+  id: string;
+  title: string;
+  targetMoleculeName: string;
+  targetSmiles?: string;
+  learningGoal: string;
+  prompt: string;
+  predictionQuestions: ActivityQuestion[];
+  reflectionQuestions: ActivityQuestion[];
+  recommendedExampleId?: string;
+}
+
+export type ActivityResponseState = Record<string, string>;
+
 export type MoleculeValidationResult =
   | {
       ok: true;
@@ -212,7 +242,7 @@ export type MoleculeRenderState = {
 };
 ```
 
-The canonical TypeScript source for these contracts is `apps/workbench/src/types/molecule.ts`.
+The canonical TypeScript sources for these contracts are `apps/workbench/src/types/molecule.ts` and `apps/workbench/src/types/activity.ts`.
 
 ## 4. Validation Gates
 
@@ -222,7 +252,9 @@ The canonical TypeScript source for these contracts is `apps/workbench/src/types
 - Gate 4: calculated outputs are derived from RDKit-parsed molecule.
 - Gate 5: invalid or errored validation results do not populate the student-facing formula, average molecular weight, or canonical SMILES fields.
 - Gate 6: 3Dmol.js receives only validated structure state plus explicit coordinate-bearing 3D data and does not compute validation.
-- Gate 7: export uses current validated structure for chemistry-bearing export, while worksheet image export may use the visible editor drawing with an explicit validation label.
+- Gate 7: activity mode reads RDKit.js validation results but does not create calculated chemistry values itself.
+- Gate 8: activity comparison is shown as `아직 검증 전`, `예상값 입력 전`, `일치`, or `다름`; it is not an automatic score.
+- Gate 9: export uses current validated structure for chemistry-bearing export, while worksheet image export may use the visible editor drawing with an explicit validation label.
 
 ## 5. Initial Dependencies
 
@@ -253,18 +285,22 @@ The canonical TypeScript source for these contracts is `apps/workbench/src/types
 - PubChem candidate search service maps manual canonical SMILES search results to external data candidates without auto-selecting a candidate.
 - PubChem candidate panel renders candidates as `외부 데이터 후보` and keeps PubChem formula/mass as auxiliary metadata only.
 - Selecting a candidate reuses the CID-based 3D SDF loading service instead of creating a second 3D fetch path.
+- Activity templates include only classroom prompts, target molecule references, and prediction/reflection questions.
+- Activity panel compares student predictions with RDKit.js formula and average molecular weight by simple string match.
 
 ### Integration tests
 
 - Ketcher component loads.
 - Example molecule can be loaded into editor and extracted back.
 - RDKit service initializes once and handles repeated calls.
+- Switching from `free_draw` to `activity` reveals the activity panel without removing the editor, validation panel, 3D viewer, or PubChem candidate panel.
 
 ### E2E tests
 
 - Load ethanol example → see formula/mass.
 - Draw or load benzene → export image.
 - Invalid structure → warning appears and no confident calculation is shown.
+- Activity mode: enter a predicted formula, validate a structure, and confirm the panel shows match/different without score output.
 
 ## 7. PubChem CID-Based 3D Prototype
 
@@ -379,7 +415,69 @@ The service does not call Open Babel, does not generate conformers, and does not
 - Candidate search returns multiple results: require user review instead of selecting one automatically.
 - Candidate search HTTP/network error: keep RDKit.js formula, average molecular weight, and canonical SMILES visible; show a short student message and log endpoint type, canonical SMILES, HTTP status, response excerpt, or error message for developers.
 
-## 9. Risk Register
+## 9. Classroom Activity Mode MVP
+
+This phase adds a classroom workflow layer without changing the chemistry validation source.
+
+### Mode boundary
+
+- `free_draw` keeps the existing open drawing flow: Ketcher input, RDKit.js validation, structure information panel, PubChem candidate search, and 3Dmol.js visualization.
+- `activity` keeps the same Ketcher/RDKit/PubChem/3Dmol.js flow and adds a guided activity panel.
+- The mode switch does not reset the molecule editor, RDKit validation result, PubChem candidate result, or 3D viewer state.
+
+### Activity template structure
+
+Activity templates live in `apps/workbench/src/data/activityTemplates.ts`.
+
+```ts
+export interface ActivityTemplate {
+  id: string;
+  title: string;
+  targetMoleculeName: string;
+  targetSmiles?: string;
+  learningGoal: string;
+  prompt: string;
+  predictionQuestions: ActivityQuestion[];
+  reflectionQuestions: ActivityQuestion[];
+  recommendedExampleId?: string;
+}
+```
+
+The initial MVP templates are:
+
+- `draw-water`: 물 분자 구조 그리기
+- `draw-ethanol`: 에탄올 분자 구조 그리기
+- `draw-benzene`: 벤젠 분자 구조 그리기
+
+### Prediction comparison flow
+
+```text
+Student selects activity
+  -> student enters predicted formula and predicted molecular weight
+  -> student draws or loads a molecule in Ketcher
+  -> existing RDKit.js validation runs
+  -> ActivityPanel reads validationResult
+  -> simple string comparison is displayed
+```
+
+Comparison statuses:
+
+- `아직 검증 전`: RDKit.js has not produced a valid result.
+- `예상값 입력 전`: RDKit.js has a valid result, but the student left that prediction blank.
+- `일치`: the trimmed student string exactly matches the displayed RDKit.js value.
+- `다름`: the strings do not match.
+
+The comparison is not a grade. It does not normalize formula order, significant figures, aliases, PubChem values, or chemically equivalent notation.
+
+### Explicit non-goals for this phase
+
+- No student login.
+- No database or Firebase persistence.
+- No teacher dashboard.
+- No automatic scoring.
+- No activity result PDF/image export.
+
+## 10. Risk Register
 
 | Risk | Mitigation |
 |---|---|

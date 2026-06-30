@@ -1,5 +1,11 @@
 # Roadmap
 
+## Current Implementation Status
+
+- Completed: manual PubChem candidate search UI prototype.
+- In progress: classroom activity mode MVP with local templates and RDKit result comparison.
+- Next: separate student-facing and teacher-facing modes before adding persistence or dashboards.
+
 ## Phase 0 — Skill and Workspace Setup
 
 - Install this skill package.
@@ -42,7 +48,13 @@
 
 ## Phase 6 — Student Activity Integration
 
-- Add guided tasks.
+- Add guided tasks. (MVP complete: water, ethanol, benzene activities)
 - Add report export.
 - Add teacher-designed templates.
 - Add local save/load.
+
+## Near-Term Next Step — Student/Teacher Mode Split
+
+- Student mode: focused drawing, validation, prediction, reflection, and external 3D candidate review.
+- Teacher mode: activity template authoring and class workflow controls.
+- Keep storage, login, dashboards, automatic grading, and export out of scope until the classroom flow is stable.
