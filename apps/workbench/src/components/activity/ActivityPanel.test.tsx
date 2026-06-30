@@ -8,6 +8,24 @@ describe('ActivityPanel', () => {
     const markup = renderToStaticMarkup(
       <ActivityPanel
         appMode="free_draw"
+        userMode="student"
+        templates={activityTemplates}
+        selectedActivityId="draw-water"
+        responses={{}}
+        validationResult={null}
+        onSelectActivity={() => {}}
+        onResponseChange={() => {}}
+      />,
+    );
+
+    expect(markup).toBe('');
+  });
+
+  it('does not render in teacher mode because teacher guidance is separated', () => {
+    const markup = renderToStaticMarkup(
+      <ActivityPanel
+        appMode="activity"
+        userMode="teacher"
         templates={activityTemplates}
         selectedActivityId="draw-water"
         responses={{}}
@@ -24,6 +42,7 @@ describe('ActivityPanel', () => {
     const markup = renderToStaticMarkup(
       <ActivityPanel
         appMode="activity"
+        userMode="student"
         templates={activityTemplates}
         selectedActivityId="draw-water"
         responses={{ predictedFormula: 'H2O', predictedMolecularWeight: '18.015' }}
@@ -39,6 +58,9 @@ describe('ActivityPanel', () => {
     expect(markup).toContain('중심 원자는 무엇인가요?');
     expect(markup).toContain('VSEPR 이론에 따른 분자 구조는 무엇인가요?');
     expect(markup).toContain('2D 구조와 VSEPR 예측 구조는 어떻게 다른가요?');
+    expect(markup).toContain('VSEPR 모형에서 중심 원자 주위 전자쌍은 어떻게 배치되어 있나요?');
+    expect(markup).toContain('비공유 전자쌍이 분자 모양에 어떤 영향을 주나요?');
+    expect(markup).toContain('실제 3D 구조 또는 PubChem 구조와 VSEPR 예측 모형');
     expect(markup).toContain('RDKit 검증 분자식');
     expect(markup).toContain('아직 검증 전');
     expect(markup).toContain('자동 채점 없음');
@@ -48,6 +70,7 @@ describe('ActivityPanel', () => {
     const markup = renderToStaticMarkup(
       <ActivityPanel
         appMode="activity"
+        userMode="student"
         templates={activityTemplates}
         selectedActivityId="draw-ethanol"
         responses={{

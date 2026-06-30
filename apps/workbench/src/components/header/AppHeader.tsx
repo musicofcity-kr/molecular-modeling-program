@@ -1,9 +1,11 @@
 import type { ExampleMolecule } from '../../data/exampleMolecules';
-import type { AppMode } from '../../types/activity';
+import type { AppMode, UserMode } from '../../types/activity';
 
 type AppHeaderProps = {
   appMode: AppMode;
+  userMode: UserMode;
   onModeChange: (mode: AppMode) => void;
+  onUserModeChange: (mode: UserMode) => void;
   onExtractAndValidate: () => void;
   examples: ExampleMolecule[];
   selectedExampleId: string;
@@ -13,7 +15,9 @@ type AppHeaderProps = {
 
 export function AppHeader({
   appMode,
+  userMode,
   onModeChange,
+  onUserModeChange,
   onExtractAndValidate,
   examples,
   selectedExampleId,
@@ -30,31 +34,59 @@ export function AppHeader({
       </div>
       <div className="header-actions">
         <p className="header-status" aria-label="현재 구현 상태">
-          Phase 10: VSEPR 예측 엔진 MVP
+          Phase 11: 학생/교사 모드 분리 MVP
         </p>
-        <div className="mode-switch" aria-label="앱 모드 전환">
-          <button
-            className={
-              appMode === 'free_draw' ? 'mode-action active' : 'mode-action'
-            }
-            data-testid="mode-free-draw"
-            type="button"
-            onClick={() => {
-              onModeChange('free_draw');
-            }}
-          >
-            자유 그리기
-          </button>
-          <button
-            className={appMode === 'activity' ? 'mode-action active' : 'mode-action'}
-            data-testid="mode-activity"
-            type="button"
-            onClick={() => {
-              onModeChange('activity');
-            }}
-          >
-            수업 활동
-          </button>
+        <div className="mode-group" aria-label="사용자 모드 전환">
+          <span>사용자</span>
+          <div className="mode-switch">
+            <button
+              className={userMode === 'student' ? 'mode-action active' : 'mode-action'}
+              data-testid="user-mode-student"
+              type="button"
+              onClick={() => {
+                onUserModeChange('student');
+              }}
+            >
+              학생 모드
+            </button>
+            <button
+              className={userMode === 'teacher' ? 'mode-action active' : 'mode-action'}
+              data-testid="user-mode-teacher"
+              type="button"
+              onClick={() => {
+                onUserModeChange('teacher');
+              }}
+            >
+              교사 모드
+            </button>
+          </div>
+        </div>
+        <div className="mode-group" aria-label="앱 모드 전환">
+          <span>작업</span>
+          <div className="mode-switch">
+            <button
+              className={
+                appMode === 'free_draw' ? 'mode-action active' : 'mode-action'
+              }
+              data-testid="mode-free-draw"
+              type="button"
+              onClick={() => {
+                onModeChange('free_draw');
+              }}
+            >
+              자유 그리기
+            </button>
+            <button
+              className={appMode === 'activity' ? 'mode-action active' : 'mode-action'}
+              data-testid="mode-activity"
+              type="button"
+              onClick={() => {
+                onModeChange('activity');
+              }}
+            >
+              수업 활동
+            </button>
+          </div>
         </div>
         <label className="example-picker">
           <span>예제</span>

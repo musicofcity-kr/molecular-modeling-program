@@ -87,6 +87,15 @@ select {
   background: #ffffff;
 }
 
+.mode-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #42636c;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
 .mode-action {
   min-height: 38px;
   border: 0;
@@ -241,6 +250,11 @@ select {
   min-height: 470px;
 }
 
+.ketcher-host button[title="3D Viewer"],
+.ketcher-host button[data-testid="3D Viewer button"] {
+  display: none !important;
+}
+
 .log-panel p {
   margin: 0;
   color: #5b6f75;
@@ -380,6 +394,17 @@ select {
   gap: 12px;
 }
 
+.vsepr-module-gate {
+  display: grid;
+  gap: 10px;
+}
+
+.vsepr-module-gate p {
+  margin: 0;
+  color: #34464d;
+  line-height: 1.5;
+}
+
 .vsepr-heading {
   display: flex;
   align-items: flex-start;
@@ -389,10 +414,23 @@ select {
 }
 
 .vsepr-notice,
-.vsepr-student-message {
+.vsepr-student-message,
+.vsepr-model-toolbar p,
+.vsepr-model-action p {
   margin: 0;
   color: #34464d;
   line-height: 1.5;
+}
+
+.vsepr-model-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #d7e0e2;
+  border-radius: 8px;
+  background: #fbfcfc;
+  padding: 12px;
 }
 
 .vsepr-center-picker {
@@ -453,6 +491,44 @@ select {
   background: #fff9e8;
   color: #6b5618;
   padding: 10px 12px;
+}
+
+.vsepr-model-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.vsepr-model-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #d7e0e2;
+  border-radius: 8px;
+  background: #fbfcfc;
+  padding: 12px;
+}
+
+.vsepr-label-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #2f5f67;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.vsepr-label-toggle input {
+  width: 16px;
+  height: 16px;
+}
+
+.vsepr-model-host {
+  background:
+    linear-gradient(90deg, rgba(215, 224, 226, 0.45) 1px, transparent 1px),
+    linear-gradient(rgba(215, 224, 226, 0.45) 1px, transparent 1px),
+    #ffffff;
+  background-size: 32px 32px;
 }
 
 .activity-panel {
@@ -635,6 +711,94 @@ select {
   line-height: 1.5;
 }
 
+.teacher-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.teacher-heading,
+.log-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 0;
+}
+
+.teacher-layout {
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.teacher-content {
+  display: grid;
+  gap: 14px;
+}
+
+.teacher-grid,
+.teacher-question-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.teacher-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #d7e0e2;
+  border-radius: 8px;
+  background: #fbfcfc;
+  padding: 12px;
+}
+
+.teacher-card.compact {
+  align-content: start;
+}
+
+.teacher-card h3,
+.teacher-card p {
+  margin: 0;
+}
+
+.teacher-card p,
+.teacher-boundary-note {
+  color: #34464d;
+  line-height: 1.5;
+}
+
+.teacher-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.teacher-info-grid div {
+  min-width: 0;
+}
+
+.teacher-info-grid dt {
+  color: #42636c;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.teacher-info-grid dd {
+  margin: 4px 0 0;
+  color: #21313a;
+  overflow-wrap: anywhere;
+}
+
+.teacher-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+  color: #34464d;
+  line-height: 1.5;
+}
+
 .viewer-content {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
@@ -785,6 +949,12 @@ select {
     width: 100%;
   }
 
+  .mode-group {
+    align-items: flex-start;
+    flex-direction: column;
+    width: 100%;
+  }
+
   .mode-action {
     width: 100%;
   }
@@ -797,7 +967,11 @@ select {
   .activity-question-grid,
   .activity-target dl,
   .comparison-row,
-  .vsepr-result-grid {
+  .vsepr-result-grid,
+  .teacher-layout,
+  .teacher-grid,
+  .teacher-question-columns,
+  .teacher-info-grid {
     grid-template-columns: 1fr;
   }
 
@@ -815,6 +989,12 @@ select {
   }
 
   .pubchem-3d-control {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .vsepr-model-action,
+  .vsepr-model-toolbar {
     align-items: flex-start;
     flex-direction: column;
   }

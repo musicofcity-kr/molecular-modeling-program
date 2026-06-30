@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VSEPR 전자쌍 반발 · 분자구조 시뮬레이터</title>
+<style>
+  :root{
+    --stage-0:#0e1322; --stage-1:#1b2238; --grid:#26304d;
+    --bond:#34d3bd; --bond-glow:#5eead4; --lone:#b18cff; --lone-soft:#8b6fe0;
+    --ink:#161b2b; --ink-soft:#5b647d; --line:#e4e7ef; --surface:#f6f7fb; --card:#ffffff;
+    --amber:#ef9d2b; --amber-deep:#d9831a; --teal:#0fae9a; --bad:#e2574c; --good:#1f9d6b;
+    --mono:'SF Mono','JetBrains Mono','Consolas','D2Coding',monospace;
+    --sans:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--sans);background:var(--surface);color:var(--ink);line-height:1.5;
+    -webkit-font-smoothing:antialiased;padding:18px;min-width:768px}
+  .wrap{max-width:1180px;margin:0 auto}
+
+  /* 헤더 */
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;
+    padding:0 4px 14px;border-bottom:2px solid var(--ink)}
+  .eyebrow{font-size:12px;letter-spacing:.14em;color:var(--ink-soft);font-weight:700;text-transform:uppercase}
+  h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin-top:3px;line-height:1.12}
+  h1 b{color:var(--teal)}
+  .goal{font-size:13px;color:var(--ink-soft);margin-top:7px;max-width:560px}
+  .code-badge{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--card);
+    background:var(--ink);padding:7px 12px;border-radius:7px;white-space:nowrap}
+  .code-badge small{display:block;font-size:10px;font-weight:500;opacity:.7;letter-spacing:0}
+
+  /* 본문 그리드 */
+  .main{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;margin-top:16px}
+
+  /* 3D 스테이지 */
+  .stage-card{background:linear-gradient(160deg,var(--stage-0),var(--stage-1));
+    border-radius:14px;padding:0;overflow:hidden;position:relative;
+    box-shadow:0 10px 30px -12px rgba(14,19,34,.5)}
+  #stage{display:block;width:100%;height:430px;cursor:grab;touch-action:none}
+  #stage:active{cursor:grabbing}
+  .stage-tag{position:absolute;top:12px;left:14px;font-size:11px;font-weight:700;
+    color:#aeb9d8;letter-spacing:.08em}
+  .legend{position:absolute;bottom:12px;left:14px;display:flex;gap:14px;font-size:11px;color:#c3cbe2}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:1px}
+  .legend .b{background:var(--bond)} .legend .l{background:var(--lone)}
+  .stage-hint{position:absolute;top:12px;right:14px;font-size:10.5px;color:#7e89a8}
+  .energy-meter{position:absolute;bottom:12px;right:14px;font-family:var(--mono);font-size:10.5px;
+    color:#8fb9b2;text-align:right}
+
+  /* 컨트롤 패널 */
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .panel h2{font-size:13px;font-weight:800;letter-spacing:-.01em;margin-bottom:11px;
+    display:flex;align-items:center;gap:7px}
+  .panel h2::before{content:"";width:3px;height:14px;background:var(--amber);border-radius:2px}
+  .panel h2.t::before{background:var(--teal)}
+
+  .preset-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px}
+  .preset{font-family:var(--mono);font-size:12px;font-weight:700;padding:8px 4px;border-radius:8px;
+    border:1px solid var(--line);background:#fbfcfe;color:var(--ink);cursor:pointer;
+    transition:all .12s;text-align:center}
+  .preset:hover{border-color:var(--teal);background:#f0fdfa}
+  .preset.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .preset small{display:block;font-family:var(--sans);font-size:9.5px;font-weight:600;
+    opacity:.65;margin-top:1px}
+  .preset.on small{opacity:.8}
+
+  .sliders{margin-top:13px;display:grid;gap:12px}
+  .srow label{display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:5px}
+  .srow label span{font-family:var(--mono);color:var(--teal);font-weight:700}
+  input[type=range]{width:100%;accent-color:var(--amber);height:5px}
+
+  .btns{display:flex;gap:8px;margin-top:14px}
+  .btn{flex:1;font-size:13px;font-weight:700;padding:11px;border-radius:9px;border:none;cursor:pointer;
+    transition:all .12s}
+  .btn-primary{background:var(--amber);color:#3a2503}
+  .btn-primary:hover{background:var(--amber-deep)}
+  .btn-ghost{background:#eef0f6;color:var(--ink)}
+  .btn-ghost:hover{background:#e3e6ef}
+
+  .toggles{display:flex;gap:14px;margin-top:12px;flex-wrap:wrap}
+  .toggles label{font-size:12px;font-weight:600;color:var(--ink-soft);display:flex;align-items:center;
+    gap:6px;cursor:pointer}
+  .toggles input{accent-color:var(--teal);width:15px;height:15px}
+
+  /* 결과 패널 */
+  .results{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:18px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .res-head{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+    padding-bottom:14px;border-bottom:1px dashed var(--line)}
+  .chip{font-size:12px;font-weight:700;padding:6px 11px;border-radius:20px;background:var(--surface);
+    border:1px solid var(--line)}
+  .chip b{color:var(--teal)}
+  .chip.shape{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .chip.polar-y{background:#fdeceb;color:var(--bad);border-color:#f6c9c5}
+  .chip.polar-n{background:#e9f7f0;color:var(--good);border-color:#bfe6d3}
+
+  .verify h3,.derive h3{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    margin-bottom:9px;color:var(--ink-soft)}
+  .derive h3{color:var(--amber-deep)} .verify h3{color:var(--teal)}
+  .kv{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;padding:5px 0;
+    border-bottom:1px solid #f1f3f8}
+  .kv:last-child{border:none}
+  .kv .k{color:var(--ink-soft)}
+  .kv .v{font-family:var(--mono);font-weight:700}
+  .ang-big{font-family:var(--mono);font-size:30px;font-weight:800;letter-spacing:-.02em;margin:2px 0 4px}
+  .ang-big.derive-c{color:var(--amber-deep)} .ang-big.verify-c{color:var(--teal)}
+  .ang-sub{font-size:11px;color:var(--ink-soft)}
+  .delta{font-size:11px;font-family:var(--mono);margin-top:8px;padding:7px 9px;border-radius:7px;
+    background:var(--surface);color:var(--ink-soft)}
+  .delta b{color:var(--good)}
+  .placement{grid-column:1/-1;font-size:11.5px;color:var(--ink-soft);background:var(--surface);
+    border-radius:9px;padding:10px 12px;line-height:1.55}
+  .placement b{color:var(--ink)}
+  .placement .pscore{font-family:var(--mono);font-size:11px}
+  .placement .win{color:var(--good);font-weight:700}
+
+  /* 탐구 질문 */
+  .inquiry{margin-top:16px;background:#fffaf0;border:1px solid #f5e2bf;border-radius:14px;padding:16px 18px}
+  .inquiry h2{font-size:13px;font-weight:800;margin-bottom:9px;color:var(--amber-deep);
+    display:flex;align-items:center;gap:7px}
+  .inquiry h2::before{content:"?";display:inline-flex;width:18px;height:18px;border-radius:50%;
+    background:var(--amber);color:#fff;align-items:center;justify-content:center;font-size:12px}
+  .inquiry ol{margin-left:18px;font-size:13px;color:#5c4a28;display:grid;gap:6px}
+
+  footer{margin-top:18px;text-align:center;font-size:11px;color:var(--ink-soft);padding:4px}
+  footer code{font-family:var(--mono);background:var(--surface);padding:2px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">화학 · 물질의 구조와 성질</div>
+      <h1>VSEPR <b>전자쌍 반발</b> 분자구조 시뮬레이터</h1>
+      <p class="goal">중심 원자 주위 전자쌍들이 서로 밀어내며 도달하는 평형 배치를 직접 계산해 분자의 3차원 구조와 극성을 예측합니다.</p>
+    </div>
+    <div class="code-badge">화학01-1-04<small>분자 구조와 극성</small></div>
+  </header>
+
+  <div class="main">
+    <div class="stage-card">
+      <span class="stage-tag">3D 분자 구조 · 드래그로 회전</span>
+      <span class="stage-hint" id="hint">전자영역이 반발 평형에 있습니다</span>
+      <canvas id="stage"></canvas>
+      <div class="legend">
+        <span><i class="b"></i>결합 전자쌍</span>
+        <span><i class="l"></i>고립 전자쌍</span>
+      </div>
+      <div class="energy-meter" id="emeter"></div>
+    </div>
+
+    <div class="panel">
+      <h2>분자 선택</h2>
+      <div class="preset-grid" id="presets"></div>
+
+      <div class="sliders">
+        <div class="srow">
+          <label>결합 전자쌍 (X) <span id="bv">4</span></label>
+          <input type="range" id="bonding" min="1" max="6" step="1" value="4">
+        </div>
+        <div class="srow">
+          <label>고립 전자쌍 (E) <span id="lv">0</span></label>
+          <input type="range" id="lone" min="0" max="3" step="1" value="0">
+        </div>
+        <div class="srow">
+          <label>고립쌍 반발 세기 <span id="wv">1.25</span></label>
+          <input type="range" id="lpw" min="1.0" max="1.6" step="0.05" value="1.25">
+        </div>
+      </div>
+
+      <div class="btns">
+        <button class="btn btn-primary" id="relaxBtn">▶ 반발 평형 찾기</button>
+        <button class="btn btn-ghost" id="resetBtn">↺ 처음부터</button>
+      </div>
+      <div class="toggles">
+        <label><input type="checkbox" id="showLone" checked> 고립쌍 표시</label>
+        <label><input type="checkbox" id="showAngle" checked> 결합각 표시</label>
+        <label><input type="checkbox" id="autoRot" checked> 자동 회전</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="results" id="results"></div>
+
+  <div class="inquiry">
+    <h2>탐구 질문</h2>
+    <ol>
+      <li>고립 전자쌍 수가 늘어날수록 결합각은 어떻게 변하는가? 그 까닭을 전자쌍 반발 세기로 설명해 보자.</li>
+      <li>SF₄(시소형)에서 고립쌍은 왜 축(axial)이 아니라 적도(equatorial)에 놓이는가? '반발 평형 찾기'로 두 경우의 에너지를 비교해 보자.</li>
+      <li>같은 정사면체 전자쌍 기하라도 CH₄·NH₃·H₂O의 분자 모양과 극성이 달라지는 이유는 무엇인가?</li>
+    </ol>
+  </div>
+
+  <footer>
+    전자쌍 반발 엔진 <code>VseprEngine.solve({bonding, lone})</code> · 계산값과 실험 검증값을 분리 표시 · 단일 HTML, 오프라인 동작
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+ *  [ VSEPR 엔진 ]  — 아래 블록만 복사하면 다른 시뮬레이션에 그대로 사용 가능
+ * ============================================================ */
+/*
+ * VSEPR 전자쌍 반발 엔진 (VseprEngine)
+ * 성취기준: 화학01-1-04  분자 구조와 극성을 이해하고 분자 간 힘과 물질의 성질을 관련지을 수 있다
+ * 핵심역량: 과학적 사고력, 과학적 탐구능력
+ *
+ * [설계 원칙 — 할루시네이션 배제]
+ *  1. 구조를 "가정"하지 않는다. 중심 원자 주위 전자 영역을 단위 구면 위의 점으로 놓고,
+ *     점들 사이의 반발 에너지를 실제로 최소화(완화)하여 평형 배치를 "도출"한다.
+ *  2. 고립전자쌍의 위치(예: 삼각쌍뿔에서 적도 vs 축, 팔면체에서 trans)도 하드코딩하지 않고,
+ *     "이상 기하"에서의 반발 에너지가 최소가 되는 배치를 엔진이 스스로 선택한다.
+ *     (이는 교과서 VSEPR의 "90° 접촉, 특히 LP-LP 반발 최소화" 논리와 동일하다.)
+ *  3. 엔진이 계산한 값(computed)과 교과서 검증값(reference)을 분리해 보관하고,
+ *     호출부에서 교차검증할 수 있게 한다. 계산값은 "경향"이며, 실험값이 권위 데이터다.
+ *
+ * [물리 모델]
+ *  반발 에너지  E = Σ_(i<j)  w_i · w_j / d_ij^p      (d_ij = 두 점 사이 거리, p = 반발 지수)
+ *  - 결합 전자쌍 가중치 w_BP = 1.0
+ *  - 고립 전자쌍 가중치 w_LP > 1.0  (LP가 더 강하게 반발 → 결합각 압축 재현)
+ *  완화: 각 점에 작용하는 힘을 구면 접평면에 투영해 이동시키고 다시 정규화(경사하강).
+ */
+
+(function (global) {
+  'use strict';
+
+  // ── 3차원 벡터 유틸 ─────────────────────────────────────────────
+  const V = {
+    sub: (a, b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]],
+    add: (a, b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]],
+    scale: (a, s) => [a[0]*s, a[1]*s, a[2]*s],
+    dot: (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2],
+    len: (a) => Math.hypot(a[0], a[1], a[2]),
+    norm: (a) => { const L = Math.hypot(a[0],a[1],a[2]) || 1; return [a[0]/L, a[1]/L, a[2]/L]; },
+  };
+
+  // ── 검증용 참조 데이터(교과서 표준값) ───────────────────────────
+  // key: AX{결합수}E{고립쌍수}. ideal=이상각, exp=실험값(권위), example=대표분자
+  const VSEPR_REFERENCE = {
+    'AX2E0': { electron:'직선형',     molecular:'직선형',     ideal:[180],     exp:[180],        example:'CO₂, BeCl₂', polar:false },
+    'AX3E0': { electron:'평면삼각형',  molecular:'평면삼각형',  ideal:[120],     exp:[120],        example:'BF₃, CO₃²⁻', polar:false },
+    'AX2E1': { electron:'평면삼각형',  molecular:'굽은형',     ideal:[120],     exp:[119.0],      example:'SO₂, O₃',    polar:true  },
+    'AX4E0': { electron:'정사면체형',  molecular:'정사면체형',  ideal:[109.5],   exp:[109.5],      example:'CH₄, NH₄⁺',  polar:false },
+    'AX3E1': { electron:'정사면체형',  molecular:'삼각뿔형',   ideal:[109.5],   exp:[106.7],      example:'NH₃, PCl₃',  polar:true  },
+    'AX2E2': { electron:'정사면체형',  molecular:'굽은형',     ideal:[109.5],   exp:[104.5],      example:'H₂O, H₂S',   polar:true  },
+    'AX5E0': { electron:'삼각쌍뿔형',  molecular:'삼각쌍뿔형',  ideal:[90,120],  exp:[90,120],     example:'PCl₅',       polar:false },
+    'AX4E1': { electron:'삼각쌍뿔형',  molecular:'시소형',     ideal:[90,120],  exp:[101.6,173.1],example:'SF₄',        polar:true  },
+    'AX3E2': { electron:'삼각쌍뿔형',  molecular:'T자형',     ideal:[90],      exp:[87.5],       example:'ClF₃',       polar:true  },
+    'AX2E3': { electron:'삼각쌍뿔형',  molecular:'직선형',     ideal:[180],     exp:[180],        example:'XeF₂, I₃⁻',  polar:false },
+    'AX6E0': { electron:'정팔면체형',  molecular:'정팔면체형',  ideal:[90],      exp:[90],         example:'SF₆',        polar:false },
+    'AX5E1': { electron:'정팔면체형',  molecular:'사각뿔형',   ideal:[90],      exp:[84.8],       example:'BrF₅',       polar:true  },
+    'AX4E2': { electron:'정팔면체형',  molecular:'평면사각형',  ideal:[90],      exp:[90],         example:'XeF₄',       polar:false },
+  };
+
+  // ── 초기 시드 배치(정준 기하) ───────────────────────────────────
+  // 완화 솔버가 빠르고 안정적으로 수렴하도록 알려진 이상 기하에서 출발한다.
+  function seedPositions(n) {
+    if (n === 2) return [[0,0,1], [0,0,-1]];
+    if (n === 3) return ringXY(3);
+    if (n === 4) return [[1,1,1],[1,-1,-1],[-1,1,-1],[-1,-1,1]].map(V.norm); // 정사면체
+    if (n === 5) return [[0,0,1],[0,0,-1], ...ringXY(3)];                     // 삼각쌍뿔(축2+적도3)
+    if (n === 6) return [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]]; // 정팔면체
+    if (n === 7) return [[0,0,1],[0,0,-1], ...ringXY(5)];                     // 오각쌍뿔
+    throw new Error('지원 범위(전자영역 2~7)를 벗어났습니다: ' + n);
+  }
+  function ringXY(k) {
+    const out = [];
+    for (let i = 0; i < k; i++) {
+      const t = (2 * Math.PI * i) / k;
+      out.push([Math.cos(t), Math.sin(t), 0]);
+    }
+    return out;
+  }
+
+  // ── 반발 에너지 ─────────────────────────────────────────────────
+  function totalEnergy(P, W, p) {
+    let E = 0;
+    for (let i = 0; i < P.length; i++)
+      for (let j = i + 1; j < P.length; j++) {
+        const d = V.len(V.sub(P[i], P[j])) || 1e-9;
+        E += (W[i] * W[j]) / Math.pow(d, p);
+      }
+    return E;
+  }
+
+  // ── 완화 1스텝(애니메이션용으로 외부 노출) ──────────────────────
+  // P(단위벡터 배열)를 반발력에 따라 한 스텝 이동시킨 새 배열을 반환.
+  function relaxStep(P, W, p, lr) {
+    const F = P.map(() => [0, 0, 0]);
+    for (let i = 0; i < P.length; i++) {
+      for (let j = 0; j < P.length; j++) {
+        if (i === j) continue;
+        const diff = V.sub(P[i], P[j]);
+        const d = V.len(diff) || 1e-9;
+        const mag = (p * W[i] * W[j]) / Math.pow(d, p + 2);
+        F[i] = V.add(F[i], V.scale(diff, mag));
+      }
+    }
+    return P.map((pi, i) => {
+      const radial = V.scale(pi, V.dot(F[i], pi));
+      const tang = V.sub(F[i], radial);
+      return V.norm(V.add(pi, V.scale(tang, lr)));
+    });
+  }
+
+  // ── 완화(경사하강) ──────────────────────────────────────────────
+  // 각 점에 반발력 합력을 구해 접평면에 투영해 이동, 구면으로 재정규화.
+  function relax(P0, W, opts) {
+    const p = opts.repulsionExponent;
+    let lr = opts.learningRate;
+    let P = P0.map(v => V.norm(v.slice()));
+    for (let step = 0; step < opts.iterations; step++) {
+      P = relaxStep(P, W, p, lr);
+      lr *= opts.lrDecay; // 학습률 점감 → 안정적 수렴
+    }
+    return P;
+  }
+
+  // ── 두 결합 벡터 사이 각도(˚) ───────────────────────────────────
+  function angleBetween(a, b) {
+    let c = V.dot(V.norm(a), V.norm(b));
+    c = Math.max(-1, Math.min(1, c));
+    return (Math.acos(c) * 180) / Math.PI;
+  }
+
+  // ── 메인: 전자쌍 반발 구조 도출 ─────────────────────────────────
+  /**
+   * @param {{bonding:number, lone:number}} input  결합 전자쌍 수, 고립 전자쌍 수
+   * @returns 구조 도출 결과 객체
+   */
+  function solve(input, userOpts) {
+    const bonding = input.bonding | 0;
+    const lone = input.lone | 0;
+    const n = bonding + lone; // 전자 영역 수(입체수)
+    if (bonding < 1) throw new Error('결합 전자쌍은 최소 1개 이상이어야 합니다.');
+    if (n < 2 || n > 7) throw new Error('전자 영역 수는 2~7만 지원합니다(현재 ' + n + ').');
+
+    const opts = Object.assign({
+      repulsionExponent: 1,   // p: 1(쿨롱형). 등가중치면 어떤 p>0든 정준 기하 동일
+      bondingWeight: 1.0,     // 결합쌍 가중치
+      lonePairWeight: 1.25,   // 고립쌍 가중치(>1 → 결합각 압축)
+      iterations: 1600,
+      learningRate: 0.08,
+      lrDecay: 0.9985,
+    }, userOpts || {});
+
+    const seed = seedPositions(n);
+
+    // ── 1단계: 고립전자쌍을 "어디에" 둘지 결정 ──────────────────────
+    //  가능한 모든 슬롯 조합에 대해 "이상 기하(고정 시드)"에서의 반발 에너지를
+    //  계산해 최저값을 고른다. 이는 교과서 VSEPR의 "90° 접촉(특히 LP-LP) 최소화"
+    //  논리와 정확히 일치한다. (완화 후 에너지로 고르면 일그러짐 인공산물로
+    //  cis가 잘못 선택되므로, 배치는 반드시 고정 시드에서 판정한다.)
+    const slotCombos = combinations(n, lone);
+    const candidates = slotCombos.length ? slotCombos : [[]];
+    const placementScores = [];
+    let chosen = null;
+    for (const loneSlots of candidates) {
+      const W = new Array(n).fill(opts.bondingWeight);
+      for (const s of loneSlots) W[s] = opts.lonePairWeight;
+      const Eseed = totalEnergy(seed, W, opts.repulsionExponent);
+      placementScores.push({ loneSlots: loneSlots.slice(), seedEnergy: +Eseed.toFixed(6) });
+      if (!chosen || Eseed < chosen.Eseed - 1e-9) chosen = { Eseed, loneSlots: loneSlots.slice(), W };
+    }
+
+    // ── 2단계: 선택된 배치만 완화하여 결합각 압축(고립쌍 효과)을 도출 ──
+    const W = chosen.W;
+    const isLone = new Array(n).fill(false);
+    chosen.loneSlots.forEach(s => (isLone[s] = true));
+    const P = relax(seed.map(v => v.slice()), W, opts);
+    const best = { E: totalEnergy(P, W, opts.repulsionExponent), P, W, isLone };
+
+    // 결합쌍 / 고립쌍 벡터 분리
+    const bondVectors = [];
+    const loneVectors = [];
+    best.P.forEach((v, i) => (best.isLone[i] ? loneVectors : bondVectors).push(v));
+
+    // 결합쌍 사이 각도 계산(분자 기하에서 "보이는" 각)
+    const angles = [];
+    for (let i = 0; i < bondVectors.length; i++)
+      for (let j = i + 1; j < bondVectors.length; j++)
+        angles.push(angleBetween(bondVectors[i], bondVectors[j]));
+    angles.sort((a, b) => a - b);
+
+    // 대표 결합각(가장 빈번한 최소 인접각) — 교육용 단일 지표
+    const minAngle = angles.length ? angles[0] : null;
+
+    // 극성 판정(말단 원자가 모두 동일하다는 가정):
+    // 결합 단위벡터 합의 크기가 0이면 대칭 → 무극성, 아니면 극성.
+    let sum = [0, 0, 0];
+    bondVectors.forEach(v => (sum = V.add(sum, V.norm(v))));
+    const dipoleMag = V.len(sum);
+    const computedPolar = dipoleMag > 0.05;
+
+    // 참조 데이터 매칭(이름·실험값은 검증된 표준값)
+    const key = `AX${bonding}E${lone}`;
+    const ref = VSEPR_REFERENCE[key] || null;
+
+    return {
+      input: { bonding, lone },
+      stericNumber: n,
+      notation: key,                       // AXmEn 표기
+      electronGeometry: ref ? ref.electron : '(참조표 없음)',
+      molecularGeometry: ref ? ref.molecular : '(참조표 없음)',
+      reference: ref,                      // 검증값(이상각/실험각/예시/극성)
+      computed: {                          // 엔진이 도출한 값(경향)
+        bondVectors,
+        loneVectors,
+        allVectors: best.P,
+        isLone: best.isLone,
+        angles: angles.map(a => +a.toFixed(2)),
+        representativeAngle: minAngle == null ? null : +minAngle.toFixed(2),
+        dipoleMagnitude: +dipoleMag.toFixed(4),
+        polar: computedPolar,
+        energy: +best.E.toFixed(6),
+      },
+      options: opts,
+      placementScores,   // 고립쌍 배치 후보별 고정시드 에너지(선택 근거, 교육용)
+    };
+  }
+
+  // 조합: n개 슬롯에서 k개 선택
+  function combinations(n, k) {
+    const res = [];
+    const idx = Array.from({ length: n }, (_, i) => i);
+    function go(start, acc) {
+      if (acc.length === k) { res.push(acc.slice()); return; }
+      for (let i = start; i < n; i++) { acc.push(idx[i]); go(i + 1, acc); acc.pop(); }
+    }
+    go(0, []);
+    return k === 0 ? [[]] : res;
+  }
+
+  const VseprEngine = {
+    solve, VSEPR_REFERENCE, seedPositions, V,
+    _internal: { relax, relaxStep, totalEnergy, seedPositions, angleBetween, combinations }
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = VseprEngine;
+  else global.VseprEngine = VseprEngine;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+
+<script>
+/* ============================================================
+ *  [ 3D 시각화 + UI ]  (순수 Canvas, 외부 라이브러리 없음)
+ * ============================================================ */
+/* ───────── 상수: CPK 색상 & 프리셋 ───────── */
+const CPK = { H:'#e6e6e6', C:'#585858', N:'#4a6cf7', O:'#ff5252', F:'#7fd14d',
+  Cl:'#3ad13a', S:'#ecd02e', P:'#ff8a2b', Br:'#c0563a', Xe:'#46a6bb',
+  Be:'#b6e84a', B:'#ffb0b0', I:'#9b35b5', Generic:'#8aa0c8' };
+
+// 입체수별로 묶은 13개 표준 분자
+const PRESETS = [
+  { f:'CO₂',  b:2,l:0, c:'C', x:'O', name:'직선형' },
+  { f:'BF₃',  b:3,l:0, c:'B', x:'F', name:'평면삼각형' },
+  { f:'SO₂',  b:2,l:1, c:'S', x:'O', name:'굽은형' },
+  { f:'CH₄',  b:4,l:0, c:'C', x:'H', name:'정사면체형' },
+  { f:'NH₃',  b:3,l:1, c:'N', x:'H', name:'삼각뿔형' },
+  { f:'H₂O',  b:2,l:2, c:'O', x:'H', name:'굽은형' },
+  { f:'PCl₅', b:5,l:0, c:'P', x:'Cl',name:'삼각쌍뿔형' },
+  { f:'SF₄',  b:4,l:1, c:'S', x:'F', name:'시소형' },
+  { f:'ClF₃', b:3,l:2, c:'Cl',x:'F', name:'T자형' },
+  { f:'XeF₂', b:2,l:3, c:'Xe',x:'F', name:'직선형' },
+  { f:'SF₆',  b:6,l:0, c:'S', x:'F', name:'정팔면체형' },
+  { f:'BrF₅', b:5,l:1, c:'Br',x:'F', name:'사각뿔형' },
+  { f:'XeF₄', b:4,l:2, c:'Xe',x:'F', name:'평면사각형' },
+];
+
+/* ───────── 상태 ───────── */
+const S = {
+  bonding:4, lone:0, lpw:1.25,
+  centralEl:'C', terminalEl:'H', formula:null,
+  domains:[],          // {dir:[x,y,z], isLone, target:[x,y,z]}
+  result:null,         // engine.solve(...) 결과
+  ax:0.5, ay:0.6,      // 회전각
+  autoRot:true, showLone:true, showAngle:true,
+  animating:false, animSteps:0,
+};
+
+/* ───────── 캔버스 ───────── */
+const cv = document.getElementById('stage');
+const ctx = cv.getContext('2d');
+let DPR = Math.min(window.devicePixelRatio||1, 2);
+function fitCanvas(){
+  const r = cv.getBoundingClientRect();
+  cv.width = r.width*DPR; cv.height = r.height*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize', ()=>{ fitCanvas(); });
+
+/* ───────── 3D 회전·투영 ───────── */
+function rot(v){
+  // y축 회전(ay) → x축 회전(ax)
+  let [x,y,z] = v;
+  let cx=Math.cos(S.ay), sx=Math.sin(S.ay);
+  let x1 = x*cx + z*sx, z1 = -x*sx + z*cx, y1 = y;
+  let cy=Math.cos(S.ax), sy=Math.sin(S.ax);
+  let y2 = y1*cy - z1*sy, z2 = y1*sy + z1*cy, x2 = x1;
+  return [x2, y2, z2];
+}
+function project(v, w, h, R){
+  const [x,y,z] = rot(v);
+  const focal = 4.2;
+  const persp = focal/(focal - z);     // 원근
+  return { sx: w/2 + x*R*persp, sy: h/2 - y*R*persp, depth: z, persp };
+}
+
+/* ───────── 구(원자) 그리기: 음영 ───────── */
+function drawSphere(x, y, rad, color, alpha){
+  alpha = alpha==null?1:alpha;
+  const g = ctx.createRadialGradient(x-rad*0.35, y-rad*0.4, rad*0.1, x, y, rad);
+  g.addColorStop(0, shade(color, 0.55));
+  g.addColorStop(0.5, color);
+  g.addColorStop(1, shade(color, -0.4));
+  ctx.globalAlpha = alpha;
+  ctx.beginPath(); ctx.arc(x,y,rad,0,Math.PI*2);
+  ctx.fillStyle = g; ctx.fill();
+  ctx.globalAlpha = alpha*0.9;
+  ctx.lineWidth = 1; ctx.strokeStyle = shade(color,-0.55); ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+function shade(hex, amt){
+  const c = hex.replace('#',''); let r=parseInt(c.substr(0,2),16),
+    g=parseInt(c.substr(2,2),16), b=parseInt(c.substr(4,2),16);
+  const f = amt<0 ? 1+amt : 1; const t = amt<0?0:255*amt;
+  r=Math.round(r*f+t*(amt>0?1:0)); g=Math.round(g*f+t*(amt>0?1:0)); b=Math.round(b*f+t*(amt>0?1:0));
+  r=Math.min(255,Math.max(0,r));g=Math.min(255,Math.max(0,g));b=Math.min(255,Math.max(0,b));
+  return `rgb(${r},${g},${b})`;
+}
+
+/* ───────── 메인 렌더 ───────── */
+function render(){
+  const w = cv.width/DPR, h = cv.height/DPR;
+  ctx.clearRect(0,0,w,h);
+  const R = Math.min(w,h)*0.30;
+
+  // 자동 회전
+  if(S.autoRot && !dragging) S.ay += 0.006;
+
+  // 평형 애니메이션 진행
+  if(S.animating) stepAnimation();
+  else easeToTarget();
+
+  const cEl = S.formula ? S.centralEl : 'Generic';
+  const cColor = CPK[cEl] || CPK.Generic;
+  const xColor = S.formula ? (CPK[S.terminalEl]||CPK.Generic) : CPK.Generic;
+
+  // 그릴 요소 수집(깊이 정렬)
+  const items = [];
+  const cProj = project([0,0,0], w, h, R);
+
+  S.domains.forEach((d)=>{
+    const p = project(d.dir, w, h, R);
+    if(d.isLone){
+      if(!S.showLone) return;
+      items.push({ type:'lone', dir:d.dir, p, depth:p.depth });
+    } else {
+      items.push({ type:'bond', dir:d.dir, p, depth:p.depth });
+    }
+  });
+  items.sort((a,b)=> a.depth - b.depth);
+
+  // 결합각 호(뒤쪽에 깔기)
+  if(S.showAngle) drawAngles(w,h,R);
+
+  // 결합선(중심→원자) 먼저
+  items.forEach(it=>{
+    if(it.type==='bond'){
+      const dim = 0.5 + 0.5*(it.depth+1)/2;
+      ctx.strokeStyle = `rgba(52,211,189,${0.35+0.45*dim})`;
+      ctx.lineWidth = 3.0*it.p.persp;
+      ctx.beginPath(); ctx.moveTo(cProj.sx,cProj.sy); ctx.lineTo(it.p.sx,it.p.sy); ctx.stroke();
+    }
+  });
+
+  // 원자/고립쌍(깊이순)
+  items.forEach(it=>{
+    if(it.type==='lone'){
+      // 고립쌍: 반투명 로브(중심 가까이, 통통하게)
+      const lobeR = 20*it.p.persp;
+      const midx = (cProj.sx+it.p.sx)/2, midy=(cProj.sy+it.p.sy)/2;
+      const g = ctx.createRadialGradient(midx,midy,2, midx,midy,lobeR);
+      g.addColorStop(0,'rgba(177,140,255,0.55)');
+      g.addColorStop(1,'rgba(139,111,224,0.04)');
+      ctx.globalAlpha = 0.45 + 0.3*(it.depth+1)/2;
+      ctx.beginPath(); ctx.ellipse(midx,midy,lobeR,lobeR*1.25,0,0,Math.PI*2);
+      ctx.fillStyle=g; ctx.fill(); ctx.globalAlpha=1;
+    } else {
+      const rad = (S.formula?16:13)*it.p.persp;
+      drawSphere(it.p.sx, it.p.sy, rad, xColor);
+      if(S.formula){
+        ctx.fillStyle = pickText(xColor); ctx.font=`700 ${11*it.p.persp}px var(--sans)`;
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(S.terminalEl, it.p.sx, it.p.sy);
+      }
+    }
+  });
+
+  // 중심 원자(맨 위)
+  const cRad = (S.formula?22:18);
+  drawSphere(cProj.sx, cProj.sy, cRad, cColor);
+  if(S.formula){
+    ctx.fillStyle=pickText(cColor); ctx.font='800 14px var(--sans)';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(S.centralEl, cProj.sx, cProj.sy);
+  }
+
+  requestAnimationFrame(render);
+}
+function pickText(hex){
+  const c=hex.replace('#','');const r=parseInt(c.substr(0,2),16),g=parseInt(c.substr(2,2),16),b=parseInt(c.substr(4,2),16);
+  return (0.299*r+0.587*g+0.114*b)>150 ? '#1a1a1a' : '#fff';
+}
+
+/* ───────── 결합각 호 그리기 ───────── */
+function drawAngles(w,h,R){
+  const bonds = S.domains.filter(d=>!d.isLone);
+  const cProj = project([0,0,0], w, h, R);
+  const drawn = [];
+  for(let i=0;i<bonds.length;i++) for(let j=i+1;j<bonds.length;j++){
+    const a = VseprEngine._internal.angleBetween(bonds[i].dir, bonds[j].dir);
+    if(a > 150) continue;                  // 거의 직선인 쌍은 생략
+    // 같은 각도값이 너무 많으면 일부만(최대 4개) 표시
+    if(drawn.filter(x=>Math.abs(x-a)<2).length >= 4) continue;
+    drawn.push(a);
+    const p1 = project(bonds[i].dir, w,h,R), p2 = project(bonds[j].dir, w,h,R);
+    if(p1.depth < -0.3 && p2.depth < -0.3) continue;  // 뒤쪽 쌍 생략
+    // 두 결합 사이 중간 방향에 각도 텍스트
+    const mx=(p1.sx+p2.sx+cProj.sx*2)/4, my=(p1.sy+p2.sy+cProj.sy*2)/4;
+    ctx.strokeStyle='rgba(255,255,255,0.22)'; ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.moveTo(cProj.sx,cProj.sy);
+    ctx.lineTo((p1.sx+cProj.sx)/2,(p1.sy+cProj.sy)/2); ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.92)'; ctx.font='600 11px var(--mono)';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(a.toFixed(1)+'°', mx, my);
+  }
+}
+
+/* ───────── 평형 애니메이션 ───────── */
+function startEquilibrium(){
+  computeStructure();
+  const n = S.result.stericNumber;
+  const isLone = S.result.computed.isLone;
+  // 이상 시드 + 큰 섭동에서 출발 → 반발로 평형 찾아가는 모습
+  const seed = VseprEngine.seedPositions(n);
+  S.domains = seed.map((v,i)=>{
+    const noise = [ (Math.random()-0.5)*1.4, (Math.random()-0.5)*1.4, (Math.random()-0.5)*1.4 ];
+    let d = VseprEngine.V.norm([v[0]+noise[0], v[1]+noise[1], v[2]+noise[2]]);
+    return { dir:d, isLone:isLone[i], target:S.result.computed.allVectors[i] };
+  });
+  S.animating = true; S.animSteps = 0;
+  document.getElementById('hint').textContent = '전자쌍이 반발하며 평형을 찾는 중…';
+}
+function stepAnimation(){
+  const n = S.result.stericNumber;
+  const W = S.domains.map(d=> d.isLone ? S.lpw : 1.0);
+  let P = S.domains.map(d=>d.dir);
+  for(let k=0;k<3;k++) P = VseprEngine._internal.relaxStep(P, W, 1, 0.05);
+  S.domains.forEach((d,i)=> d.dir = P[i]);
+  S.animSteps++;
+  if(S.animSteps > 220){
+    S.animating=false;
+    // 정확한 수렴값으로 스냅
+    S.domains.forEach((d,i)=> d.target = S.result.computed.allVectors[i]);
+    document.getElementById('hint').textContent='전자영역이 반발 평형에 도달했습니다';
+  }
+}
+function easeToTarget(){
+  S.domains.forEach(d=>{
+    if(!d.target) return;
+    d.dir = VseprEngine.V.norm([
+      d.dir[0]+(d.target[0]-d.dir[0])*0.18,
+      d.dir[1]+(d.target[1]-d.dir[1])*0.18,
+      d.dir[2]+(d.target[2]-d.dir[2])*0.18 ]);
+  });
+}
+
+/* ───────── 엔진 호출 + 결과 반영 ───────── */
+function computeStructure(){
+  S.result = VseprEngine.solve(
+    { bonding:S.bonding, lone:S.lone },
+    { lonePairWeight:S.lpw }
+  );
+  return S.result;
+}
+function setStructure(animate){
+  computeStructure();
+  const isLone = S.result.computed.isLone;
+  const vecs = S.result.computed.allVectors;
+  S.domains = vecs.map((v,i)=>({ dir: v.slice(), isLone:isLone[i], target:v.slice() }));
+  S.animating=false;
+  renderResults();
+  // 에너지 미터
+  document.getElementById('emeter').textContent =
+    '반발에너지 E = '+S.result.computed.energy.toFixed(3);
+}
+
+/* ───────── 결과 패널 ───────── */
+function renderResults(){
+  const r = S.result; const ref = r.reference;
+  const c = r.computed;
+  const compAng = c.representativeAngle;
+  const expAng = ref ? ref.exp : null;
+  const polar = c.polar;
+
+  let placementHTML = '';
+  if(r.input.lone>0 && r.placementScores.length>1){
+    const sorted = r.placementScores.slice().sort((a,b)=>a.seedEnergy-b.seedEnergy);
+    const minE = sorted[0].seedEnergy;
+    const lines = sorted.slice(0,3).map((s,idx)=>{
+      const tag = describeSlots(s.loneSlots, r.stericNumber);
+      const win = idx===0 ? '<span class="win"> ◀ 최저에너지 선택</span>':'';
+      return `<div class="pscore">· ${tag} : E=${s.seedEnergy.toFixed(3)}${win}</div>`;
+    }).join('');
+    placementHTML = `<div class="placement">
+      <b>고립쌍 위치, 엔진이 도출:</b> 이상 기하에서 반발 에너지가 최소인 배치를 선택합니다
+      (하드코딩 아님).
+      ${lines}</div>`;
+  }
+
+  const refName = ref ? ref.example : '—';
+  document.getElementById('results').innerHTML = `
+    <div class="res-head">
+      <span class="chip">입체수 <b>${r.stericNumber}</b></span>
+      <span class="chip" style="font-family:var(--mono)">${r.notation}</span>
+      <span class="chip">전자쌍기하 <b>${r.electronGeometry}</b></span>
+      <span class="chip shape">분자기하 · ${r.molecularGeometry}</span>
+      <span class="chip ${polar?'polar-y':'polar-n'}">${polar?'극성 분자':'무극성 분자'}</span>
+      <span class="chip">대표 예: ${refName}</span>
+    </div>
+
+    <div class="derive">
+      <h3>● 엔진 계산값 (반발 모델 도출)</h3>
+      <div class="ang-big derive-c">${compAng==null?'—':compAng+'°'}</div>
+      <div class="ang-sub">전자쌍 반발 완화로 도출한 대표 결합각</div>
+      <div class="kv"><span class="k">쌍극자 벡터합</span><span class="v">${c.dipoleMagnitude}</span></div>
+      <div class="kv"><span class="k">반발 에너지</span><span class="v">${c.energy.toFixed(3)}</span></div>
+      <div class="kv"><span class="k">계산된 모든 결합각</span><span class="v">${uniqAngles(c.angles)}</span></div>
+    </div>
+
+    <div class="verify">
+      <h3>● 실험 검증값 (교과서 표준)</h3>
+      <div class="ang-big verify-c">${expAng?expAng.join(' / ')+'°':'—'}</div>
+      <div class="ang-sub">${ref?ref.example+' 의 실측 결합각':'참조표 없음'}</div>
+      <div class="kv"><span class="k">이상 결합각</span><span class="v">${ref?ref.ideal.join(' / ')+'°':'—'}</span></div>
+      <div class="kv"><span class="k">검증 극성</span><span class="v">${ref?(ref.polar?'극성':'무극성'):'—'}</span></div>
+      <div class="delta">${crossCheck(compAng, expAng, polar, ref)}</div>
+    </div>
+    ${placementHTML}
+  `;
+}
+function uniqAngles(arr){
+  const u=[]; arr.forEach(a=>{ if(!u.some(x=>Math.abs(x-a)<1.0)) u.push(a); });
+  return u.map(a=>a.toFixed(0)+'°').join(', ');
+}
+function describeSlots(slots, n){
+  if(n===5){ // TBP: 0,1=축 / 2,3,4=적도
+    const ax = slots.filter(s=>s<2).length, eq = slots.filter(s=>s>=2).length;
+    if(ax===0) return `적도 ${eq}개`;
+    if(eq===0) return `축 ${ax}개`;
+    return `축 ${ax}·적도 ${eq}`;
+  }
+  if(n===6){ // octahedron
+    if(slots.length===2){
+      const a=VseprEngine._internal.seedPositions(6);
+      const ang=VseprEngine._internal.angleBetween(a[slots[0]],a[slots[1]]);
+      return ang>150?'trans(마주봄)':'cis(이웃)';
+    }
+  }
+  return `${slots.length}개 배치`;
+}
+function crossCheck(comp, exp, polar, ref){
+  if(!ref) return '검증 데이터 없음';
+  if(!exp || comp==null) return '각도 비교 불가(직선 등)';
+  const e = exp[exp.length>1?0:0];
+  const diff = Math.abs(comp - (Array.isArray(exp)?exp[0]:exp));
+  const ideal = ref.ideal[0];
+  const dir = comp < ideal-0.3 ? '이상각보다 압축됨(고립쌍 반발)' :
+              comp > ideal+0.3 ? '이상각보다 확장' : '이상각 일치';
+  const ok = diff < 3.5;
+  return `교차검증: 계산 ${comp}° vs 실험 ${exp[0]}° → 차이 <b>${diff.toFixed(1)}°</b> · ${dir} · ${ok?'경향 일치 ✓':'표준값 참조'}`;
+}
+
+/* ───────── 프리셋 버튼 ───────── */
+const presetWrap = document.getElementById('presets');
+PRESETS.forEach((p,idx)=>{
+  const b = document.createElement('button');
+  b.className='preset'; b.dataset.idx=idx;
+  b.innerHTML = `${p.f}<small>${p.name}</small>`;
+  b.onclick = ()=>selectPreset(idx);
+  presetWrap.appendChild(b);
+});
+function selectPreset(idx){
+  const p = PRESETS[idx];
+  S.bonding=p.b; S.lone=p.l; S.formula=p.f; S.centralEl=p.c; S.terminalEl=p.x;
+  document.getElementById('bonding').value=p.b;
+  document.getElementById('lone').value=p.l;
+  document.getElementById('bv').textContent=p.b;
+  document.getElementById('lv').textContent=p.l;
+  document.querySelectorAll('.preset').forEach(el=>el.classList.toggle('on', +el.dataset.idx===idx));
+  document.getElementById('hint').textContent=p.f+' 구조';
+  setStructure(false);
+}
+
+/* ───────── 슬라이더/토글 ───────── */
+function clearPresetActive(){ document.querySelectorAll('.preset').forEach(el=>el.classList.remove('on')); S.formula=null; }
+document.getElementById('bonding').oninput = e=>{
+  S.bonding=+e.target.value; document.getElementById('bv').textContent=e.target.value;
+  if(S.bonding+S.lone>7){ S.lone=7-S.bonding; document.getElementById('lone').value=S.lone; document.getElementById('lv').textContent=S.lone; }
+  clearPresetActive(); setStructure(false);
+};
+document.getElementById('lone').oninput = e=>{
+  S.lone=+e.target.value; document.getElementById('lv').textContent=e.target.value;
+  if(S.bonding+S.lone>7){ S.bonding=7-S.lone; document.getElementById('bonding').value=S.bonding; document.getElementById('bv').textContent=S.bonding; }
+  clearPresetActive(); setStructure(false);
+};
+document.getElementById('lpw').oninput = e=>{
+  S.lpw=+e.target.value; document.getElementById('wv').textContent=(+e.target.value).toFixed(2);
+  setStructure(false);
+};
+document.getElementById('relaxBtn').onclick = startEquilibrium;
+document.getElementById('resetBtn').onclick = ()=>{ selectPreset(3); }; // CH₄
+document.getElementById('showLone').onchange = e=>S.showLone=e.target.checked;
+document.getElementById('showAngle').onchange = e=>S.showAngle=e.target.checked;
+document.getElementById('autoRot').onchange = e=>S.autoRot=e.target.checked;
+
+/* ───────── 드래그 회전 ───────── */
+let dragging=false, lastX=0, lastY=0;
+cv.addEventListener('pointerdown', e=>{ dragging=true; lastX=e.clientX; lastY=e.clientY; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e=>{
+  if(!dragging) return;
+  S.ay += (e.clientX-lastX)*0.01; S.ax += (e.clientY-lastY)*0.01;
+  S.ax = Math.max(-1.4, Math.min(1.4, S.ax));
+  lastX=e.clientX; lastY=e.clientY;
+});
+cv.addEventListener('pointerup', ()=>dragging=false);
+cv.addEventListener('pointercancel', ()=>dragging=false);
+
+/* ───────── 시작 ───────── */
+fitCanvas();
+selectPreset(3);   // CH₄로 시작
+requestAnimationFrame(render);
+
+</script>
+</body>
+</html>

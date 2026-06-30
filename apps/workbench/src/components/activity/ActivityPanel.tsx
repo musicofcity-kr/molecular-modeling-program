@@ -2,6 +2,7 @@ import type {
   ActivityResponseState,
   ActivityTemplate,
   AppMode,
+  UserMode,
 } from '../../types/activity';
 import {
   buildActivityComparisonResult,
@@ -11,6 +12,7 @@ import type { MoleculeValidationResult } from '../../types/molecule';
 
 type ActivityPanelProps = {
   appMode: AppMode;
+  userMode: UserMode;
   templates: ActivityTemplate[];
   selectedActivityId: string;
   responses: ActivityResponseState;
@@ -38,6 +40,7 @@ function isLongAnswerQuestion(questionId: string): boolean {
 
 export function ActivityPanel({
   appMode,
+  userMode,
   templates,
   selectedActivityId,
   responses,
@@ -45,7 +48,7 @@ export function ActivityPanel({
   onSelectActivity,
   onResponseChange,
 }: ActivityPanelProps) {
-  if (appMode !== 'activity') {
+  if (appMode !== 'activity' || userMode !== 'student') {
     return null;
   }
 

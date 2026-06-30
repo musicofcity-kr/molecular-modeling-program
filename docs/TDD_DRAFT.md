@@ -10,8 +10,10 @@ React/Vite App
  ├─ Structure State Service
  ├─ RDKit Validation Service
  ├─ VSEPR Prediction Engine
+ ├─ VSEPR Prediction Model Viewer
  ├─ Molecule Result Panel
  ├─ Activity Panel
+ ├─ Teacher Panel
  ├─ 3Dmol.js Viewer Shell
  ├─ Export Service
  └─ Example Molecule Library
@@ -62,22 +64,40 @@ FastAPI Backend
    - returned SDF is converted only into `Molecule3DInput`
    - 3Dmol.js displays the coordinate-bearing SDF
 16. PubChem loading failure does not clear RDKit.js formula, average molecular weight, or canonical SMILES. The student sees a short failure message, while developer logs keep CID, HTTP status, response excerpt, or fetch error.
-17. The app has two modes:
+17. The app has two independent UI mode axes:
+   - `UserMode`: `student` or `teacher`
+   - `AppMode`: `free_draw` or `activity`
+18. The four supported combinations are:
+   - `free_draw + student`: open drawing, validation, VSEPR, 3D, and PubChem candidate review without teacher-only notes or developer logs.
+   - `free_draw + teacher`: open drawing plus teacher guidance, current validation status, VSEPR status, 3D/PubChem status, and collapsible developer logs.
+   - `activity + student`: guided student activity questions, prediction inputs, RDKit comparison, VSEPR reflection, and 3D/VSEPR model observation.
+   - `activity + teacher`: teacher guidance for the selected activity template without automatic scoring or student submission storage.
+19. `AppMode` behavior:
    - `free_draw`: default mode for open molecule drawing, RDKit validation, 3D viewer, and PubChem candidate search.
    - `activity`: guided classroom mode that keeps the same editor and validation flow but adds prompts, student predictions, and reflection fields.
-18. Activity mode compares student-entered predicted formula and predicted molecular weight against RDKit.js validation results only after `validationResult.ok === true`.
-19. Activity comparison is intentionally a simple string comparison. It does not score answers and does not try to normalize chemically equivalent formula notation.
-20. Activity templates store prompts and target SMILES for classroom guidance, but they do not store molecular weight or override RDKit-calculated formula/mass.
-21. This phase does not implement student login, persistence, teacher dashboards, PDF/image export, or automatic grading.
-22. VSEPR analysis is a separate educational prediction layer:
+20. Activity mode compares student-entered predicted formula and predicted molecular weight against RDKit.js validation results only after `validationResult.ok === true`.
+21. Activity comparison is intentionally a simple string comparison. It does not score answers and does not try to normalize chemically equivalent formula notation.
+22. Activity templates store prompts, target SMILES, teacher notes, misconception checks, and expected VSEPR guidance for classroom use, but they do not store molecular weight or override RDKit-calculated formula/mass.
+23. Teacher-facing guidance is shown only in `UserMode: 'teacher'`; student-facing screens do not show teacher notes, misconception checklists, raw API response details, HTTP status details, or developer logs.
+24. This phase does not implement student login, persistence, teacher dashboards, PDF/image export, or automatic grading.
+25. VSEPR analysis is a separate educational prediction layer:
    - it runs only after RDKit.js validation succeeds;
    - it reads the validated Ketcher V2000 MOL block as a local atom/bond graph;
    - it does not compute formula, mass, canonical SMILES, energy, real bond lengths, or measured bond angles;
    - it returns center-atom-local AXE notation, electron-domain geometry, molecular shape, idealized angle labels, confidence, and warnings.
-23. If a molecule has multiple plausible centers, such as ethanol, the app does not assign one global VSEPR shape. It asks the user to select a center atom and then performs local VSEPR analysis for that atom.
-24. Activity mode includes VSEPR prediction prompts, but those student answers are not automatically scored in this phase.
-25. If a later import or trusted example provides coordinate-bearing `mol`, `sdf`, `xyz`, or `pdb` data, the viewer can clear the previous model, load the coordinate data, resize, and render it with a source/method label.
-26. Export service generates image output from the current validated or explicitly unvalidated drawing state, depending on export type.
+26. If a molecule has multiple plausible centers, such as ethanol, the app does not assign one global VSEPR shape. It asks the user to select a center atom and then performs local VSEPR analysis for that atom.
+27. If a molecule has one clear center atom and all other heavy atoms are terminal ligands without inferred hydrogens, such as BF3, BeCl2, PCl5, SF4, ClF3, XeF2, SF6, BrF5, or XeF4, the app can auto-select the center atom.
+28. Activity mode includes VSEPR prediction prompts, but those student answers are not automatically scored in this phase.
+29. VSEPR is not a permanent core panel in default free-draw mode. In free-draw mode, the app shows only an optional VSEPR module gate until the user explicitly opens it.
+30. Guided activity mode can show VSEPR analysis and the VSEPR model by default because the activity prompts make the simplified model context explicit.
+31. VSEPR prediction model visualization is a separate teaching-model path:
+   - `src/services/vseprGeometryTemplates.ts` maps supported AXE notation to unit vectors;
+   - vectors are marked as `bond` or `lonePair`;
+   - `Vsepr3DModelViewer` renders a center atom, bond directions, bonded atoms, and lone-pair markers;
+   - the result is labeled as `VSEPR 예측 모형`, not as PubChem/static coordinate data.
+32. VSEPR template lookup accepts Claude-style aliases such as `AX4E0` and `AX3E1`, but the displayed app notation stays compact, such as `AX4` and `AX3E`.
+33. If a later import or trusted example provides coordinate-bearing `mol`, `sdf`, `xyz`, or `pdb` data, the actual/external 3D viewer can clear the previous model, load the coordinate data, resize, and render it with a source/method label.
+34. Export service generates image output from the current validated or explicitly unvalidated drawing state, depending on export type.
 
 ## 3. Core Interfaces
 
@@ -187,6 +207,7 @@ export type SearchPubChemCandidatesByCanonicalSmiles = (
 ) => Promise<PubChemCandidateSearchResult>;
 
 export type AppMode = 'free_draw' | 'activity';
+export type UserMode = 'student' | 'teacher';
 
 export interface ActivityQuestion {
   id: string;
@@ -203,6 +224,15 @@ export interface ActivityTemplate {
   prompt: string;
   predictionQuestions: ActivityQuestion[];
   reflectionQuestions: ActivityQuestion[];
+  coreConcepts?: string[];
+  teacherNotes?: string[];
+  misconceptionChecks?: string[];
+  expectedVsepr?: {
+    axeNotation?: string;
+    molecularShapeKo?: string;
+    centralAtom?: string;
+    lonePairCount?: number;
+  };
   recommendedExampleId?: string;
 }
 
@@ -230,14 +260,28 @@ export interface VseprAnalysis {
   warnings: string[];
 }
 
-export interface VseprTemplateGeometry {
+export type VseprModelViewStatus =
+  | 'not_requested'
+  | 'ready'
+  | 'rendered'
+  | 'unsupported'
+  | 'error';
+
+export interface VseprVector {
+  x: number;
+  y: number;
+  z: number;
+  kind: 'bond' | 'lonePair';
+  label?: string;
+}
+
+export interface VseprGeometryTemplate {
   axeNotation: string;
-  vectors: Array<{
-    x: number;
-    y: number;
-    z: number;
-    kind: 'bond' | 'lonePair';
-  }>;
+  electronDomainGeometryKo: string;
+  molecularShapeKo: string;
+  idealBondAngles: string[];
+  vectors: VseprVector[];
+  note: string;
 }
 
 export type MoleculeValidationResult =
@@ -297,7 +341,9 @@ The canonical TypeScript sources for these contracts are `apps/workbench/src/typ
 - Gate 9: VSEPR analysis reads MOL block data only after RDKit.js validation succeeds.
 - Gate 10: VSEPR results are labeled as educational predictions, not measured geometry, optimized conformers, or 3D coordinate data.
 - Gate 11: multi-center molecules require center-atom selection and are not described as one whole-molecule VSEPR shape.
-- Gate 12: export uses current validated structure for chemistry-bearing export, while worksheet image export may use the visible editor drawing with an explicit validation label.
+- Gate 12: VSEPR 3D model visualization uses only explicit AXE template vectors and is labeled as an educational prediction model, not real coordinate data.
+- Gate 13: student mode hides teacher-only notes and developer logs; teacher mode shows them as guidance and diagnostics, not as scoring output.
+- Gate 14: export uses current validated structure for chemistry-bearing export, while worksheet image export may use the visible editor drawing with an explicit validation label.
 
 ## 5. Initial Dependencies
 
@@ -471,6 +517,7 @@ This phase adds a classroom workflow layer without changing the chemistry valida
 - `free_draw` keeps the existing open drawing flow: Ketcher input, RDKit.js validation, structure information panel, PubChem candidate search, and 3Dmol.js visualization.
 - `activity` keeps the same Ketcher/RDKit/PubChem/3Dmol.js flow and adds a guided activity panel.
 - The mode switch does not reset the molecule editor, RDKit validation result, PubChem candidate result, or 3D viewer state.
+- `student` and `teacher` are separate from `free_draw` and `activity`; switching the user mode does not reset chemistry state.
 
 ### Activity template structure
 
@@ -486,6 +533,15 @@ export interface ActivityTemplate {
   prompt: string;
   predictionQuestions: ActivityQuestion[];
   reflectionQuestions: ActivityQuestion[];
+  coreConcepts?: string[];
+  teacherNotes?: string[];
+  misconceptionChecks?: string[];
+  expectedVsepr?: {
+    axeNotation?: string;
+    molecularShapeKo?: string;
+    centralAtom?: string;
+    lonePairCount?: number;
+  };
   recommendedExampleId?: string;
 }
 ```
@@ -493,6 +549,8 @@ export interface ActivityTemplate {
 The initial MVP templates are:
 
 - `draw-water`: 물 분자 구조 그리기
+- `draw-methane`: 메테인 분자 구조 그리기
+- `draw-ammonia`: 암모니아 분자 구조 그리기
 - `draw-ethanol`: 에탄올 분자 구조 그리기
 - `draw-benzene`: 벤젠 분자 구조 그리기
 
@@ -524,7 +582,39 @@ The comparison is not a grade. It does not normalize formula order, significant 
 - No automatic scoring.
 - No activity result PDF/image export.
 
-## 10. VSEPR Prediction Engine MVP
+## 10. Student/Teacher Mode Split MVP
+
+This phase separates classroom UI roles without adding authentication, persistence, or dashboards.
+
+### UserMode boundary
+
+```ts
+export type UserMode = 'student' | 'teacher';
+```
+
+- `student`: inquiry and response entry. Shows activity selection, learning goal, Ketcher editor, RDKit validation result, VSEPR analysis, actual/external 3D viewer, VSEPR model viewer, PubChem candidate review, prediction inputs, comparison display, and reflection inputs.
+- `teacher`: activity guidance and diagnostic reference. Shows selected activity template details, learning goal, core concepts, expected formula from the recommended example metadata, expected VSEPR guidance, question lists, student input checklist, RDKit/VSEPR/3D/PubChem status, misconception checks, and collapsible developer logs.
+
+### TeacherPanel boundary
+
+`apps/workbench/src/components/TeacherPanel.tsx` is a read-only classroom guidance panel.
+
+It must not:
+
+- score student responses;
+- store student responses;
+- show student submission lists;
+- authenticate teachers;
+- call Firebase or a database;
+- replace RDKit.js formula or molecular-weight output.
+
+### Developer log boundary
+
+- Student mode hides the developer log panel.
+- Teacher mode shows `개발자 로그 / 검증 결과` behind a `개발자 로그 보기` toggle.
+- Developer logs remain diagnostics. They are not student-facing explanations and are not assessment results.
+
+## 11. VSEPR Prediction Engine MVP
 
 The VSEPR engine is an educational structure-prediction layer. It is not part of RDKit.js validation, PubChem lookup, or 3Dmol.js coordinate rendering.
 
@@ -556,8 +646,8 @@ If the estimate is negative, non-integer, or outside the MVP mapping table, the 
 
 ### Supported MVP centers
 
-- High-confidence main-group centers: C, N, O, F, P, S, Cl.
-- Lower-confidence centers when simple enough: Br, I.
+- High-confidence main-group centers: Be, B, C, N, O, F, P, S, Cl.
+- Lower-confidence centers when simple enough: Br, I, Xe.
 - Unsupported or review-needed: transition metals, radicals, malformed MOL blocks, unsupported bond/query types, complex resonance-heavy cases, and steric numbers outside the mapping table.
 
 ### Supported AXE mappings
@@ -582,7 +672,10 @@ If the estimate is negative, non-integer, or outside the MVP mapping table, the 
 - Single clear center: auto-display local VSEPR result.
 - Multiple centers: show center atom dropdown.
 - Unsupported center: hide confident geometry and show review-needed warnings.
-- 3Dmol.js is not used to generate or validate VSEPR geometry in this phase.
+- In default free-draw mode, keep the VSEPR panel and VSEPR 3D model viewer hidden behind `VSEPR 예측 모듈 열기`.
+- In guided activity mode, show the VSEPR module because the activity questions frame the result as a simplified classroom model.
+- The VSEPR panel can enable `VSEPR 모형 보기` only when the analysis is `supported` and an AXE template exists.
+- 3Dmol.js is not used to generate or validate VSEPR geometry; it only draws explicit teaching-model vectors.
 
 ### Activity mode additions
 
@@ -593,10 +686,60 @@ The guided activity panel now asks students to predict:
 - lone-pair count;
 - VSEPR molecular shape;
 - how 2D connectivity differs from VSEPR structure prediction.
+- how electron domains are arranged in the VSEPR model;
+- how lone pairs influence molecular shape;
+- how a VSEPR prediction model differs from an actual 3D coordinate source such as PubChem.
 
 These answers are reflection prompts only. They are not automatically scored.
 
-## 11. Risk Register
+## 12. VSEPR Prediction Model 3D Visualization MVP
+
+This phase adds an explicit VSEPR teaching-model viewer. It does not create a real conformer and does not convert 2D MOL blocks into 3D molecular coordinates.
+
+### Data flow
+
+```text
+RDKit.js validation succeeds
+  -> VSEPR engine returns supported AXE notation
+  -> user clicks VSEPR 모형 보기
+  -> vseprGeometryTemplates returns educational unit vectors
+  -> Vsepr3DModelViewer renders center atom, bonded directions, and lone-pair markers
+```
+
+### Supported templates
+
+The first supported visualization set is:
+
+- AX2: 선형
+- AX3: 삼각 평면
+- AX2E: 굽은형
+- AX4: 정사면체
+- AX3E: 삼각뿔형
+- AX2E2: 굽은형
+
+Extended templates are also defined for classroom expansion:
+
+- AX5, AX4E, AX3E2, AX2E3
+- AX6, AX5E, AX4E2
+
+### Viewer separation
+
+- `Molecule3DViewer` is labeled as `실제/외부 3D 구조 Viewer` and displays coordinate-bearing static, PubChem, or imported data.
+- `Vsepr3DModelViewer` is labeled as `VSEPR 예측 모형` and displays idealized AXE template vectors.
+- VSEPR model vectors are unit directions only. They are not bond lengths, measured angles, optimized coordinates, PubChem data, or RDKit conformers.
+- Lone-pair markers are visual aids for electron-pair direction, not particles.
+
+### Student-facing boundaries
+
+The VSEPR viewer must show that:
+
+- the model is an educational prediction;
+- actual molecules can differ from the idealized model;
+- ideal bond-angle labels are classroom approximations;
+- RDKit.js remains the formula and molecular-weight source;
+- PubChem/static coordinate data, when shown, is a separate 3D source.
+
+## 13. Risk Register
 
 | Risk | Mitigation |
 |---|---|
@@ -606,3 +749,5 @@ These answers are reflection prompts only. They are not automatically scored.
 | Licensing ambiguity | Keep dependency decision log. |
 | Students misinterpret generated 3D geometry | Add method/source label to viewer. |
 | Students treat VSEPR as measured geometry | Label VSEPR output as idealized educational prediction and keep it separate from 3D coordinate sources. |
+| Students confuse VSEPR model vectors with PubChem coordinates | Keep `실제/외부 3D 구조 Viewer` and `VSEPR 예측 모형` as separate panels with different labels and caveats. |
+| Teacher guidance leaks into the student screen | Keep `UserMode` gates explicit and test that student mode hides teacher notes and developer logs. |

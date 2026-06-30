@@ -29,6 +29,14 @@ The app must not imply that 3Dmol.js can create reliable 3D molecular geometry f
 - 3Dmol.js does not provide the authoritative molecular formula or molecular weight.
 - 3Dmol.js must receive a source/method label with any displayed coordinate data.
 
+### VSEPR Prediction Model Viewer
+
+- VSEPR prediction models are educational template renderings, not coordinate-bearing molecular structures.
+- VSEPR model vectors may be drawn with 3Dmol.js, but they are unit directions for classroom explanation.
+- VSEPR model vectors must not be treated as PubChem data, static 3D example data, imported 3D coordinates, or generated conformers.
+- Lone-pair markers are visual aids for electron-pair direction, not physical particles.
+- Ideal bond-angle labels are approximate VSEPR teaching labels, not measured or optimized geometry.
+
 ## Coordinate Data Rules
 
 3D coordinate data is classroom visualization material. It must not be used as the precise basis for:
@@ -66,9 +74,10 @@ Static example coordinates are:
 
 ## PubChem 3D Data Policy
 
-PubChem PUG-REST is a future candidate for obtaining external 3D coordinate-bearing records, such as SDF data, but it is not integrated yet.
+PubChem PUG-REST is used in the current prototype for CID-based external 3D coordinate-bearing SDF loading.
+Manual candidate search may identify possible PubChem CIDs, but the app must not automatically choose a candidate for the user.
 
-Before using PubChem data, the app must handle these risks:
+Using PubChem data requires handling these risks:
 
 - PubChem may not have 3D coordinate data for the requested molecule.
 - A PubChem search may return multiple candidate compounds.
@@ -78,7 +87,7 @@ Before using PubChem data, the app must handle these risks:
 
 ## PubChem Handoff Gate
 
-Future PubChem 3D loading must follow this order:
+PubChem 3D loading must follow this order:
 
 1. Ketcher provides SMILES/MOL data.
 2. RDKit.js validates the current structure.
@@ -111,16 +120,18 @@ Developer logs should include enough detail for debugging:
 
 The current MVP must not implement:
 
-- PubChem API calls
+- automatic PubChem matching from user-drawn structures
+- automatic selection of a PubChem candidate
+- PubChem values replacing RDKit.js formula or molecular weight
 - Open Babel backend conversion
 - RDKit 3D conformer generation
 - SMILES-to-3D automatic generation
 - energy minimization
 - bond angle calculation
 - treating Ketcher 2D MOL blocks as 3D data
+- treating VSEPR template vectors as real 3D molecular coordinates
 
 ## Sources Checked
 
 - PubChem PUG-REST documentation: https://pubchem.ncbi.nlm.nih.gov/docs/pug-rest
 - 3Dmol.js documentation: https://3dmol.org/doc/index.html
-

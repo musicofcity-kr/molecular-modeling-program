@@ -7,6 +7,13 @@ export type VseprStatus =
 
 export type VseprConfidence = 'high' | 'medium' | 'low';
 
+export type VseprModelViewStatus =
+  | 'not_requested'
+  | 'ready'
+  | 'rendered'
+  | 'unsupported'
+  | 'error';
+
 export interface VseprCentralAtomCandidate {
   atomId: string;
   atomSymbol: string;
@@ -34,12 +41,19 @@ export interface VseprAnalysis {
   developerLogs?: string[];
 }
 
-export interface VseprTemplateGeometry {
+export interface VseprVector {
+  x: number;
+  y: number;
+  z: number;
+  kind: 'bond' | 'lonePair';
+  label?: string;
+}
+
+export interface VseprGeometryTemplate {
   axeNotation: string;
-  vectors: Array<{
-    x: number;
-    y: number;
-    z: number;
-    kind: 'bond' | 'lonePair';
-  }>;
+  electronDomainGeometryKo: string;
+  molecularShapeKo: string;
+  idealBondAngles: string[];
+  vectors: VseprVector[];
+  note: string;
 }

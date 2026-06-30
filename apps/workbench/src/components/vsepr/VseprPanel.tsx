@@ -1,9 +1,12 @@
-import type { VseprAnalysis } from '../../types/vsepr';
+import type { VseprAnalysis, VseprModelViewStatus } from '../../types/vsepr';
 
 type VseprPanelProps = {
   analysis: VseprAnalysis;
   selectedCentralAtomId?: string;
   onSelectCentralAtom: (atomId: string) => void;
+  canShowModel?: boolean;
+  modelStatus?: VseprModelViewStatus;
+  onShowModel?: () => void;
 };
 
 function formatStatus(status: VseprAnalysis['status']): string {
@@ -36,6 +39,9 @@ export function VseprPanel({
   analysis,
   selectedCentralAtomId,
   onSelectCentralAtom,
+  canShowModel = false,
+  modelStatus = 'not_requested',
+  onShowModel,
 }: VseprPanelProps) {
   const candidates = analysis.centralAtomCandidates ?? [];
   const canSelectCenter = candidates.length > 0;
@@ -56,6 +62,22 @@ export function VseprPanel({
         VSEPR 결과는 전자쌍 반발 이론에 따른 교육용 예측입니다. 실제 측정 구조
         또는 계산화학 최적화 구조와 차이가 있을 수 있습니다.
       </p>
+
+      <div className="vsepr-model-action">
+        <p>
+          VSEPR 모형은 실제 3D 좌표가 아니라 중심 원자 주변 전자쌍 방향을
+          이해하기 위한 단위 벡터 모형입니다.
+        </p>
+        <button
+          className="secondary-action"
+          data-testid="show-vsepr-model-button"
+          type="button"
+          disabled={!canShowModel}
+          onClick={onShowModel}
+        >
+          {modelStatus === 'rendered' ? 'VSEPR 모형 표시 중' : 'VSEPR 모형 보기'}
+        </button>
+      </div>
 
       {canSelectCenter ? (
         <label className="vsepr-center-picker">

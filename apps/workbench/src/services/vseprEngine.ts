@@ -45,6 +45,8 @@ export type AnalyzeVseprInput = {
 };
 
 const VALENCE_ELECTRONS: Record<string, number> = {
+  Be: 2,
+  B: 3,
   C: 4,
   N: 5,
   O: 6,
@@ -54,9 +56,12 @@ const VALENCE_ELECTRONS: Record<string, number> = {
   Cl: 7,
   Br: 7,
   I: 7,
+  Xe: 8,
 };
 
 const IMPLICIT_HYDROGEN_TARGET_VALENCE: Record<string, number> = {
+  Be: 2,
+  B: 3,
   C: 4,
   N: 3,
   O: 2,
@@ -68,7 +73,7 @@ const IMPLICIT_HYDROGEN_TARGET_VALENCE: Record<string, number> = {
   I: 1,
 };
 
-const HEAVY_HALOGEN_CENTERS = new Set(['Br', 'I']);
+const MEDIUM_CONFIDENCE_CENTERS = new Set(['Br', 'I', 'Xe']);
 
 const VSEPR_SHAPE_TABLE: Record<
   string,
@@ -185,7 +190,10 @@ export function analyzeVseprFromMolBlock(input: AnalyzeVseprInput): VseprAnalysi
       };
     }
 
-    if (!input.selectedCentralAtomId && candidates.length > 1) {
+    const centralAtomId =
+      input.selectedCentralAtomId ?? findClearCentralAtomId(candidates);
+
+    if (!centralAtomId && candidates.length > 1) {
       return {
         status: 'needs_central_atom',
         centralAtomCandidates: candidates,
@@ -200,9 +208,8 @@ export function analyzeVseprFromMolBlock(input: AnalyzeVseprInput): VseprAnalysi
       };
     }
 
-    const centralAtomId = input.selectedCentralAtomId ?? candidates[0]?.atomId;
     const evaluation = evaluations.find(
-      (item) => item.candidate.atomId === centralAtomId,
+      (item) => item.candidate.atomId === (centralAtomId ?? candidates[0]?.atomId),
     );
 
     if (!evaluation) {
@@ -412,7 +419,9 @@ function evaluateCentralAtom(
   const lonePairCount = lonePairRaw;
   const stericNumber = bondedAtomCount + lonePairCount;
   const axeNotation =
-    lonePairCount > 0 ? `AX${bondedAtomCount}E${lonePairCount}` : `AX${bondedAtomCount}`;
+    lonePairCount > 0
+      ? `AX${bondedAtomCount}${formatLonePairNotation(lonePairCount)}`
+      : `AX${bondedAtomCount}`;
   const shape = VSEPR_SHAPE_TABLE[axeNotation];
 
   if (!shape) {
@@ -463,12 +472,43 @@ function inferImplicitHydrogenCount(atom: MolAtom, explicitBondOrderSum: number)
   return inferred;
 }
 
+function findClearCentralAtomId(
+  candidates: VseprCentralAtomCandidate[],
+): string | null {
+  if (candidates.length === 1) {
+    return candidates[0].atomId;
+  }
+
+  const possibleCenters = candidates.filter(
+    (candidate) => candidate.explicitBondedAtomCount >= 2,
+  );
+  const terminalLigands = candidates.filter(
+    (candidate) =>
+      candidate.explicitBondedAtomCount === 1 &&
+      candidate.inferredHydrogenCount === 0 &&
+      candidate.bondedAtomCount === 1,
+  );
+
+  if (
+    possibleCenters.length === 1 &&
+    terminalLigands.length === candidates.length - 1
+  ) {
+    return possibleCenters[0].atomId;
+  }
+
+  return null;
+}
+
+function formatLonePairNotation(lonePairCount: number): string {
+  return lonePairCount === 1 ? 'E' : `E${lonePairCount}`;
+}
+
 function getConfidence(
   atom: MolAtom,
   parsed: ParsedMolBlock,
   warnings: string[],
 ): VseprConfidence {
-  if (HEAVY_HALOGEN_CENTERS.has(atom.symbol)) {
+  if (MEDIUM_CONFIDENCE_CENTERS.has(atom.symbol)) {
     return 'medium';
   }
 

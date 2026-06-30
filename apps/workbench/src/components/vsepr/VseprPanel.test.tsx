@@ -20,6 +20,8 @@ describe('VseprPanel', () => {
     expect(markup).toContain('분자 구조 예측');
     expect(markup).toContain('대기');
     expect(markup).toContain('교육용 예측');
+    expect(markup).toContain('VSEPR 모형 보기');
+    expect(markup).toContain('disabled=""');
     expect(markup).toContain('RDKit.js 검증을 통과한 MOL block');
     expect(markup).not.toContain('AX2E2');
   });
@@ -54,6 +56,8 @@ describe('VseprPanel', () => {
           ],
         }}
         selectedCentralAtomId="1"
+        canShowModel
+        modelStatus="ready"
         onSelectCentralAtom={() => {}}
       />,
     );
@@ -64,6 +68,7 @@ describe('VseprPanel', () => {
     expect(markup).toContain('&lt;109.5°');
     expect(markup).toContain('중간');
     expect(markup).toContain('생략된 수소');
+    expect(markup).not.toContain('disabled=""');
   });
 
   it('does not show confident geometry when the structure is unsupported', () => {

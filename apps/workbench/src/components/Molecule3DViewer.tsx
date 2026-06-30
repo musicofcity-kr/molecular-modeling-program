@@ -224,8 +224,8 @@ export const Molecule3DViewer = forwardRef<
     <section className="workspace-panel viewer-panel" data-testid="molecule-3d-viewer">
       <div className="panel-heading viewer-heading">
         <div>
-          <p className="section-label">3D</p>
-          <h2>3D Viewer</h2>
+          <p className="section-label">실제/외부 3D</p>
+          <h2>실제/외부 3D 구조 Viewer</h2>
         </div>
         <span className={viewerStatus === 'ready' ? 'status-pill ready' : 'status-pill'}>
           {viewerStatus === 'ready'

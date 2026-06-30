@@ -100,6 +100,22 @@ describe('vseprEngine', () => {
     expect(result.idealBondAngles).toEqual(['109.5°']);
   });
 
+  it('infers ammonia as AX3E, not AX3E1, from a nitrogen-only mol block with implicit hydrogens', () => {
+    const result = analyzeVseprFromMolBlock({
+      molBlock: molBlock({ title: 'ammonia', atoms: ['N'], bonds: [] }),
+    });
+
+    expect(result.status).toBe('supported');
+    expect(result.centralAtomSymbol).toBe('N');
+    expect(result.bondedAtomCount).toBe(3);
+    expect(result.lonePairCount).toBe(1);
+    expect(result.stericNumber).toBe(4);
+    expect(result.axeNotation).toBe('AX3E');
+    expect(result.electronDomainGeometryKo).toBe('정사면체');
+    expect(result.molecularShapeKo).toBe('삼각뿔형');
+    expect(result.idealBondAngles).toEqual(['<109.5°']);
+  });
+
   it('treats a double bond as one VSEPR electron domain for carbon dioxide', () => {
     const result = analyzeVseprFromMolBlock({
       molBlock: molBlock({
@@ -119,6 +135,29 @@ describe('vseprEngine', () => {
     expect(result.lonePairCount).toBe(0);
     expect(result.axeNotation).toBe('AX2');
     expect(result.molecularShapeKo).toBe('선형');
+  });
+
+  it('treats sulfur dioxide as AX2E with two bonded domains and one lone pair', () => {
+    const result = analyzeVseprFromMolBlock({
+      molBlock: molBlock({
+        title: 'sulfur dioxide',
+        atoms: ['O', 'S', 'O'],
+        bonds: [
+          [1, 2, 2],
+          [2, 3, 2],
+        ],
+      }),
+    });
+
+    expect(result.status).toBe('supported');
+    expect(result.centralAtomSymbol).toBe('S');
+    expect(result.bondedAtomCount).toBe(2);
+    expect(result.lonePairCount).toBe(1);
+    expect(result.stericNumber).toBe(3);
+    expect(result.axeNotation).toBe('AX2E');
+    expect(result.electronDomainGeometryKo).toBe('삼각 평면');
+    expect(result.molecularShapeKo).toBe('굽은형');
+    expect(result.idealBondAngles).toEqual(['<120°']);
   });
 
   it('requires user selection for ethanol-like multiple local centers', () => {
@@ -150,6 +189,149 @@ describe('vseprEngine', () => {
     expect(oxygen.warnings).toContain(
       '2D MOL block에서 생략된 수소를 일반 원자가 규칙으로 추정했습니다.',
     );
+  });
+
+  it('auto-selects a clear center atom when all other heavy atoms are terminal ligands', () => {
+    const result = analyzeVseprFromMolBlock({
+      molBlock: molBlock({
+        title: 'boron trifluoride',
+        atoms: ['B', 'F', 'F', 'F'],
+        bonds: [
+          [1, 2, 1],
+          [1, 3, 1],
+          [1, 4, 1],
+        ],
+      }),
+    });
+
+    expect(result.status).toBe('supported');
+    expect(result.centralAtomSymbol).toBe('B');
+    expect(result.centralAtomId).toBe('1');
+    expect(result.axeNotation).toBe('AX3');
+    expect(result.molecularShapeKo).toBe('삼각 평면');
+  });
+
+  it('covers Claude classroom presets for Be, B, P, S, Cl, Br, and Xe centers', () => {
+    const cases = [
+      {
+        title: 'beryllium chloride',
+        atoms: ['Be', 'Cl', 'Cl'],
+        bonds: [
+          [1, 2, 1],
+          [1, 3, 1],
+        ] as Array<[number, number, number]>,
+        shape: '선형',
+        axeNotation: 'AX2',
+        center: 'Be',
+      },
+      {
+        title: 'phosphorus pentachloride',
+        atoms: ['P', 'Cl', 'Cl', 'Cl', 'Cl', 'Cl'],
+        bonds: [
+          [1, 2, 1],
+          [1, 3, 1],
+          [1, 4, 1],
+          [1, 5, 1],
+          [1, 6, 1],
+        ] as Array<[number, number, number]>,
+        shape: '삼각쌍뿔',
+        axeNotation: 'AX5',
+        center: 'P',
+      },
+      {
+        title: 'sulfur tetrafluoride',
+        atoms: ['S', 'F', 'F', 'F', 'F'],
+        bonds: [
+          [1, 2, 1],
+          [1, 3, 1],
+          [1, 4, 1],
+          [1, 5, 1],
+        ] as Array<[number, number, number]>,
+        shape: '시소형',
+        axeNotation: 'AX4E',
+        center: 'S',
+      },
+      {
+        title: 'chlorine trifluoride',
+        atoms: ['Cl', 'F', 'F', 'F'],
+        bonds: [
+          [1, 2, 1],
+          [1, 3, 1],
+          [1, 4, 1],
+        ] as Array<[number, number, number]>,
+        shape: 'T자형',
+        axeNotation: 'AX3E2',
+        center: 'Cl',
+      },
+      {
+        title: 'xenon difluoride',
+        atoms: ['Xe', 'F', 'F'],
+        bonds: [
+          [1, 2, 1],
+          [1, 3, 1],
+        ] as Array<[number, number, number]>,
+        shape: '선형',
+        axeNotation: 'AX2E3',
+        center: 'Xe',
+      },
+      {
+        title: 'sulfur hexafluoride',
+        atoms: ['S', 'F', 'F', 'F', 'F', 'F', 'F'],
+        bonds: [
+          [1, 2, 1],
+          [1, 3, 1],
+          [1, 4, 1],
+          [1, 5, 1],
+          [1, 6, 1],
+          [1, 7, 1],
+        ] as Array<[number, number, number]>,
+        shape: '팔면체',
+        axeNotation: 'AX6',
+        center: 'S',
+      },
+      {
+        title: 'bromine pentafluoride',
+        atoms: ['Br', 'F', 'F', 'F', 'F', 'F'],
+        bonds: [
+          [1, 2, 1],
+          [1, 3, 1],
+          [1, 4, 1],
+          [1, 5, 1],
+          [1, 6, 1],
+        ] as Array<[number, number, number]>,
+        shape: '사각뿔형',
+        axeNotation: 'AX5E',
+        center: 'Br',
+      },
+      {
+        title: 'xenon tetrafluoride',
+        atoms: ['Xe', 'F', 'F', 'F', 'F'],
+        bonds: [
+          [1, 2, 1],
+          [1, 3, 1],
+          [1, 4, 1],
+          [1, 5, 1],
+        ] as Array<[number, number, number]>,
+        shape: '사각평면형',
+        axeNotation: 'AX4E2',
+        center: 'Xe',
+      },
+    ];
+
+    for (const item of cases) {
+      const result = analyzeVseprFromMolBlock({
+        molBlock: molBlock({
+          title: item.title,
+          atoms: item.atoms,
+          bonds: item.bonds,
+        }),
+      });
+
+      expect(result.status, item.title).toBe('supported');
+      expect(result.centralAtomSymbol, item.title).toBe(item.center);
+      expect(result.axeNotation, item.title).toBe(item.axeNotation);
+      expect(result.molecularShapeKo, item.title).toBe(item.shape);
+    }
   });
 
   it('returns unsupported for transition-metal centers and non-integer lone pair estimates', () => {

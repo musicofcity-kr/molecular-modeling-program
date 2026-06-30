@@ -12,7 +12,7 @@ describe('Molecule3DViewer', () => {
       />,
     );
 
-    expect(markup).toContain('3D Viewer');
+    expect(markup).toContain('실제/외부 3D 구조 Viewer');
     expect(markup).toContain('3D 좌표 데이터가 아직 없습니다');
     expect(markup).toContain('좌표 출처');
     expect(markup).toContain('없음');

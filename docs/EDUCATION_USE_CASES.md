@@ -40,8 +40,8 @@ Expected formula metadata is checked against RDKit.js validation tests. The stud
 ### 1. Basic Molecule Shape Discussion
 
 - Use: 물, 메테인, 암모니아, 이산화탄소
-- Teacher focus: compare simple bonding patterns and introduce that the current MVP validates 2D structure strings, not 3D geometry.
-- Misconception guard: do not infer bond angle or full 3D shape from this MVP yet.
+- Teacher focus: compare simple bonding patterns and introduce that RDKit validates 2D structure strings while VSEPR provides a separate educational geometry prediction.
+- Misconception guard: VSEPR angle labels are idealized classroom predictions, not measured bond angles or optimized 3D geometry.
 
 ### 2. Functional Group Introduction
 
@@ -57,8 +57,9 @@ Expected formula metadata is checked against RDKit.js validation tests. The stud
 
 ## Current Boundaries
 
-- 3Dmol.js is not integrated yet.
-- PubChem lookup is not integrated yet.
-- Example molecules are static local records, not external database results.
+- 3Dmol.js is integrated as a visualization layer for coordinate-bearing data and explicitly labeled VSEPR teaching models.
+- PubChem CID-based 3D loading and manual candidate search are prototypes; PubChem data remains external visualization/candidate data.
+- Example molecules are static local records; selected examples may include static 3D coordinates or curated PubChem CID metadata.
 - Molecular weight means RDKit descriptor `amw` average molecular weight; exact mass is not displayed.
 - `expectedFormula` values in `src/data/exampleMolecules.ts` are metadata and must stay aligned with RDKit validation tests.
+- VSEPR model vectors are educational unit directions and must not be used as real bond lengths or measured geometry.

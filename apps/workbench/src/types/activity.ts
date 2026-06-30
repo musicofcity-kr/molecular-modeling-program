@@ -1,6 +1,7 @@
 import type { MoleculeValidationResult } from './molecule';
 
 export type AppMode = 'free_draw' | 'activity';
+export type UserMode = 'student' | 'teacher';
 
 export interface ActivityQuestion {
   id: string;
@@ -17,6 +18,15 @@ export interface ActivityTemplate {
   prompt: string;
   predictionQuestions: ActivityQuestion[];
   reflectionQuestions: ActivityQuestion[];
+  coreConcepts?: string[];
+  teacherNotes?: string[];
+  misconceptionChecks?: string[];
+  expectedVsepr?: {
+    axeNotation?: string;
+    molecularShapeKo?: string;
+    centralAtom?: string;
+    lonePairCount?: number;
+  };
   recommendedExampleId?: string;
 }
 

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppHeader } from '../components/header/AppHeader';
 import {
   KetcherEditor,
@@ -13,6 +13,8 @@ import {
 import { PubChemCandidatePanel } from '../components/pubchem/PubChemCandidatePanel';
 import { ActivityPanel } from '../components/activity/ActivityPanel';
 import { VseprPanel } from '../components/vsepr/VseprPanel';
+import { Vsepr3DModelViewer } from '../components/Vsepr3DModelViewer';
+import { TeacherPanel } from '../components/TeacherPanel';
 import type {
   ChemicalEditorHandle,
   ExtractedStructureData,
@@ -30,14 +32,15 @@ import {
 } from '../services/pubchem3d';
 import { searchPubChemCandidatesByCanonicalSmiles } from '../services/pubchemSearch';
 import { analyzeVseprFromMolBlock } from '../services/vseprEngine';
+import { hasVseprGeometryTemplate } from '../services/vseprGeometryTemplates';
 import type {
   Molecule3DInput,
   MoleculeValidationResult,
   PubChemCandidate,
   PubChemMatchStatus,
 } from '../types/molecule';
-import type { ActivityResponseState, AppMode } from '../types/activity';
-import type { VseprAnalysis } from '../types/vsepr';
+import type { ActivityResponseState, AppMode, UserMode } from '../types/activity';
+import type { VseprAnalysis, VseprModelViewStatus } from '../types/vsepr';
 
 type PubChem3DState = {
   status: PubChem3DLoadStatus;
@@ -90,10 +93,30 @@ function buildExample3DInput(example: ExampleMolecule): Molecule3DInput | null {
   };
 }
 
+function getVseprModelStatusForAnalysis(
+  analysis: VseprAnalysis,
+  options: { renderModel?: boolean } = {},
+): VseprModelViewStatus {
+  if (analysis.status === 'not_requested') {
+    return 'not_requested';
+  }
+
+  if (analysis.status !== 'supported') {
+    return 'unsupported';
+  }
+
+  if (!hasVseprGeometryTemplate(analysis.axeNotation)) {
+    return 'unsupported';
+  }
+
+  return options.renderModel ? 'rendered' : 'ready';
+}
+
 export function App() {
   const editorRef = useRef<ChemicalEditorHandle | null>(null);
   const hasLoggedEditorReadyRef = useRef(false);
   const [appMode, setAppMode] = useState<AppMode>('free_draw');
+  const [userMode, setUserMode] = useState<UserMode>('student');
   const [selectedActivityId, setSelectedActivityId] = useState(
     activityTemplates[0]?.id ?? '',
   );
@@ -110,6 +133,9 @@ export function App() {
   const [vseprAnalysis, setVseprAnalysis] = useState<VseprAnalysis>(
     INITIAL_VSEPR_ANALYSIS,
   );
+  const [vseprModelStatus, setVseprModelStatus] =
+    useState<VseprModelViewStatus>('not_requested');
+  const [isVseprModuleOpen, setIsVseprModuleOpen] = useState(false);
   const [selectedVseprCentralAtomId, setSelectedVseprCentralAtomId] =
     useState<string>('');
   const [validatedExampleId, setValidatedExampleId] = useState<string | null>(null);
@@ -143,11 +169,34 @@ export function App() {
   const resetVseprAnalysis = () => {
     setSelectedVseprCentralAtomId('');
     setVseprAnalysis(INITIAL_VSEPR_ANALYSIS);
+    setVseprModelStatus('not_requested');
   };
 
   const handle3DDeveloperLog = useCallback((message: string) => {
     console.info('[3Dmol viewer]', message);
   }, []);
+
+  useEffect(() => {
+    setVseprModelStatus((currentStatus) => {
+      const canRenderModel =
+        vseprAnalysis.status === 'supported' &&
+        hasVseprGeometryTemplate(vseprAnalysis.axeNotation);
+
+      if (!canRenderModel) {
+        return currentStatus;
+      }
+
+      if (appMode === 'activity') {
+        return 'rendered';
+      }
+
+      if (!isVseprModuleOpen && currentStatus === 'rendered') {
+        return 'ready';
+      }
+
+      return currentStatus;
+    });
+  }, [appMode, isVseprModuleOpen, vseprAnalysis]);
 
   const extractAndValidateCurrentStructure = async (example?: ExampleMolecule) => {
     const structure = await editorRef.current?.extractStructure();
@@ -183,6 +232,7 @@ export function App() {
       const initialVseprAnalysis = analyzeVseprFromMolBlock({
         molBlock: labeledStructure.molBlock,
       });
+      const shouldAutoRenderVseprModel = appMode === 'activity';
       const expectedFormulaWarning = example
         ? buildExpectedFormulaWarning(example, result.molecularFormula)
         : null;
@@ -199,12 +249,25 @@ export function App() {
       }
 
       setVseprAnalysis(initialVseprAnalysis);
+      setVseprModelStatus(
+        getVseprModelStatusForAnalysis(initialVseprAnalysis, {
+          renderModel: shouldAutoRenderVseprModel,
+        }),
+      );
       setSelectedVseprCentralAtomId(initialVseprAnalysis.centralAtomId ?? '');
       if (initialVseprAnalysis.status === 'supported') {
         appendLog(
           createLog(
             'info',
             `VSEPR 예측 완료: ${initialVseprAnalysis.axeNotation}, ${initialVseprAnalysis.molecularShapeKo}`,
+          ),
+        );
+        appendLog(
+          createLog(
+            'info',
+            shouldAutoRenderVseprModel
+              ? `수업 활동 모드에서 VSEPR 교육용 3D 예측 모형을 자동 표시합니다: ${initialVseprAnalysis.axeNotation}`
+              : `VSEPR 예측은 선택 교육 모듈에 준비되었습니다: ${initialVseprAnalysis.axeNotation}`,
           ),
         );
       } else if (initialVseprAnalysis.studentMessage) {
@@ -482,7 +545,13 @@ export function App() {
       molBlock: extractedStructure.molBlock,
       selectedCentralAtomId: atomId,
     });
+    const shouldAutoRenderVseprModel = appMode === 'activity';
     setVseprAnalysis(nextAnalysis);
+    setVseprModelStatus(
+      getVseprModelStatusForAnalysis(nextAnalysis, {
+        renderModel: shouldAutoRenderVseprModel,
+      }),
+    );
 
     if (nextAnalysis.status === 'supported') {
       appendLog(
@@ -491,9 +560,60 @@ export function App() {
           `선택한 중심 원자 ${nextAnalysis.centralAtomSymbol}${nextAnalysis.centralAtomId}의 VSEPR 예측: ${nextAnalysis.axeNotation}, ${nextAnalysis.molecularShapeKo}`,
         ),
       );
+      appendLog(
+        createLog(
+          'info',
+          shouldAutoRenderVseprModel
+            ? `선택한 중심 원자의 VSEPR 교육용 3D 예측 모형을 자동 표시합니다: ${nextAnalysis.axeNotation}`
+            : `선택한 중심 원자의 VSEPR 예측이 준비되었습니다: ${nextAnalysis.axeNotation}`,
+        ),
+      );
     } else if (nextAnalysis.studentMessage) {
       appendLog(createLog('warning', nextAnalysis.studentMessage));
     }
+  };
+
+  const handleShowVseprModel = () => {
+    if (
+      vseprAnalysis.status !== 'supported' ||
+      !hasVseprGeometryTemplate(vseprAnalysis.axeNotation)
+    ) {
+      setVseprModelStatus('unsupported');
+      appendLog(
+        createLog(
+          'warning',
+          '현재 VSEPR 분석 결과에 해당하는 교육용 3D 모형 template이 없습니다.',
+        ),
+      );
+      return;
+    }
+
+    setVseprModelStatus('rendered');
+    appendLog(
+      createLog(
+        'info',
+        `VSEPR 교육용 3D 예측 모형을 표시합니다: ${vseprAnalysis.axeNotation}`,
+      ),
+    );
+  };
+
+  const handleToggleVseprModule = () => {
+    if (isVseprModuleOpen) {
+      setIsVseprModuleOpen(false);
+      setVseprModelStatus((currentStatus) =>
+        currentStatus === 'rendered' ? 'ready' : currentStatus,
+      );
+      appendLog(createLog('info', 'VSEPR 선택 교육 모듈을 닫았습니다.'));
+      return;
+    }
+
+    setIsVseprModuleOpen(true);
+    appendLog(
+      createLog(
+        'info',
+        'VSEPR 선택 교육 모듈을 열었습니다. RDKit.js 검증을 통과한 구조만 예측합니다.',
+      ),
+    );
   };
 
   const selectedExample = findSelectedExample();
@@ -507,12 +627,15 @@ export function App() {
     validationResult?.ok === true &&
     Boolean(validationResult.canonicalSmiles.trim()) &&
     pubChemCandidateState.status !== 'searching';
+  const isVseprModuleVisible = appMode === 'activity' || isVseprModuleOpen;
 
   return (
     <main className="app-shell" data-testid="app-shell">
       <AppHeader
         appMode={appMode}
+        userMode={userMode}
         onModeChange={setAppMode}
+        onUserModeChange={setUserMode}
         examples={exampleMolecules}
         selectedExampleId={selectedExampleId}
         onSelectExample={handleSelectExample}
@@ -539,20 +662,82 @@ export function App() {
         />
       </section>
 
-      <VseprPanel
-        analysis={vseprAnalysis}
-        selectedCentralAtomId={selectedVseprCentralAtomId}
-        onSelectCentralAtom={handleSelectVseprCentralAtom}
-      />
+      <section
+        className="workspace-panel vsepr-module-gate"
+        data-testid="vsepr-module-gate"
+      >
+        <div className="panel-heading vsepr-heading">
+          <div>
+            <p className="section-label">선택 교육 모듈</p>
+            <h2>VSEPR 예측 모듈</h2>
+          </div>
+          <button
+            className="secondary-action"
+            data-testid="toggle-vsepr-module-button"
+            type="button"
+            disabled={appMode === 'activity'}
+            onClick={handleToggleVseprModule}
+          >
+            {appMode === 'activity'
+              ? '수업 활동에서 표시 중'
+              : isVseprModuleOpen
+                ? 'VSEPR 예측 모듈 닫기'
+                : 'VSEPR 예측 모듈 열기'}
+          </button>
+        </div>
+        <p>
+          자유 그리기에서는 Ketcher 입력, RDKit.js 검증, 실제/외부 3D 구조를
+          기본 흐름으로 사용합니다. VSEPR은 수업 활동 또는 사용자가 명시적으로
+          연 선택 모듈에서만 교육용 예측으로 표시합니다.
+        </p>
+      </section>
+
+      {isVseprModuleVisible ? (
+        <>
+          <VseprPanel
+            analysis={vseprAnalysis}
+            selectedCentralAtomId={selectedVseprCentralAtomId}
+            onSelectCentralAtom={handleSelectVseprCentralAtom}
+            canShowModel={
+              vseprAnalysis.status === 'supported' &&
+              hasVseprGeometryTemplate(vseprAnalysis.axeNotation)
+            }
+            modelStatus={vseprModelStatus}
+            onShowModel={handleShowVseprModel}
+          />
+
+          <Vsepr3DModelViewer
+            analysis={vseprAnalysis}
+            modelStatus={vseprModelStatus}
+            onDeveloperLog={handle3DDeveloperLog}
+          />
+        </>
+      ) : null}
 
       <ActivityPanel
         appMode={appMode}
+        userMode={userMode}
         templates={activityTemplates}
         selectedActivityId={selectedActivityId}
         responses={currentActivityResponses}
         validationResult={validationResult}
         onSelectActivity={setSelectedActivityId}
         onResponseChange={handleActivityResponseChange}
+      />
+
+      <TeacherPanel
+        userMode={userMode}
+        appMode={appMode}
+        templates={activityTemplates}
+        selectedActivityId={selectedActivityId}
+        examples={exampleMolecules}
+        selectedExample={selectedExample}
+        validationResult={validationResult}
+        vseprAnalysis={vseprAnalysis}
+        molecule3DInput={molecule3DInput}
+        pubChem3DStatus={pubChem3DState.status}
+        pubChemCandidateStatus={pubChemCandidateState.status}
+        onSelectActivity={setSelectedActivityId}
       />
 
       <PubChemCandidatePanel
@@ -599,7 +784,12 @@ export function App() {
         onDeveloperLog={handle3DDeveloperLog}
       />
 
-      <ValidationLogPanel logs={logs} />
+      <ValidationLogPanel
+        logs={logs}
+        visible={userMode === 'teacher'}
+        collapsible
+        defaultExpanded={false}
+      />
     </main>
   );
 }
