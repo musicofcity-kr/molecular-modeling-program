@@ -13,6 +13,8 @@ dist-single/
 .vite/
 coverage/
 *.tsbuildinfo
+firebase-debug.log
+firestore-debug.log
 
 .env
 .env.*

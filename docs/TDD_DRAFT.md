@@ -1152,6 +1152,79 @@ only after RDKit validation succeeds and the student explicitly clicks the
 external 3D data search action. Candidate values remain auxiliary; formula and
 average molecular weight remain RDKit validation results.
 
+## 17.2 Firestore Security Rules Design
+
+Server persistence remains disabled until Firebase Auth and Firestore Security
+Rules are implemented and tested. The current `localStorage` snapshot flow is
+not a permission model and must not be treated as equivalent to server-side
+submission storage.
+
+Security design artifacts:
+
+- `docs/FIRESTORE_SECURITY_RULES_DESIGN.md`
+- `firebase/firestore.rules`
+- `firebase/README.md`
+- `apps/workbench/src/services/firebase/firestoreRules.emulator.test.ts`
+
+### Planned identity boundary
+
+```text
+student enters class code + classroom nickname
+  -> Firebase Anonymous Auth creates an auth UID
+  -> trusted joinClassroom endpoint validates the class code
+  -> server creates classrooms/{classroomId}/students/{uid}
+  -> student may create only their own submitted snapshot
+
+teacher signs in with Firebase Auth
+  -> privileged server assigns teacher custom claim
+  -> teacher may read assigned classroom submissions
+  -> teacher may update only feedback/status fields
+```
+
+The student-facing experience can remain "no signup", but Firestore must still
+receive an authenticated UID. Direct unauthenticated Firestore writes are not
+allowed.
+
+### Firestore data-flow invariants
+
+- Class code validation is not performed by client-only Firestore writes.
+- Student membership documents are created by a trusted server endpoint after
+  class code validation.
+- Classroom root documents contain teacher and join-code metadata, so student
+  UI reads only explicit public classroom subdocuments and published activity
+  templates.
+- Students can create submissions only after membership exists.
+- Students cannot update or delete submitted snapshots.
+- Teachers cannot modify `studentUid` or the submitted activity snapshot while
+  returning feedback.
+- Teacher AI feedback is server-mediated and teacher-reviewed; it is not
+  automatic scoring.
+- Raw developer logs, raw MOL/SDF payloads, API keys, service account data, real
+  student names, student numbers, emails, and phone numbers stay out of student
+  submission documents.
+
+### Rules test requirements
+
+The next Firebase phase must add emulator-based tests before enabling
+production writes. Current command:
+
+```powershell
+cd apps/workbench
+npm run test:firestore-rules
+```
+
+Current automated coverage:
+
+- unauthenticated read/write denial;
+- student with no membership denied;
+- member student can create own submission only;
+- student cannot read another student's submission;
+- student cannot write `teacherFeedback` or raw debug fields;
+- teacher claim is required for teacher reads;
+- teacher access is limited to assigned classrooms;
+- teacher feedback update cannot alter the student snapshot;
+- direct client membership creation remains denied.
+
 ## 18. Risk Register
 
 | Risk | Mitigation |
@@ -1165,3 +1238,5 @@ average molecular weight remain RDKit validation results.
 | Students confuse VSEPR model vectors with external coordinates | Keep `참고 3D 구조 보기` and `예상 입체 모형` as separate panels with different labels and caveats. |
 | Teacher guidance leaks into the student screen | Keep `UserMode` gates explicit and test that student mode hides teacher notes and developer logs. |
 | Students treat viewer measurements as reference data | Display coordinate source notes and avoid calling values experimental or optimized geometry. |
+| Firestore writes are enabled before rules tests pass | Keep repository writes disabled and require Firebase Emulator rules tests before beta persistence. |
+| Class code validation is implemented only on the client | Use a trusted joinClassroom endpoint to validate class code and create membership documents. |

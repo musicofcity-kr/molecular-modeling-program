@@ -102,11 +102,23 @@
 3. Firebase Auth provider 결정
    - Google 로그인
    - 이메일 로그인
+   - 학생용 Firebase Anonymous Auth
 4. Firestore 데이터 모델 확정
 5. Firestore Security Rules 작성
+   - 설계 문서: `docs/FIRESTORE_SECURITY_RULES_DESIGN.md`
+   - 초안 rules: `firebase/firestore.rules`
 6. Rules 테스트
 7. 실제 교사용 로그인 연결
-8. 학생 제출 저장 기능을 beta 단계에서 제한적으로 활성화
+8. 학생 anonymous Auth + trusted joinClassroom endpoint 연결
+9. 학생 제출 저장 기능을 beta 단계에서 제한적으로 활성화
+
+## Firestore 보안 설계 결정
+
+- 학생은 회원가입하지 않는 UX를 유지하되, Firestore 권한 판정에는 Firebase Anonymous Auth UID를 사용한다.
+- 수업코드 검증과 학생 멤버십 문서 생성은 Firestore client write가 아니라 trusted server endpoint에서 처리한다.
+- 교사는 Firebase Auth 로그인 후 `teacher: true` 또는 `role: "teacher"` custom claim을 기준으로 접근한다.
+- custom claims에는 권한 판단 정보만 넣고, 교사 프로필이나 수업 목록은 넣지 않는다.
+- production Firestore write는 `firebase/firestore.rules` 초안이 emulator 기반 rules test를 통과한 뒤 활성화한다.
 
 ## 검증 기준
 

@@ -1,0 +1,181 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isTeacher() {
+      return signedIn()
+        && (
+          ('teacher' in request.auth.token && request.auth.token.teacher == true)
+          || ('role' in request.auth.token && request.auth.token.role == 'teacher')
+        );
+    }
+
+    function classroomPath(classroomId) {
+      return /databases/$(database)/documents/classrooms/$(classroomId);
+    }
+
+    function membershipPath(classroomId, uid) {
+      return /databases/$(database)/documents/classrooms/$(classroomId)/students/$(uid);
+    }
+
+    function submissionPath(classroomId, submissionId) {
+      return /databases/$(database)/documents/classrooms/$(classroomId)/submissions/$(submissionId);
+    }
+
+    function isClassTeacher(classroomId) {
+      return isTeacher()
+        && exists(classroomPath(classroomId))
+        && (
+          get(classroomPath(classroomId)).data.ownerTeacherUid == request.auth.uid
+          || get(classroomPath(classroomId)).data.teacherUids[request.auth.uid] == true
+        );
+    }
+
+    function isClassStudent(classroomId) {
+      return signedIn()
+        && exists(membershipPath(classroomId, request.auth.uid));
+    }
+
+    function isOwnStudentDoc(studentUid) {
+      return signedIn() && request.auth.uid == studentUid;
+    }
+
+    function hasOnlyKeys(allowedKeys) {
+      return request.resource.data.keys().hasOnly(allowedKeys);
+    }
+
+    function isShortString(value, maxLength) {
+      return value is string && value.size() <= maxLength;
+    }
+
+    function isValidClassroomCreate() {
+      return isTeacher()
+        && hasOnlyKeys([
+          'ownerTeacherUid',
+          'teacherUids',
+          'title',
+          'joinCodeHash',
+          'joinEnabled',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.ownerTeacherUid == request.auth.uid
+        && request.resource.data.teacherUids[request.auth.uid] == true
+        && isShortString(request.resource.data.title, 80)
+        && isShortString(request.resource.data.joinCodeHash, 128);
+    }
+
+    function isValidStudentSubmissionCreate(classroomId) {
+      return isClassStudent(classroomId)
+        && hasOnlyKeys([
+          'classroomId',
+          'studentUid',
+          'studentDisplayName',
+          'anonymousStudentId',
+          'activityId',
+          'snapshot',
+          'status',
+          'submittedAt',
+          'updatedAt'
+        ])
+        && request.resource.data.classroomId == classroomId
+        && request.resource.data.studentUid == request.auth.uid
+        && request.resource.data.status == 'submitted'
+        && isShortString(request.resource.data.studentDisplayName, 24)
+        && isShortString(request.resource.data.anonymousStudentId, 64)
+        && !('teacherFeedback' in request.resource.data)
+        && !('developerLogs' in request.resource.data)
+        && !('rawMolBlock' in request.resource.data)
+        && !('rawSdf' in request.resource.data);
+    }
+
+    function isValidTeacherFeedbackUpdate(classroomId) {
+      return isClassTeacher(classroomId)
+        && request.resource.data.studentUid == resource.data.studentUid
+        && request.resource.data.classroomId == resource.data.classroomId
+        && request.resource.data.snapshot == resource.data.snapshot
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'updatedAt',
+          'teacherFeedback',
+          'feedbackReturnedAt'
+        ])
+        && request.resource.data.status in [
+          'feedback_draft',
+          'feedback_returned'
+        ];
+    }
+
+    match /classrooms/{classroomId} {
+      allow read: if isClassTeacher(classroomId);
+      allow create: if isValidClassroomCreate();
+      allow update: if isClassTeacher(classroomId)
+        && request.resource.data.ownerTeacherUid == resource.data.ownerTeacherUid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'teacherUids',
+          'title',
+          'joinCodeHash',
+          'joinEnabled',
+          'updatedAt'
+        ]);
+      allow delete: if false;
+
+      match /public/{document} {
+        allow read: if isClassTeacher(classroomId) || isClassStudent(classroomId);
+        allow create, update: if isClassTeacher(classroomId);
+        allow delete: if false;
+      }
+
+      match /students/{studentUid} {
+        allow read: if isClassTeacher(classroomId) || isOwnStudentDoc(studentUid);
+
+        // Student membership must be created by a trusted joinClassroom endpoint
+        // after validating the class code. Do not allow direct client self-join.
+        allow create: if false;
+
+        allow update: if exists(membershipPath(classroomId, studentUid))
+          && isOwnStudentDoc(studentUid)
+          && resource.data.uid == request.auth.uid
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'displayName',
+            'lastActiveAt'
+          ])
+          && isShortString(request.resource.data.displayName, 24);
+
+        allow delete: if false;
+      }
+
+      match /activityTemplates/{templateId} {
+        allow read: if isClassTeacher(classroomId)
+          || (
+            isClassStudent(classroomId)
+            && resource.data.published == true
+          );
+        allow create, update: if isClassTeacher(classroomId);
+        allow delete: if false;
+      }
+
+      match /submissions/{submissionId} {
+        allow read: if isClassTeacher(classroomId)
+          || (
+            isClassStudent(classroomId)
+            && resource.data.studentUid == request.auth.uid
+          );
+
+        allow create: if isValidStudentSubmissionCreate(classroomId);
+        allow update: if exists(submissionPath(classroomId, submissionId))
+          && isValidTeacherFeedbackUpdate(classroomId);
+        allow delete: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

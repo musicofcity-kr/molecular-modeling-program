@@ -9,7 +9,8 @@
     "build:single-html": "node scripts/build-single-html-mvp.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc -b",
-    "test": "vitest run"
+    "test": "vitest run --exclude \"**/*.emulator.test.ts\"",
+    "test:firestore-rules": "npx firebase-tools@15.22.4 --config ../../firebase.json emulators:exec --only firestore --project demo-molecule-workbench \"vitest run src/services/firebase/firestoreRules.emulator.test.ts\""
   },
   "dependencies": {
     "@rdkit/rdkit": "^2025.3.4-1.0.0",
@@ -21,10 +22,12 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
     "@types/node": "^22.15.30",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
+    "firebase": "^12.15.0",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
     "vitest": "^3.2.4"

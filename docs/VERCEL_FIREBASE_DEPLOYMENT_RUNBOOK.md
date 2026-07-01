@@ -93,19 +93,25 @@ Firebase는 배포 직후 바로 학생 제출 저장에 연결하지 않는다.
 3. Firebase Auth provider 결정
    - 교사용 Google 로그인
    - 필요 시 이메일 로그인
+   - 학생용 Anonymous Auth
 4. Firestore 데이터 모델 확정
 5. Firestore Security Rules 작성
+   - 설계 문서: `docs/FIRESTORE_SECURITY_RULES_DESIGN.md`
+   - 초안 파일: `firebase/firestore.rules`
 6. Rules 테스트
 7. 교사용 로그인 연결
-8. 제한된 beta 환경에서 학생 제출 저장 활성화
+8. trusted joinClassroom endpoint로 수업코드 검증과 학생 멤버십 생성
+9. 제한된 beta 환경에서 학생 제출 저장 활성화
 
 ## 6. Firestore 연결 전 보안 원칙
 
 - 학생 실명/학번 저장 금지
-- 학생은 수업코드와 익명 ID 중심으로 입장
+- 학생은 수업코드와 익명 ID 중심으로 입장하되, Firestore 권한 판정에는 Firebase Anonymous Auth UID를 사용
 - 교사용 해설과 피드백 작성 화면은 인증 후에만 표시
 - 수업 결과 제출은 Security Rules가 완성되기 전 production에 연결하지 않음
 - 교사용 AI 피드백은 자동 채점이 아니라 교사 검토 보조로 표시
+- 수업코드 검증과 학생 멤버십 문서 생성은 client-side Firestore write가 아니라 trusted server endpoint에서 처리
+- teacher 권한 custom claim은 Admin SDK가 있는 privileged server에서만 발급
 
 ## 7. 배포 전 로컬 검증 명령
 
