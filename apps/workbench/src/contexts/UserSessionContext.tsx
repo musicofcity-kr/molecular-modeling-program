@@ -8,21 +8,31 @@ import {
 import type {
   StudentEntryInput,
   StudentSession,
-  TeacherAuthProvider,
+  TeacherSession,
   UserSession,
 } from '../types/session';
 import { validateStudentEntryInput } from '../types/session';
+import {
+  signInStudentAnonymously,
+  signInTeacherWithEmailPassword,
+  signInTeacherWithGooglePopup,
+  signOutFirebaseAuth,
+} from '../services/firebase/firebaseAuthService';
+
+type SessionActionResult = {
+  ok: boolean;
+  studentMessage?: string;
+  developerMessage?: string;
+};
 
 type UserSessionContextValue = {
   session: UserSession | null;
-  enterStudentSession: (input: StudentEntryInput) => {
-    ok: boolean;
-    studentMessage?: string;
-  };
-  prepareTeacherAuth: (provider: TeacherAuthProvider) => {
-    ok: false;
-    studentMessage: string;
-  };
+  enterStudentSession: (input: StudentEntryInput) => Promise<SessionActionResult>;
+  signInTeacherWithGoogle: () => Promise<SessionActionResult>;
+  signInTeacherWithEmail: (input: {
+    email: string;
+    password: string;
+  }) => Promise<SessionActionResult>;
   clearSession: () => void;
 };
 
@@ -50,7 +60,7 @@ export function UserSessionProvider({
   const value = useMemo<UserSessionContextValue>(
     () => ({
       session,
-      enterStudentSession: (input) => {
+      enterStudentSession: async (input) => {
         const validation = validateStudentEntryInput(input);
 
         if (!validation.ok) {
@@ -60,25 +70,96 @@ export function UserSessionProvider({
           };
         }
 
+        const authResult = await signInStudentAnonymously();
+
+        if (!authResult.ok && authResult.status === 'auth_error') {
+          return {
+            ok: false,
+            studentMessage: authResult.studentMessage,
+            developerMessage: authResult.developerMessage,
+          };
+        }
+
         const nextSession: StudentSession = {
           role: 'student',
           classCode: validation.classCode,
           displayName: validation.displayName,
           anonymousStudentId: createAnonymousId(),
           startedAt: new Date().toISOString(),
+          firebaseUid: authResult.ok ? authResult.uid : undefined,
+          authProvider: authResult.ok ? 'firebase-anonymous' : 'local-only',
+          authStatus: authResult.ok ? 'authenticated' : 'local_only',
         };
 
         setSession(nextSession);
 
-        return { ok: true };
+        return {
+          ok: true,
+          studentMessage: authResult.ok ? undefined : authResult.studentMessage,
+          developerMessage: authResult.ok ? undefined : authResult.developerMessage,
+        };
       },
-      prepareTeacherAuth: () => ({
-        ok: false,
-        studentMessage:
-          'Firebase Auth 연결 전입니다. 실제 교사용 로그인은 다음 단계에서 활성화합니다.',
-      }),
+      signInTeacherWithGoogle: async () => {
+        const authResult = await signInTeacherWithGooglePopup();
+
+        if (!authResult.ok) {
+          return {
+            ok: false,
+            studentMessage: authResult.studentMessage,
+            developerMessage: authResult.developerMessage,
+          };
+        }
+
+        const nextSession: TeacherSession = {
+          role: 'teacher',
+          uid: authResult.uid,
+          displayName: authResult.displayName,
+          email: authResult.email,
+          authProvider: 'firebase-google',
+          signedInAt: new Date().toISOString(),
+          teacherAuthorizationStatus: 'pending_custom_claim',
+        };
+
+        setSession(nextSession);
+
+        return {
+          ok: true,
+          studentMessage:
+            '교사용 로그인이 완료되었습니다. 교사 권한 확인은 다음 단계에서 연결합니다.',
+        };
+      },
+      signInTeacherWithEmail: async (input) => {
+        const authResult = await signInTeacherWithEmailPassword(input);
+
+        if (!authResult.ok) {
+          return {
+            ok: false,
+            studentMessage: authResult.studentMessage,
+            developerMessage: authResult.developerMessage,
+          };
+        }
+
+        const nextSession: TeacherSession = {
+          role: 'teacher',
+          uid: authResult.uid,
+          displayName: authResult.displayName,
+          email: authResult.email,
+          authProvider: 'firebase-email',
+          signedInAt: new Date().toISOString(),
+          teacherAuthorizationStatus: 'pending_custom_claim',
+        };
+
+        setSession(nextSession);
+
+        return {
+          ok: true,
+          studentMessage:
+            '교사용 로그인이 완료되었습니다. 교사 권한 확인은 다음 단계에서 연결합니다.',
+        };
+      },
       clearSession: () => {
         setSession(null);
+        void signOutFirebaseAuth();
       },
     }),
     [session],

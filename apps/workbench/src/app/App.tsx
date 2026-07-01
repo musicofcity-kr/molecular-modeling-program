@@ -1637,6 +1637,9 @@ function WorkbenchApp({
               onOpenStudent={() => {
                 navigateToRoute('student');
               }}
+              onAuthenticated={() => {
+                navigateToRoute('teacher-dashboard');
+              }}
             />
           }
         >

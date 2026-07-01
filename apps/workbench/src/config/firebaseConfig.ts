@@ -1,3 +1,6 @@
+import { getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app';
+import { getAuth, type Auth } from 'firebase/auth';
+
 export type FirebaseConfigStatus = 'not_configured' | 'configured';
 
 export interface FirebaseClientConfig {
@@ -17,6 +20,8 @@ const firebaseEnv = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
 };
+
+let firebaseAppCache: FirebaseApp | null | undefined;
 
 export function getFirebaseClientConfig(): FirebaseClientConfig | null {
   if (
@@ -40,4 +45,26 @@ export function getFirebaseClientConfig(): FirebaseClientConfig | null {
 
 export function getFirebaseConfigStatus(): FirebaseConfigStatus {
   return getFirebaseClientConfig() ? 'configured' : 'not_configured';
+}
+
+export function getFirebaseClientApp(): FirebaseApp | null {
+  const config = getFirebaseClientConfig();
+
+  if (!config) {
+    return null;
+  }
+
+  if (firebaseAppCache !== undefined) {
+    return firebaseAppCache;
+  }
+
+  firebaseAppCache = getApps().length > 0 ? getApp() : initializeApp(config);
+
+  return firebaseAppCache;
+}
+
+export function getFirebaseAuth(): Auth | null {
+  const app = getFirebaseClientApp();
+
+  return app ? getAuth(app) : null;
 }

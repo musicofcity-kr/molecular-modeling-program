@@ -181,3 +181,17 @@ Superseded by the adoption decision below.
 - 3D loading boundary: Candidate selection reuses `fetchPubChem3DSdf(...)`; no second 3D SDF fetch path was added.
 - Test added: `apps/workbench/src/services/pubchemSearch.test.ts` covers successful mapping, no-match responses, HTTP errors, and empty canonical SMILES. `apps/workbench/src/components/pubchem/PubChemCandidatePanel.test.tsx` covers disabled pre-validation UI and external candidate display.
 - Decision: adopt as a manual candidate-search prototype only.
+
+## 2026-07-01 — Firebase Web SDK Auth phase 1
+
+- Purpose: Connect browser-side Firebase Auth for student anonymous sessions and teacher Google/email login before enabling Firestore persistence.
+- Official documentation checked: Firebase Web Auth getting started, anonymous auth, Google sign-in, and password auth documentation.
+- License: `firebase@12.15.0` reports `Apache-2.0`.
+- Browser compatibility: Uses modular `firebase/app` and `firebase/auth` imports. Firebase App/Auth are initialized lazily only when required `VITE_FIREBASE_*` Web App config values exist.
+- Bundle size / performance risk: Medium. Firebase is now a runtime dependency. Firestore client imports are intentionally not added to the app runtime in this phase.
+- Security/privacy risk: Medium. Firebase Web App config is public client config, not a service account secret. API keys, service account JSON, AI API keys, and private tokens must remain outside the browser bundle and repository.
+- Why not implement ourselves: Authentication provider flows, token issuance, anonymous auth identity, Google popup sign-in, and email/password sign-in should be delegated to a maintained identity provider rather than custom browser code.
+- Scope boundary: Firestore writes remain disabled. `teacher` custom claims, classroom membership, trusted `joinClassroom`, and production submission persistence are not implemented in this phase.
+- Failure policy: Missing config does not break the app; student flow can continue with browser-local temporary sessions. Configured-but-failing Auth returns student-facing messages and developer logs separately.
+- Test added: `apps/workbench/src/services/firebase/firebaseAuthService.test.ts` covers missing config, anonymous sign-in success/failure, teacher Google sign-in, missing email/password input, and teacher email/password sign-in.
+- Decision: adopt for Auth phase 1 only; persistence remains gated by rules tests and server-side authority design.

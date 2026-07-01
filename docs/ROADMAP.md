@@ -16,7 +16,9 @@
 - Completed: student 3D flow stabilization for static examples, repeated confirmation, manual external 3D candidate loading, student free-draw 3D shell, and coordinate measurement visibility.
 - Completed: GitHub `main` branch upload and Vercel/Firebase deployment runbook preparation.
 - Completed: Firestore Security Rules design draft before enabling Firebase Auth/Firestore writes.
-- Next: Firebase Emulator rules tests, classroom pilot QA, accessibility polish, and teacher template authoring/import/export after the release candidate is stable.
+- Completed: Firebase Emulator rules tests for the draft Firestore Security Rules.
+- Completed: Firebase Auth phase 1 with student Anonymous Auth, teacher Google/email login UI, and config-missing fallback.
+- Next: teacher custom claim verification, trusted joinClassroom endpoint design, classroom pilot QA, accessibility polish, and teacher template authoring/import/export after the release candidate is stable.
 
 ## Phase 0 — Skill and Workspace Setup
 
@@ -84,6 +86,6 @@
 - Teacher mode now shows activity template information, misconception checks, validation/VSEPR/3D/PubChem status, and collapsible logs.
 - Free-draw student mode now treats VSEPR as an optional education module rather than a permanent core panel.
 - Classroom MVP RC now supports local activity-result snapshots and JSON/Markdown/TXT/clipboard/print export without login or a database.
-- Firebase/Firestore server storage remains disabled while `firebase/firestore.rules` is tested with the Firebase Emulator.
-- Next teacher-facing step: local template editing/import/export after the mode split is stable.
+- Firebase/Firestore server storage remains disabled even though draft rules now have emulator coverage.
+- Next teacher-facing step: custom claim verification, trusted classroom join flow, then local template editing/import/export after the mode split is stable.
 - Keep server storage, login, dashboards, automatic grading, PDF export, and 3D viewer capture out of scope until the classroom flow is stable.

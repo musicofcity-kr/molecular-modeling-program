@@ -4,6 +4,7 @@ import { useUserSession } from '../../contexts/UserSessionContext';
 
 type TeacherEntryScreenProps = {
   onOpenStudent: () => void;
+  onAuthenticated?: () => void;
 };
 
 const TEACHER_PLACEHOLDERS = [
@@ -21,14 +22,51 @@ const TEACHER_PLACEHOLDERS = [
   },
 ];
 
-export function TeacherEntryScreen({ onOpenStudent }: TeacherEntryScreenProps) {
-  const { prepareTeacherAuth } = useUserSession();
+export function TeacherEntryScreen({
+  onOpenStudent,
+  onAuthenticated,
+}: TeacherEntryScreenProps) {
+  const { signInTeacherWithEmail, signInTeacherWithGoogle } = useUserSession();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
   const firebaseStatus = getFirebaseConfigStatus();
 
-  const handlePreparedAuth = () => {
-    const result = prepareTeacherAuth('firebase-google');
-    setMessage(result.studentMessage);
+  const handleAuthResult = (result: {
+    ok: boolean;
+    studentMessage?: string;
+    developerMessage?: string;
+  }) => {
+    setMessage(result.studentMessage ?? '');
+
+    if (result.developerMessage) {
+      console.info('[Firebase Auth]', result.developerMessage);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsAuthenticating(true);
+    const result = await signInTeacherWithGoogle();
+
+    handleAuthResult(result);
+    setIsAuthenticating(false);
+
+    if (result.ok) {
+      onAuthenticated?.();
+    }
+  };
+
+  const handleEmailSignIn = async () => {
+    setIsAuthenticating(true);
+    const result = await signInTeacherWithEmail({ email, password });
+
+    handleAuthResult(result);
+    setIsAuthenticating(false);
+
+    if (result.ok) {
+      onAuthenticated?.();
+    }
   };
 
   return (
@@ -46,28 +84,58 @@ export function TeacherEntryScreen({ onOpenStudent }: TeacherEntryScreenProps) {
         </button>
       </div>
       <p className="entry-help">
-        현재 단계에서는 실제 교사용 인증을 실행하지 않습니다. Google 로그인과
-        이메일 로그인은 Firebase Auth 연결 단계에서 활성화합니다.
+        Google 로그인 또는 이메일 로그인을 사용합니다. 이번 단계에서는 로그인
+        연결만 수행하며, 교사 권한 확인과 수업방 서버 저장은 다음 단계에서
+        활성화합니다.
       </p>
 
       <div className="teacher-login-grid">
-        <button className="secondary-action" type="button" onClick={handlePreparedAuth}>
-          Google 로그인 연결 준비
+        <button
+          className="secondary-action"
+          type="button"
+          disabled={isAuthenticating}
+          onClick={() => {
+            void handleGoogleSignIn();
+          }}
+        >
+          {isAuthenticating ? 'Google 로그인 중' : 'Google로 교사용 로그인'}
         </button>
         <form
           className="teacher-email-form"
           onSubmit={(event) => {
             event.preventDefault();
-            const result = prepareTeacherAuth('firebase-email');
-            setMessage(result.studentMessage);
+            void handleEmailSignIn();
           }}
         >
           <label>
             <span>교사용 이메일</span>
-            <input aria-label="교사용 이메일" placeholder="teacher@example.com" />
+            <input
+              aria-label="교사용 이메일"
+              placeholder="teacher@example.com"
+              value={email}
+              onChange={(event) => {
+                setEmail(event.currentTarget.value);
+              }}
+            />
           </label>
-          <button className="secondary-action" type="submit">
-            이메일 로그인 연결 준비
+          <label>
+            <span>비밀번호</span>
+            <input
+              aria-label="교사용 비밀번호"
+              placeholder="Firebase Auth 비밀번호"
+              type="password"
+              value={password}
+              onChange={(event) => {
+                setPassword(event.currentTarget.value);
+              }}
+            />
+          </label>
+          <button
+            className="secondary-action"
+            type="submit"
+            disabled={isAuthenticating}
+          >
+            {isAuthenticating ? '이메일 로그인 중' : '이메일로 교사용 로그인'}
           </button>
         </form>
       </div>

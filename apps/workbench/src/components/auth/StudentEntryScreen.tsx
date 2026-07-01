@@ -14,6 +14,22 @@ export function StudentEntryScreen({
   const [classCode, setClassCode] = useState('');
   const [nickname, setNickname] = useState('');
   const [message, setMessage] = useState('');
+  const [isEntering, setIsEntering] = useState(false);
+
+  const handleSubmit = async () => {
+    setIsEntering(true);
+    const result = await enterStudentSession({ classCode, nickname });
+
+    if (!result.ok) {
+      setMessage(result.studentMessage ?? '입장 정보를 확인해 주세요.');
+      setIsEntering(false);
+      return;
+    }
+
+    setMessage(result.studentMessage ?? '');
+    setIsEntering(false);
+    onEntered();
+  };
 
   return (
     <section className="workspace-panel entry-panel student-entry-panel">
@@ -34,15 +50,7 @@ export function StudentEntryScreen({
         className="entry-form"
         onSubmit={(event) => {
           event.preventDefault();
-          const result = enterStudentSession({ classCode, nickname });
-
-          if (!result.ok) {
-            setMessage(result.studentMessage ?? '입장 정보를 확인해 주세요.');
-            return;
-          }
-
-          setMessage('');
-          onEntered();
+          void handleSubmit();
         }}
       >
         <label>
@@ -68,8 +76,8 @@ export function StudentEntryScreen({
           />
         </label>
         {message ? <p className="entry-message warning">{message}</p> : null}
-        <button className="primary-action" type="submit">
-          분자구조 모델링 활동 시작하기
+        <button className="primary-action" type="submit" disabled={isEntering}>
+          {isEntering ? '입장 준비 중' : '분자구조 모델링 활동 시작하기'}
         </button>
       </form>
       <ul className="entry-note-list">

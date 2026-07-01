@@ -1225,6 +1225,50 @@ Current automated coverage:
 - teacher feedback update cannot alter the student snapshot;
 - direct client membership creation remains denied.
 
+## 17.3 Firebase Auth 1단계 데이터 흐름
+
+This phase connects Firebase Auth only. Firestore writes remain disabled in
+`src/services/firebase/classroomRepository.ts`.
+
+### Student entry flow
+
+```text
+student enters class code + classroom nickname
+  -> app validates the local input shape
+  -> Firebase Anonymous Auth is attempted when config exists
+  -> StudentSession stores anonymousStudentId plus optional firebaseUid
+  -> app enters /student/workbench
+```
+
+If Firebase config is missing, the app keeps the browser-local temporary session
+so classroom demos do not crash. If Firebase config exists but anonymous sign-in
+fails, entry is blocked with a student-facing message and a developer log.
+
+### Teacher entry flow
+
+```text
+teacher opens /teacher
+  -> chooses Google popup or email/password sign-in
+  -> Firebase Auth returns a UID
+  -> TeacherSession is created with teacherAuthorizationStatus:
+     "pending_custom_claim"
+  -> app enters /teacher/dashboard placeholder
+```
+
+The logged-in teacher session is not yet a Firestore authorization model.
+`teacher: true` custom claims and assigned-classroom checks are deferred to the
+next phase.
+
+### Auth and persistence invariants
+
+- Firebase Web App config is read from `VITE_FIREBASE_*` variables only.
+- Missing config must not break the app shell or student local activity flow.
+- Firestore write services remain disabled.
+- Student real names, student numbers, emails, phone numbers, service account
+  keys, AI API keys, and private tokens remain out of the browser bundle.
+- `joinClassroom` is still deferred; class-code trust is not implemented with
+  client-only logic.
+
 ## 18. Risk Register
 
 | Risk | Mitigation |
@@ -1240,3 +1284,4 @@ Current automated coverage:
 | Students treat viewer measurements as reference data | Display coordinate source notes and avoid calling values experimental or optimized geometry. |
 | Firestore writes are enabled before rules tests pass | Keep repository writes disabled and require Firebase Emulator rules tests before beta persistence. |
 | Class code validation is implemented only on the client | Use a trusted joinClassroom endpoint to validate class code and create membership documents. |
+| Firebase Auth login is mistaken for teacher authorization | Keep `teacherAuthorizationStatus: "pending_custom_claim"` until a server-issued teacher claim is checked. |

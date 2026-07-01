@@ -9,12 +9,26 @@ export type AppRoute =
 
 export type TeacherAuthProvider = 'firebase-google' | 'firebase-email';
 
+export type StudentAuthProvider = 'local-only' | 'firebase-anonymous';
+
+export type StudentAuthStatus =
+  | 'local_only'
+  | 'authenticated'
+  | 'auth_unavailable';
+
+export type TeacherAuthorizationStatus =
+  | 'not_checked'
+  | 'pending_custom_claim';
+
 export interface StudentSession {
   role: 'student';
   classCode: string;
   displayName: string;
   anonymousStudentId: string;
   startedAt: string;
+  firebaseUid?: string;
+  authProvider?: StudentAuthProvider;
+  authStatus?: StudentAuthStatus;
 }
 
 export interface TeacherSession {
@@ -24,6 +38,7 @@ export interface TeacherSession {
   email?: string;
   authProvider: TeacherAuthProvider;
   signedInAt: string;
+  teacherAuthorizationStatus?: TeacherAuthorizationStatus;
 }
 
 export type UserSession = StudentSession | TeacherSession;

@@ -38,6 +38,8 @@ Production Branch: main
 Vercel Project Settings > Environment Variables에 필요한 값만 등록한다.
 
 Firebase를 아직 production에 연결하지 않을 경우 빈 값으로 둘 수 있다.
+Firebase Auth 1단계부터 실제 로그인을 쓰려면 아래 값은 Vercel Production,
+Preview, Development 환경에 맞게 등록해야 한다.
 
 ```text
 VITE_FIREBASE_API_KEY
@@ -84,24 +86,36 @@ VITE_AI_FEEDBACK_ENDPOINT
 
 ## 5. Firebase 도입 순서
 
-Firebase는 배포 직후 바로 학생 제출 저장에 연결하지 않는다.
+Firebase는 배포 직후 바로 학생 제출 저장에 연결하지 않는다. 현재 앱은 Auth
+1단계만 연결되어 있으며 Firestore write는 비활성 상태다.
 
 권장 순서:
 
 1. Firebase project 생성
 2. Web app 등록
 3. Firebase Auth provider 결정
-   - 교사용 Google 로그인
-   - 필요 시 이메일 로그인
-   - 학생용 Anonymous Auth
-4. Firestore 데이터 모델 확정
-5. Firestore Security Rules 작성
+   - 교사용 Google 로그인 활성화
+   - 필요 시 이메일/비밀번호 로그인 활성화
+   - 학생용 Anonymous Auth 활성화
+4. Vercel Environment Variables에 `VITE_FIREBASE_*` Web App config 등록
+5. teacher custom claim 발급 절차 수립
+6. trusted `joinClassroom` endpoint 설계
+7. Firestore 데이터 모델 확정
+8. Firestore Security Rules 작성
    - 설계 문서: `docs/FIRESTORE_SECURITY_RULES_DESIGN.md`
    - 초안 파일: `firebase/firestore.rules`
-6. Rules 테스트
-7. 교사용 로그인 연결
-8. trusted joinClassroom endpoint로 수업코드 검증과 학생 멤버십 생성
-9. 제한된 beta 환경에서 학생 제출 저장 활성화
+9. Rules 테스트
+10. trusted joinClassroom endpoint로 수업코드 검증과 학생 멤버십 생성
+11. 제한된 beta 환경에서 학생 제출 저장 활성화
+
+현재 Auth 1단계 범위:
+
+- 학생 Anonymous Auth 시도
+- config가 없으면 로컬 임시 세션으로 fallback
+- 교사용 Google/email 로그인 UI와 SDK 호출
+- 로그인 성공 후 `/teacher/dashboard` placeholder 이동
+- teacher custom claim 검증 없음
+- Firestore write 없음
 
 ## 6. Firestore 연결 전 보안 원칙
 
