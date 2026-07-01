@@ -1,4 +1,4 @@
-# TDD Draft — Technical Design for Molecule Modeling Workbench
+# TDD Draft — Technical Design for 다양한 분자의 분자구조 모델링
 
 ## 1. Architecture Summary
 
@@ -1005,7 +1005,8 @@ Ketcher input
 The snapshot is a classroom record, not a chemistry validation source. It stores
 student predictions, RDKit.js validation output, source-labeled 3D observation
 metadata, coordinate-based measurement results, optional VSEPR summary,
-comparison observations, and activity answers.
+comparison observations, activity answers, after-validation reflection, and
+final reflection.
 
 ### Storage boundary
 
@@ -1060,7 +1061,98 @@ Teacher mode adds guidance that the output is not automatic scoring and lists
 what the export includes/excludes. Developer logs remain outside the exported
 student result.
 
-## 17. Risk Register
+## 17. Student Activity Flow Simplification
+
+The default user experience is now the student activity flow, not the open
+toolbox view.
+
+```text
+student + activity
+  -> activity selection
+  -> prediction entry
+  -> molecule drawing or example load
+  -> structure confirmation
+  -> validated result cards
+  -> 3D / shape prediction observation
+  -> reflection and result save/report/print
+```
+
+### Student-facing defaults
+
+- The entry screen uses `AppMode: 'activity'` and `UserMode: 'student'`.
+- The main validation action is labeled `내 구조 확인하기`.
+- The example load action is labeled `분자 예시 불러오기`.
+- The optional shape model action is labeled `예상 입체 모형 보기`.
+- Student result/export actions are limited to `임시 저장하기`,
+  `보고서로 저장하기`, and `활동지 인쇄하기`.
+- Student result cards show classroom-facing values: structure status, formula,
+  average molecular weight, shape prediction, and reference 3D availability.
+- Raw structure strings, canonical SMILES, PubChem candidate search, individual
+  JSON/Markdown/TXT export buttons, and developer logs stay in teacher/advanced
+  views.
+- The default student body text must not expose `RDKit.js`, `Ketcher`,
+  `PubChem`, `CID`, `SDF`, `SMILES`, `MOL`, `JSON`, `localStorage`,
+  `Developer log`, or `개발자 로그`.
+
+### Validation/data-flow invariants
+
+- Ketcher remains the 2D structure input layer.
+- RDKit.js remains the validation and formula/average-mass calculation layer.
+- 3Dmol.js remains the coordinate visualization layer.
+- PubChem remains a manual external 3D coordinate source and is not searched
+  automatically from student drawings.
+- Hiding advanced fields must not remove validation gates or replace RDKit.js as
+  the calculation source.
+
+### Test coverage
+
+- `App.test.tsx` checks the default student flow, required classroom action
+  labels, and hidden implementation terms.
+- `ActivityResultPanel.test.tsx` checks that student mode shows only simplified
+  save/report/print actions while teacher mode still exposes raw/report/text
+  export.
+- `Molecule3DViewer.test.tsx` checks that student mode hides advanced
+  source/debug details by default, can expose coordinate measurement controls
+  when a validated 3D coordinate payload is loaded, and keeps teacher/advanced
+  controls available in teacher mode.
+
+## 17.1 Student 3D Availability Stabilization
+
+The student-facing 3D path now distinguishes three cases:
+
+```text
+validated example with static 3D data
+  -> keep the example 3D coordinate payload
+  -> show the 3D viewer
+  -> allow coordinate-based bond length / bond angle measurement
+
+validated user-drawn structure without coordinates
+  -> do not invent 3D coordinates from SMILES or 2D MOL
+  -> show a student-facing external 3D data search action
+  -> require the student to select a returned candidate before loading 3D SDF
+
+same structure confirmed again
+  -> keep the existing 3D payload when canonical structure key is unchanged
+  -> clear the 3D payload when the structure changes
+```
+
+### Student free-draw flow
+
+`student + free_draw` now renders the same classroom shell pieces used by the
+activity flow:
+
+- molecule drawing step
+- structure confirmation result cards
+- optional student-facing external 3D data candidate search
+- reference 3D viewer
+- structure comparison and result export
+
+The app still does not perform hidden PubChem search. Candidate search starts
+only after RDKit validation succeeds and the student explicitly clicks the
+external 3D data search action. Candidate values remain auxiliary; formula and
+average molecular weight remain RDKit validation results.
+
+## 18. Risk Register
 
 | Risk | Mitigation |
 |---|---|
@@ -1070,6 +1162,6 @@ student result.
 | Licensing ambiguity | Keep dependency decision log. |
 | Students misinterpret generated 3D geometry | Add method/source label to viewer. |
 | Students treat VSEPR as measured geometry | Label VSEPR output as idealized educational prediction and keep it separate from 3D coordinate sources. |
-| Students confuse VSEPR model vectors with PubChem coordinates | Keep `실제/외부 3D 구조 Viewer` and `VSEPR 예측 모형` as separate panels with different labels and caveats. |
+| Students confuse VSEPR model vectors with external coordinates | Keep `참고 3D 구조 보기` and `예상 입체 모형` as separate panels with different labels and caveats. |
 | Teacher guidance leaks into the student screen | Keep `UserMode` gates explicit and test that student mode hides teacher notes and developer logs. |
 | Students treat viewer measurements as reference data | Display coordinate source notes and avoid calling values experimental or optimized geometry. |

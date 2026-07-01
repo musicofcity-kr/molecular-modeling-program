@@ -55,19 +55,20 @@ const snapshot: ActivityResultSnapshot = {
   comparisonObservation: {
     available: true,
     observedSimilarities: '둘 다 굽은형이다.',
-    observedDifferences: 'VSEPR은 전자쌍 방향을 강조한다.',
+    observedDifferences: '예상 입체 모형은 전자쌍 방향을 강조한다.',
     studentReflection: '실제 3D와 예측 모형은 역할이 다르다.',
   },
   activityAnswers: [
     {
       questionId: 'afterValidationReflection',
-      questionText: '검증 후 알게 된 점',
+      questionText: '확인 후 알게 된 점',
       answer: '예상과 검증값을 비교했다.',
     },
   ],
+  afterValidationReflection: '예상과 검증값을 비교한 뒤 생각이 바뀌었다.',
   finalReflection: '구조 검증이 먼저 필요하다.',
   exportNotice:
-    '이 결과는 수업 활동 기록용입니다. RDKit 검증값은 구조 검증 기준이며, 3D 측정값은 현재 로드된 좌표 기준입니다. VSEPR 결과는 교육용 예측 모형입니다.',
+    '이 결과는 수업 활동 기록용입니다. 구조 확인값은 분자식과 평균 분자량의 기준이며, 3D 측정값은 현재 로드된 참고 자료 기준입니다. 입체 구조 예상은 교육용 예측 모형입니다.',
 };
 
 describe('activity result export', () => {
@@ -86,9 +87,13 @@ describe('activity result export', () => {
     const txt = formatActivityResultTxt(snapshot);
 
     expect(markdown).toContain('# 분자구조 모델링 활동 결과');
-    expect(markdown).toContain('## 3. RDKit 검증 결과');
+    expect(markdown).toContain('## 3. 구조 확인 결과');
     expect(markdown).toContain('## 5. 측정 결과');
-    expect(markdown).toContain('VSEPR 결과는 전자쌍 반발 이론에 따른 교육용 예측 모형입니다.');
+    expect(markdown).toContain(
+      '- 확인 후 수정한 생각: 예상과 검증값을 비교한 뒤 생각이 바뀌었다.',
+    );
+    expect(markdown).toContain('- 최종 소감: 구조 검증이 먼저 필요하다.');
+    expect(markdown).toContain('입체 구조 예상은 전자쌍 반발 이론에 따른 교육용 예측 모형입니다.');
     expect(txt).toContain('분자구조 모델링 활동 결과');
     expect(txt).toContain('이 결과는 수업 활동 기록용입니다.');
   });

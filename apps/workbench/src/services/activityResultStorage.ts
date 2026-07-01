@@ -19,7 +19,7 @@ import type { VseprAnalysis } from '../types/vsepr';
 export const ACTIVITY_RESULT_STORAGE_KEY = 'molecule-workbench-activity-results';
 export const ACTIVITY_RESULT_STORAGE_LIMIT = 10;
 export const ACTIVITY_RESULT_EXPORT_NOTICE =
-  '이 결과는 수업 활동 기록용입니다. RDKit 검증값은 구조 검증 기준이며, 3D 측정값은 현재 로드된 좌표 기준입니다. VSEPR 결과는 교육용 예측 모형입니다.';
+  '이 결과는 수업 활동 기록용입니다. 구조 확인값은 분자식과 평균 분자량의 기준이며, 3D 측정값은 현재 로드된 참고 자료 기준입니다. 입체 구조 예상은 교육용 예측 모형입니다.';
 
 type StorageOptions = {
   storage?: Storage | null;
@@ -72,7 +72,7 @@ export function createActivityResultSnapshot(
           isValid: false,
           studentMessage:
             input.validationResult?.studentMessage ??
-            '아직 RDKit.js 검증을 통과한 구조가 없습니다.',
+            '아직 구조 확인을 통과한 구조가 없습니다.',
         };
 
   return {
@@ -143,9 +143,8 @@ export function createActivityResultSnapshot(
         }
       : undefined,
     activityAnswers,
-    finalReflection:
-      cleanOptional(input.responses.finalReflection) ??
-      cleanOptional(input.responses.afterValidationReflection),
+    afterValidationReflection: cleanOptional(input.responses.afterValidationReflection),
+    finalReflection: cleanOptional(input.responses.finalReflection),
     exportNotice: ACTIVITY_RESULT_EXPORT_NOTICE,
   };
 }
@@ -163,7 +162,7 @@ export function saveActivityResult(
       ok: false,
       data: snapshot,
       studentMessage:
-        '이 브라우저에서 localStorage를 사용할 수 없어 활동 결과를 저장하지 못했습니다.',
+        '이 브라우저에서 임시 저장을 사용할 수 없어 활동 결과를 저장하지 못했습니다.',
       developerLogs: ['localStorage is not available.'],
     };
   }
@@ -192,7 +191,7 @@ export function saveActivityResult(
       ok: false,
       data: snapshot,
       studentMessage:
-        '브라우저 저장 공간 문제로 활동 결과를 저장하지 못했습니다. 대신 Markdown 내보내기 또는 클립보드 복사를 사용하세요.',
+        '브라우저 저장 공간 문제로 활동 결과를 저장하지 못했습니다. 대신 보고서로 저장하기를 사용하거나 교사용 내보내기를 사용하세요.',
       developerLogs: [
         ...current.developerLogs,
         `localStorage setItem failed: ${getErrorMessage(error)}`,
@@ -284,7 +283,7 @@ export function clearActivityResults(
     return {
       ok: true,
       data: [],
-      studentMessage: '이 브라우저에 저장된 활동 결과를 모두 삭제했습니다.',
+      studentMessage: '이 브라우저에 임시 저장된 활동 결과를 모두 삭제했습니다.',
       developerLogs: ['Cleared activity result snapshots.'],
     };
   } catch (error) {

@@ -6,6 +6,8 @@ type VseprPanelProps = {
   onSelectCentralAtom: (atomId: string) => void;
   canShowModel?: boolean;
   modelStatus?: VseprModelViewStatus;
+  modelButtonLabel?: string;
+  renderedModelButtonLabel?: string;
   onShowModel?: () => void;
 };
 
@@ -41,6 +43,8 @@ export function VseprPanel({
   onSelectCentralAtom,
   canShowModel = false,
   modelStatus = 'not_requested',
+  modelButtonLabel = '예상 입체 모형 보기',
+  renderedModelButtonLabel = '예상 입체 모형 표시 중',
   onShowModel,
 }: VseprPanelProps) {
   const candidates = analysis.centralAtomCandidates ?? [];
@@ -50,8 +54,8 @@ export function VseprPanel({
     <section className="workspace-panel vsepr-panel" data-testid="vsepr-panel">
       <div className="panel-heading vsepr-heading">
         <div>
-          <p className="section-label">VSEPR</p>
-          <h2>분자 구조 예측</h2>
+          <p className="section-label">입체 구조 예상</p>
+          <h2>전자쌍 반발로 예상한 분자 모양</h2>
         </div>
         <span className={`status-pill ${analysis.status}`}>
           {formatStatus(analysis.status)}
@@ -59,13 +63,13 @@ export function VseprPanel({
       </div>
 
       <p className="vsepr-notice">
-        VSEPR 결과는 전자쌍 반발 이론에 따른 교육용 예측입니다. 실제 측정 구조
+        입체 구조 예상은 전자쌍 반발 이론에 따른 교육용 예측입니다. 실제 측정 구조
         또는 계산화학 최적화 구조와 차이가 있을 수 있습니다.
       </p>
 
       <div className="vsepr-model-action">
         <p>
-          VSEPR 모형은 실제 3D 좌표가 아니라 중심 원자 주변 전자쌍 방향을
+          예상 입체 모형은 실제 3D 자료가 아니라 중심 원자 주변 전자쌍 방향을
           이해하기 위한 단위 벡터 모형입니다.
         </p>
         <button
@@ -75,7 +79,7 @@ export function VseprPanel({
           disabled={!canShowModel}
           onClick={onShowModel}
         >
-          {modelStatus === 'rendered' ? 'VSEPR 모형 표시 중' : 'VSEPR 모형 보기'}
+          {modelStatus === 'rendered' ? renderedModelButtonLabel : modelButtonLabel}
         </button>
       </div>
 
@@ -101,7 +105,7 @@ export function VseprPanel({
 
       <dl className="vsepr-result-grid">
         <div>
-          <dt>AXE 표기</dt>
+          <dt>전자쌍 모형 표기</dt>
           <dd>{analysis.axeNotation ?? '아직 예측되지 않음'}</dd>
         </div>
         <div>
@@ -129,7 +133,7 @@ export function VseprPanel({
           <dd>{analysis.idealBondAngles?.join(', ') ?? '아직 예측되지 않음'}</dd>
         </div>
         <div>
-          <dt>신뢰도</dt>
+          <dt>확인 수준</dt>
           <dd>{formatConfidence(analysis.confidence)}</dd>
         </div>
       </dl>

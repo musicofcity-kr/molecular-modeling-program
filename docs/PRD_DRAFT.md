@@ -1,4 +1,4 @@
-# PRD Draft — ChemDraw-like Educational Molecule Modeling Workbench
+# PRD Draft — ChemDraw-like Educational 다양한 분자의 분자구조 모델링
 
 ## 1. Product Summary
 

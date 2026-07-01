@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This policy defines how Molecule Modeling Workbench connects or may later extend user-drawn structure matching to PubChem without implying that an external match is automatically correct.
+This policy defines how 다양한 분자의 분자구조 모델링 connects or may later extend user-drawn structure matching to PubChem without implying that an external match is automatically correct.
 
 The current prototype supports manual candidate search only after RDKit.js validation. It does not implement automatic PubChem search, automatic candidate selection, or hidden user-drawn SMILES lookup.
 

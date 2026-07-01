@@ -1,4 +1,4 @@
-# Molecule Modeling Workbench 작업 인수인계 요약
+# 다양한 분자의 분자구조 모델링 작업 인수인계 요약
 
 작성일: 2026-06-30  
 상태: prototype  
@@ -8,7 +8,7 @@
 
 ## 1. 프로젝트 목적
 
-Molecule Modeling Workbench는 고등학교 화학 수업에서 사용할 수 있는 ChemDraw-like 분자 구조 편집기 MVP이다.
+다양한 분자의 분자구조 모델링은 고등학교 화학 수업에서 사용할 수 있는 ChemDraw-like 분자 구조 편집기 MVP이다.
 
 목표는 ChemDraw 전체 복제가 아니라, 학생이 2D 분자 구조를 그리고, RDKit.js 검증을 통과한 구조에 대해서만 분자식, 평균 분자량, canonical SMILES, 3D 시각화, VSEPR 예측을 확인할 수 있게 하는 수업용 도구를 만드는 것이다.
 

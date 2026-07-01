@@ -1,4 +1,4 @@
-# Molecule Modeling Workbench — Codex Custom Skill Package v0.1
+# 다양한 분자의 분자구조 모델링 — Codex Custom Skill Package v0.1
 
 이 패키지는 ChemDraw-like 수업용 분자구조 모델링 웹앱을 Codex로 개발하기 위한 **커스텀 Agent Skill 초안**입니다.
 
@@ -52,7 +52,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install_to_project.ps1 -Targe
 ## 권장 첫 실행
 
 ```text
-이 저장소의 AGENTS.md와 .agents/skills를 먼저 읽고, docs/PRD_DRAFT.md와 docs/TDD_DRAFT.md를 기준으로 Molecule Modeling Workbench의 MVP 구현 계획을 수립해줘. 아직 코딩하지 말고 /plan 모드처럼 단계별 파일 구조와 검증 기준부터 제안해줘.
+이 저장소의 AGENTS.md와 .agents/skills를 먼저 읽고, docs/PRD_DRAFT.md와 docs/TDD_DRAFT.md를 기준으로 다양한 분자의 분자구조 모델링의 MVP 구현 계획을 수립해줘. 아직 코딩하지 말고 /plan 모드처럼 단계별 파일 구조와 검증 기준부터 제안해줘.
 ```
 
 ## 패키지 검증

@@ -33,22 +33,24 @@ type Molecule3DViewerProps = {
   hasValidatedStructure: boolean;
   validatedStructureKey?: string;
   userMode?: UserMode;
+  showAdvancedControls?: boolean;
+  showMeasurementControls?: boolean;
   actionSlot?: ReactNode;
   onMeasurementResultsChange?: (results: GeometryMeasurementResult[]) => void;
   onDeveloperLog?: (message: string) => void;
 };
 
-const NO_COORDINATES_MESSAGE = '3D 좌표 데이터가 아직 없습니다';
+const NO_COORDINATES_MESSAGE = '이 분자의 3D 자료가 아직 준비되지 않았습니다';
 const NO_MEASUREMENT_COORDINATES_MESSAGE =
-  '3D 좌표 데이터가 없어서 측정 도구를 사용할 수 없습니다. 2D 구조 검증 결과는 계속 확인할 수 있습니다.';
+  '3D 자료가 없어서 측정 도구를 사용할 수 없습니다. 2D 구조 확인 결과는 계속 확인할 수 있습니다.';
 const MEASUREMENT_LOADING_MESSAGE =
-  '3D Viewer가 좌표 데이터를 준비하는 중입니다. 준비가 끝나면 측정 도구를 사용할 수 있습니다.';
+  '3D 구조 보기가 자료를 준비하는 중입니다. 준비가 끝나면 측정 도구를 사용할 수 있습니다.';
 const MEASUREMENT_VALIDATION_BLOCKED_MESSAGE =
   'RDKit.js 검증을 통과한 3D 좌표 데이터에서만 측정 도구를 사용할 수 있습니다.';
 const MEASUREMENT_PARSE_FAILED_MESSAGE =
   '현재 3D 좌표 데이터에서 측정 가능한 원자 좌표를 읽지 못했습니다.';
 const NOT_CONFIRMED_3D_COORDINATES_MESSAGE =
-  '3D 좌표로 확인된 데이터가 아니어서 실제/외부 3D 구조로 표시하지 않습니다.';
+  '참고 3D 자료로 확인된 데이터가 아니어서 3D 구조로 표시하지 않습니다.';
 const SMILES_ONLY_DEVELOPER_LOG = 'SMILES만으로는 아직 3D 구조를 생성하지 않음';
 const DEFAULT_REPRESENTATION_MODE: Molecule3DRepresentationMode = 'ball-and-stick';
 
@@ -79,7 +81,7 @@ function getInitialMessage(coordinateData?: Molecule3DInput | null): string {
     return NOT_CONFIRMED_3D_COORDINATES_MESSAGE;
   }
 
-  return `${coordinateData.label}의 교육용 3D 좌표 데이터를 표시합니다.`;
+  return `${coordinateData.label}의 교육용 3D 자료를 표시합니다.`;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -110,6 +112,21 @@ function formatRepresentationMode(mode: Molecule3DRepresentationMode): string {
     case 'space-filling':
       return 'Space-filling';
   }
+}
+
+function formatStudentCoordinateNote(input?: Molecule3DInput | null): string {
+  if (!input) {
+    return '표시할 3D 자료가 없습니다.';
+  }
+
+  if (input.sourceType === 'pubchem') {
+    return '외부 데이터베이스에서 불러온 교육용 참고 3D 자료입니다.';
+  }
+
+  return (input.sourceNote ?? '교육용 참고 3D 자료입니다.')
+    .replace(/PubChem/g, '외부 자료')
+    .replace(/SDF/g, '3D 자료')
+    .replace(/3D 좌표/g, '3D 자료');
 }
 
 function getRepresentationStyle(mode: Molecule3DRepresentationMode) {
@@ -225,6 +242,8 @@ export const Molecule3DViewer = forwardRef<
     hasValidatedStructure,
     validatedStructureKey,
     userMode = 'student',
+    showAdvancedControls,
+    showMeasurementControls,
     actionSlot,
     onMeasurementResultsChange,
     onDeveloperLog,
@@ -373,11 +392,11 @@ export const Molecule3DViewer = forwardRef<
     }
 
     if (!input.data.trim()) {
-      throw new Error('3D 좌표 데이터가 비어 있습니다.');
+      throw new Error('3D 자료가 비어 있습니다.');
     }
 
     if (input.coordinateDimension !== '3d') {
-      throw new Error('3D 좌표로 확인된 데이터가 아닙니다.');
+      throw new Error('참고 3D 자료로 확인된 데이터가 아닙니다.');
     }
 
     const atoms = parseAtomsFromMolecule3DInput(input);
@@ -392,7 +411,7 @@ export const Molecule3DViewer = forwardRef<
     viewer.zoomTo();
     initialViewRef.current = viewer.getView();
     viewer.render();
-    setStudentMessage(`${input.label}의 교육용 3D 좌표 데이터를 표시합니다.`);
+    setStudentMessage(`${input.label}의 교육용 3D 자료를 표시합니다.`);
   }
 
   useImperativeHandle(
@@ -451,7 +470,7 @@ export const Molecule3DViewer = forwardRef<
         window.addEventListener('resize', handleResize);
       } catch (error) {
         setViewerStatus('error');
-        setStudentMessage('3D Viewer를 초기화하지 못했습니다.');
+        setStudentMessage('3D 구조 보기를 초기화하지 못했습니다.');
         onDeveloperLog?.(`3Dmol.js viewer initialization failed: ${getErrorMessage(error)}`);
       }
     }
@@ -507,7 +526,7 @@ export const Molecule3DViewer = forwardRef<
       setSelectedAtoms([]);
       setMeasurementResults([]);
       setAtomSelectionMode('none');
-      setStudentMessage('3D 좌표 데이터를 표시하지 못했습니다.');
+      setStudentMessage('3D 자료를 표시하지 못했습니다.');
       onDeveloperLog?.(`3Dmol.js structure load failed: ${getErrorMessage(error)}`);
     }
   }, [coordinateData, onDeveloperLog, viewerStatus]);
@@ -565,6 +584,9 @@ export const Molecule3DViewer = forwardRef<
       : atomSelectionMode === 'bond_angle'
         ? '원자 3개를 선택하면 두 번째 원자를 중심으로 각도를 계산합니다.'
         : '측정 모드를 선택한 뒤 3D 구조의 원자를 클릭하세요.';
+  const shouldShowAdvancedControls = showAdvancedControls ?? userMode === 'teacher';
+  const shouldShowMeasurementControls =
+    showMeasurementControls ?? shouldShowAdvancedControls;
 
   const handleMeasurementModeChange = (nextMode: AtomSelectionMode) => {
     setAtomSelectionMode(nextMode);
@@ -575,21 +597,28 @@ export const Molecule3DViewer = forwardRef<
     <section className="workspace-panel viewer-panel" data-testid="molecule-3d-viewer">
       <div className="panel-heading viewer-heading">
         <div>
-          <p className="section-label">실제/외부 3D</p>
-          <h2>실제/외부 3D 구조 Viewer</h2>
+          <p className="section-label">3D 구조 보기</p>
+          <h2>참고 3D 구조 보기</h2>
         </div>
         <span className={viewerStatus === 'ready' ? 'status-pill ready' : 'status-pill'}>
           {viewerStatus === 'ready'
-            ? '3Dmol.js 준비됨'
+            ? userMode === 'teacher'
+              ? '3Dmol.js 준비됨'
+              : '3D 구조 보기 준비됨'
             : viewerStatus === 'error'
-              ? '3Dmol.js 오류'
-              : '3Dmol.js 로딩 중'}
+              ? userMode === 'teacher'
+                ? '3Dmol.js 오류'
+                : '3D 구조 보기 오류'
+              : userMode === 'teacher'
+                ? '3Dmol.js 로딩 중'
+                : '3D 구조 보기 준비 중'}
         </span>
       </div>
 
       {actionSlot ? <div className="viewer-action-slot">{actionSlot}</div> : null}
 
-      <div className="viewer-control-panel" data-testid="viewer-control-panel">
+      {shouldShowAdvancedControls ? (
+        <div className="viewer-control-panel" data-testid="viewer-control-panel">
         <div className="viewer-control-group">
           <label>
             <span>표현 방식</span>
@@ -638,7 +667,7 @@ export const Molecule3DViewer = forwardRef<
             type="button"
             onClick={resetView}
           >
-            Reset view
+            처음 보기로
           </button>
           <button
             className="secondary-action"
@@ -647,33 +676,43 @@ export const Molecule3DViewer = forwardRef<
             type="button"
             onClick={zoomToFit}
           >
-            Zoom to fit
+            화면에 맞추기
           </button>
         </div>
       </div>
+      ) : null}
 
       <div className="viewer-content">
         <div
           ref={hostRef}
           className="viewer-3d-host"
           data-testid="viewer-3d"
-          aria-label="3Dmol.js 3D 분자 뷰어"
+          aria-label="3D 분자 구조 보기 영역"
         />
         <div className="viewer-empty-state" data-testid="viewer-3d-message">
           <p>{displayedStudentMessage}</p>
           <dl>
-            <div>
-              <dt>좌표 출처</dt>
-              <dd>{coordinateData?.coordinateSource ?? '없음'}</dd>
-            </div>
-            <div>
-              <dt>출처 유형</dt>
-              <dd>{formatSourceType(coordinateData?.sourceType)}</dd>
-            </div>
-            <div>
-              <dt>입력 형식</dt>
-              <dd>{coordinateData?.format.toUpperCase() ?? '대기 중'}</dd>
-            </div>
+            {userMode === 'teacher' ? (
+              <>
+                <div>
+                  <dt>좌표 출처</dt>
+                  <dd>{coordinateData?.coordinateSource ?? '없음'}</dd>
+                </div>
+                <div>
+                  <dt>출처 유형</dt>
+                  <dd>{formatSourceType(coordinateData?.sourceType)}</dd>
+                </div>
+                <div>
+                  <dt>입력 형식</dt>
+                  <dd>{coordinateData?.format.toUpperCase() ?? '대기 중'}</dd>
+                </div>
+              </>
+            ) : (
+              <div>
+                <dt>자료 상태</dt>
+                <dd>{coordinateData ? '3D 자료 표시 가능' : '3D 자료 준비 전'}</dd>
+              </div>
+            )}
             {coordinateData?.sourceUrl && userMode === 'teacher' ? (
               <div>
                 <dt>출처 URL</dt>
@@ -682,32 +721,49 @@ export const Molecule3DViewer = forwardRef<
             ) : null}
             <div>
               <dt>계산 기준</dt>
-              <dd>분자식과 분자량은 RDKit.js 검증 결과입니다.</dd>
+              <dd>
+                {userMode === 'teacher'
+                  ? '분자식과 분자량은 RDKit.js 검증 결과입니다.'
+                  : '분자식과 분자량은 구조 확인 결과입니다.'}
+              </dd>
             </div>
+            {userMode === 'teacher' ? (
+              <>
+                <div>
+                  <dt>3D 역할</dt>
+                  <dd>3Dmol.js는 전달받은 좌표 데이터만 시각화합니다.</dd>
+                </div>
+                <div>
+                  <dt>표현 방식</dt>
+                  <dd>{formatRepresentationMode(representationMode)}</dd>
+                </div>
+              </>
+            ) : null}
             <div>
-              <dt>3D 역할</dt>
-              <dd>3Dmol.js는 전달받은 좌표 데이터만 시각화합니다.</dd>
-            </div>
-            <div>
-              <dt>표현 방식</dt>
-              <dd>{formatRepresentationMode(representationMode)}</dd>
-            </div>
-            <div>
-              <dt>좌표 안내</dt>
-              <dd>{coordinateData?.sourceNote ?? '표시할 3D 좌표 데이터가 없습니다.'}</dd>
+              <dt>자료 안내</dt>
+              <dd>
+                {userMode === 'teacher'
+                  ? coordinateData?.sourceNote ?? '표시할 3D 좌표 데이터가 없습니다.'
+                  : formatStudentCoordinateNote(coordinateData)}
+              </dd>
             </div>
           </dl>
         </div>
       </div>
 
-      <div
-        className="geometry-measurement-panel"
-        data-testid="geometry-measurement-panel"
-      >
+      {shouldShowMeasurementControls ? (
+        <div
+          className="geometry-measurement-panel"
+          data-testid="geometry-measurement-panel"
+        >
         <div className="panel-heading measurement-heading">
           <div>
             <p className="section-label">좌표 기준 측정</p>
-            <h3>결합길이/결합각 측정 MVP</h3>
+            <h3>
+              {userMode === 'teacher'
+                ? '결합길이/결합각 측정 MVP'
+                : '결합길이와 결합각 측정'}
+            </h3>
           </div>
           <span className={canUseParsedAtomTools ? 'status-pill ready' : 'status-pill'}>
             {canUseParsedAtomTools ? '측정 가능' : '측정 비활성화'}
@@ -841,6 +897,7 @@ export const Molecule3DViewer = forwardRef<
           </p>
         ) : null}
       </div>
+      ) : null}
     </section>
   );
 });

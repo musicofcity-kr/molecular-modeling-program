@@ -46,26 +46,26 @@ function getStudentMessage(
   template: VseprGeometryTemplate | null,
 ): string {
   if (status === 'rendered' && template) {
-    return `${template.axeNotation} VSEPR 교육용 예측 모형을 표시합니다.`;
+    return `${template.axeNotation} 전자쌍 반발 교육용 예측 모형을 표시합니다.`;
   }
 
   if (analysis.status === 'needs_central_atom') {
-    return 'VSEPR 모형을 보려면 먼저 중심 원자를 선택해 주세요.';
+    return '예상 입체 모형을 보려면 먼저 중심 원자를 선택해 주세요.';
   }
 
   if (analysis.status === 'supported' && !template) {
-    return '이 AXE 표기에 대한 VSEPR 3D template이 아직 없습니다.';
+    return '이 전자쌍 모형 표기에 대한 입체 모형 자료가 아직 없습니다.';
   }
 
   if (analysis.status !== 'supported') {
-    return 'VSEPR 분석이 지원되는 구조에서만 교육용 3D 예측 모형을 표시합니다.';
+    return '입체 구조 예상이 지원되는 구조에서만 교육용 3D 예측 모형을 표시합니다.';
   }
 
-  return 'VSEPR 모형 보기 버튼을 누르면 교육용 3D 예측 모형을 표시합니다.';
+  return '예상 입체 모형 보기 버튼을 누르면 교육용 3D 예측 모형을 표시합니다.';
 }
 
 function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : '알 수 없는 VSEPR 3D 표시 오류';
+  return error instanceof Error ? error.message : '알 수 없는 입체 모형 표시 오류';
 }
 
 export function Vsepr3DModelViewer({
@@ -85,7 +85,7 @@ export function Vsepr3DModelViewer({
     viewerStatus === 'error'
       ? '표시 오류'
       : viewerStatus === 'loading' && modelStatus === 'not_requested'
-        ? '3Dmol.js 로딩 중'
+        ? '3D 구조 보기 준비 중'
         : getStatusLabel(modelStatus);
 
   function clearViewer() {
@@ -258,8 +258,8 @@ export function Vsepr3DModelViewer({
     <section className="workspace-panel vsepr-model-panel" data-testid="vsepr-3d-model-viewer">
       <div className="panel-heading viewer-heading">
         <div>
-          <p className="section-label">교육용 3D 예측</p>
-          <h2>VSEPR 예측 모형</h2>
+          <p className="section-label">입체 구조 예상 보기</p>
+          <h2>예상 입체 모형</h2>
         </div>
         <span className={viewerStatus === 'ready' ? 'status-pill ready' : 'status-pill'}>
           {statusPillText}
@@ -268,7 +268,7 @@ export function Vsepr3DModelViewer({
 
       <div className="vsepr-model-toolbar">
         <p>
-          이 화면은 VSEPR 이론에 따른 교육용 예측 모형입니다. 실제 분자의
+          이 화면은 전자쌍 반발 이론에 따른 교육용 예측 모형입니다. 실제 분자의
           정밀한 3D 구조와는 차이가 있을 수 있습니다.
         </p>
         <label className="vsepr-label-toggle">
@@ -288,21 +288,21 @@ export function Vsepr3DModelViewer({
           ref={hostRef}
           className="viewer-3d-host vsepr-model-host"
           data-testid="vsepr-3d-host"
-          aria-label="VSEPR 교육용 3D 예측 모형 뷰어"
+          aria-label="전자쌍 반발 교육용 3D 예측 모형 보기 영역"
         />
         <div className="viewer-empty-state" data-testid="vsepr-3d-model-message">
           <p>{getStudentMessage(analysis, modelStatus, template)}</p>
           <dl>
             <div>
               <dt>모형 종류</dt>
-              <dd>VSEPR 교육용 예측 모형</dd>
+              <dd>전자쌍 반발 교육용 예측 모형</dd>
             </div>
             <div>
-              <dt>실제/외부 3D 구조 여부</dt>
-              <dd>아님. PubChem 3D 구조와 구분합니다.</dd>
+              <dt>참고 3D 구조 여부</dt>
+              <dd>아님. 외부 3D 자료와 구분합니다.</dd>
             </div>
             <div>
-              <dt>AXE 표기</dt>
+              <dt>전자쌍 모형 표기</dt>
               <dd>{analysis.axeNotation ?? '아직 예측되지 않음'}</dd>
             </div>
             <div>

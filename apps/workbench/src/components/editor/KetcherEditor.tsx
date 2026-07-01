@@ -27,28 +27,28 @@ export const KetcherEditor = forwardRef<ChemicalEditorHandle, KetcherEditorProps
       () => ({
         async getSmiles() {
           if (!ketcherRef.current) {
-            throw new Error('Ketcher 편집기가 아직 준비되지 않았습니다.');
+            throw new Error('분자 그리기 도구가 아직 준비되지 않았습니다.');
           }
 
           return ketcherRef.current.getSmiles();
         },
         async getMolfile() {
           if (!ketcherRef.current) {
-            throw new Error('Ketcher 편집기가 아직 준비되지 않았습니다.');
+            throw new Error('분자 그리기 도구가 아직 준비되지 않았습니다.');
           }
 
           return ketcherRef.current.getMolfile('v2000');
         },
         async extractStructure() {
           if (!ketcherRef.current) {
-            throw new Error('Ketcher 편집기가 아직 준비되지 않았습니다.');
+            throw new Error('분자 그리기 도구가 아직 준비되지 않았습니다.');
           }
 
           return extractStructureFromKetcher(ketcherRef.current);
         },
         async setMolecule(input) {
           if (!ketcherRef.current) {
-            throw new Error('Ketcher 편집기가 아직 준비되지 않았습니다.');
+            throw new Error('분자 그리기 도구가 아직 준비되지 않았습니다.');
           }
 
           const structure = input.molBlock ?? input.smiles;
@@ -61,7 +61,7 @@ export const KetcherEditor = forwardRef<ChemicalEditorHandle, KetcherEditorProps
         },
         async clear() {
           if (!ketcherRef.current) {
-            throw new Error('Ketcher 편집기가 아직 준비되지 않았습니다.');
+            throw new Error('분자 그리기 도구가 아직 준비되지 않았습니다.');
           }
 
           await ketcherRef.current.setMolecule('');
@@ -78,11 +78,11 @@ export const KetcherEditor = forwardRef<ChemicalEditorHandle, KetcherEditorProps
             <h2>분자 편집 영역</h2>
           </div>
           <span className={isReady ? 'status-pill ready' : 'status-pill'}>
-            {isReady ? 'Ketcher 준비됨' : 'Ketcher 로딩 중'}
+            {isReady ? '그리기 도구 준비됨' : '그리기 도구 준비 중'}
           </span>
         </div>
 
-        <div className="ketcher-host" aria-label="Ketcher 2D 구조 편집기">
+        <div className="ketcher-host" aria-label="2D 분자 구조 그리기 도구">
           <Editor
             staticResourcesUrl="/"
             structServiceProvider={structServiceProvider}

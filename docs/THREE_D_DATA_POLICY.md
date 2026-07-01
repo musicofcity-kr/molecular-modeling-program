@@ -1,4 +1,4 @@
-# 3D Data Policy — Molecule Modeling Workbench
+# 3D Data Policy — 다양한 분자의 분자구조 모델링
 
 This policy defines how the app may use 3D molecular coordinate data for classroom visualization.
 

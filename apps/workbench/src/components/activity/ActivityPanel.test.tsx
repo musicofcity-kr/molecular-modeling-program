@@ -52,17 +52,17 @@ describe('ActivityPanel', () => {
       />,
     );
 
-    expect(markup).toContain('수업용 활동 모드');
+    expect(markup).toContain('수업용 활동');
     expect(markup).toContain('물 분자 구조 그리기');
     expect(markup).toContain('예상 분자식');
     expect(markup).toContain('중심 원자는 무엇인가요?');
-    expect(markup).toContain('VSEPR 이론에 따른 분자 구조는 무엇인가요?');
-    expect(markup).toContain('2D 구조와 VSEPR 예측 구조는 어떻게 다른가요?');
-    expect(markup).toContain('VSEPR 모형에서 중심 원자 주위 전자쌍은 어떻게 배치되어 있나요?');
+    expect(markup).toContain('전자쌍 반발 원리에 따른 분자 모양은 무엇인가요?');
+    expect(markup).toContain('2D 구조와 입체 구조 예상은 어떻게 다른가요?');
+    expect(markup).toContain('예상 입체 모형에서 중심 원자 주위 전자쌍은 어떻게 배치되어 있나요?');
     expect(markup).toContain('비공유 전자쌍이 분자 모양에 어떤 영향을 주나요?');
-    expect(markup).toContain('실제 3D 구조 또는 PubChem 구조와 VSEPR 예측 모형');
-    expect(markup).toContain('RDKit 검증 분자식');
-    expect(markup).toContain('아직 검증 전');
+    expect(markup).toContain('참고 3D 구조와 예상 입체 모형');
+    expect(markup).toContain('구조 확인 분자식');
+    expect(markup).toContain('아직 확인 전');
     expect(markup).toContain('자동 채점 없음');
   });
 

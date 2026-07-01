@@ -142,7 +142,7 @@ Chemistry-derived values are shown only when `MoleculeValidationResult.ok === tr
 - `npm run typecheck`: passed.
 - `npm test`: passed with 44 tests.
 - `npm run build`: passed with the known Ketcher large chunk warning.
-- Local dev server check: `http://127.0.0.1:5173` returned HTTP 200 with title `Molecule Modeling Workbench`.
+- Local dev server check: `http://127.0.0.1:5173` returned HTTP 200 with title `다양한 분자의 분자구조 모델링`.
 
 ## 2026-06-30 — Phase 5 3Dmol.js Viewer Shell
 
@@ -364,6 +364,8 @@ Chemistry-derived values are shown only when `MoleculeValidationResult.ok === tr
   - actual/external 3D vs VSEPR comparison observation
   - activity question answers and final reflection
 - Added JSON, Markdown, TXT, clipboard copy, and browser print export flows.
+- `afterValidationReflection` and `finalReflection` are stored/exported as
+  separate fields so student reflection is not silently overwritten.
 - Exported records keep RDKit.js as the formula, average molecular weight, and
   canonical SMILES source.
 - Exported records do not include raw SDF, raw MOL block, raw PubChem response,
@@ -389,3 +391,126 @@ Chemistry-derived values are shown only when `MoleculeValidationResult.ok === tr
 - `npx tsc --noEmit`: passed during implementation.
 - `npm test -- --run`: passed with 24 files and 131 tests during implementation.
 - Final build verification should still be run immediately before commit.
+
+## 2026-06-30 — Phase 16 student activity flow simplification
+
+### Current status
+
+- Changed the app entry state to `student + activity` so the first screen follows
+  a classroom activity flow instead of the previous tool-centered layout.
+- Added a student activity shell with six visible steps:
+  1. 활동 선택
+  2. 예측하기
+  3. 분자 그리기
+  4. 구조 확인하기
+  5. 입체 구조 보기
+  6. 정리하기
+- Renamed the main student action from `구조 검증하기` to `구조 확인하기`.
+- Renamed the VSEPR student action to `입체 구조 예측 보기`.
+- Added student-facing result cards for:
+  - 구조 확인 결과
+  - 분자식
+  - 평균 분자량
+  - 입체 구조 예측
+  - 실제/외부 3D 구조 제공 여부
+- Moved raw structure details and advanced external lookup controls behind
+  teacher/advanced mode:
+  - canonical SMILES
+  - raw SMILES/MOL display
+  - PubChem candidate search
+  - individual JSON/Markdown/TXT export buttons
+  - developer logs and detailed diagnostic messages
+- Kept the chemistry validation gate unchanged: Ketcher still provides the
+  structure input, RDKit.js still validates and calculates formula/mass, 3Dmol.js
+  still visualizes coordinate data, and PubChem loading remains manual.
+
+### Intentionally not implemented in this phase
+
+- new chemistry calculation behavior
+- automatic PubChem matching
+- automatic grading
+- student login
+- database persistence
+- new production dependencies
+
+### Verification
+
+- `npm run typecheck`: passed.
+- `npm test`: passed with 24 files and 131 tests.
+- `npm run build`: passed with the known 3Dmol.js `eval` warning and existing
+  large chunk warnings.
+- Browser DOM check at `http://127.0.0.1:5173` confirmed the required student
+  flow labels are present and the default student screen does not include
+  `Canonical SMILES`, raw MOL placeholder text, PubChem candidate search,
+  JSON/Markdown export buttons, or developer logs.
+
+## 2026-07-01 — Phase 16-1 official classroom terminology cleanup
+
+### Current status
+
+- Replaced MVP/developer-facing labels in the default student screen with
+  Korean action-oriented classroom terms.
+- Student default mode now exposes these required actions:
+  - 오늘의 활동 선택하기
+  - 예측 입력하기
+  - 분자 예시 불러오기
+  - 내 구조 확인하기
+  - 입체 구조 예상 보기 / 예상 입체 모형 보기
+  - 3D 구조 보기
+  - 구조 비교하기
+  - 정리 작성하기
+  - 임시 저장하기
+  - 보고서로 저장하기
+  - 활동지 인쇄하기
+- Hidden implementation terms from the default student body text:
+  `RDKit.js`, `Ketcher`, `PubChem`, `CID`, `SDF`, `SMILES`, `MOL`, `JSON`,
+  `localStorage`, `Developer log`, and `개발자 로그`.
+- Kept advanced structure strings, external 3D lookup details, raw exports, and
+  developer logs available in teacher/advanced paths instead of deleting the
+  underlying features.
+- Renamed student-facing VSEPR explanations to electron-pair / shape prediction
+  language while keeping the internal VSEPR engine and teacher guidance intact.
+
+### Verification
+
+- `npm run typecheck`: passed.
+- `npm test`: passed with 24 files and 131 tests.
+- `npm run build`: passed with the known 3Dmol.js `eval` warning and existing
+  large chunk warnings.
+- Browser DOM check at `http://127.0.0.1:5173` confirmed all required student
+  action labels are present and the forbidden implementation terms are absent
+  from `document.body.innerText`.
+
+## 2026-07-01 — Phase 16-2 student 3D flow stabilization
+
+### Current status
+
+- Fixed the student-facing 3D viewer layout so the canvas no longer collapses
+  inside narrow activity/free-draw cards.
+- Kept validated static 3D example data when the same example structure is
+  confirmed again.
+- Preserved previously loaded external 3D coordinate data when the same
+  canonical structure is confirmed again, while still clearing stale 3D data
+  when the drawn structure changes.
+- Added a student-facing external 3D data candidate search slot after RDKit
+  validation succeeds. Candidate selection remains manual.
+- Added `student + free_draw` rendering for drawing, result cards, external 3D
+  search, 3D viewer, comparison, and result export.
+- Separated 3D viewer advanced controls from coordinate measurement controls:
+  teacher mode keeps full advanced controls, while student mode can show
+  bond-length/bond-angle measurement only after validated 3D coordinates are
+  loaded.
+
+### Chemistry boundary
+
+- The app still does not generate 3D coordinates from SMILES or 2D MOL blocks.
+- PubChem candidate search is still manual and does not replace RDKit formula
+  or average molecular weight.
+- 3D measurements remain coordinate-source measurements, not experimental or
+  optimized geometry values.
+
+### Verification
+
+- `npm run typecheck`: passed.
+- Targeted `npm test -- App PubChemCandidatePanel Molecule3DViewer`: passed with
+  3 files and 13 tests.

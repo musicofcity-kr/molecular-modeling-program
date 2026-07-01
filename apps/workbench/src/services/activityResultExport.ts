@@ -32,9 +32,9 @@ export function formatActivityResultMarkdown(
     `- 예상 분자량: ${valueOrFallback(snapshot.studentPrediction.predictedMolecularWeight)}`,
     `- 구조를 그렇게 그린 이유: ${valueOrFallback(snapshot.studentPrediction.drawingReason)}`,
     '',
-    '## 3. RDKit 검증 결과',
-    `- 검증 성공 여부: ${snapshot.rdkitValidation.isValid ? '성공' : '실패 또는 미검증'}`,
-    `- canonical SMILES: ${valueOrFallback(snapshot.rdkitValidation.canonicalSmiles)}`,
+    '## 3. 구조 확인 결과',
+    `- 확인 상태: ${snapshot.rdkitValidation.isValid ? '구조 확인 완료' : '구조를 다시 확인해 주세요'}`,
+    `- 표준 구조 표현: ${valueOrFallback(snapshot.rdkitValidation.canonicalSmiles)}`,
     `- 분자식: ${valueOrFallback(snapshot.rdkitValidation.molecularFormula)}`,
     `- 평균 분자량: ${formatNumber(snapshot.rdkitValidation.molecularWeight)}`,
     snapshot.rdkitValidation.studentMessage
@@ -42,7 +42,7 @@ export function formatActivityResultMarkdown(
       : null,
     '',
     '## 4. 3D 구조 관찰',
-    `- 3D 구조 출처: ${valueOrFallback(snapshot.threeDObservation.sourceLabel)}`,
+    `- 참고 3D 구조 출처: ${valueOrFallback(snapshot.threeDObservation.sourceLabel)}`,
     `- 관찰 내용: ${valueOrFallback(snapshot.threeDObservation.studentObservation)}`,
     `- 좌표 안내: ${valueOrFallback(snapshot.threeDObservation.sourceNote)}`,
     '',
@@ -51,16 +51,16 @@ export function formatActivityResultMarkdown(
     '- 측정값 안내:',
     '  이 값은 현재 로드된 3D 좌표 기준입니다. 정밀 실험값으로 사용하지 마세요.',
     '',
-    '## 6. VSEPR 예측',
-    `- AXE 표기: ${valueOrFallback(snapshot.vseprResult?.axeNotation)}`,
+    '## 6. 입체 구조 예상',
+    `- 전자쌍 모형 표기: ${valueOrFallback(snapshot.vseprResult?.axeNotation)}`,
     `- 전자쌍 배열: ${valueOrFallback(snapshot.vseprResult?.electronGeometryKo)}`,
     `- 분자 구조: ${valueOrFallback(snapshot.vseprResult?.molecularGeometryKo)}`,
     `- 이상적 결합각: ${valueOrFallback(snapshot.vseprResult?.idealBondAngle)}`,
     `- 학생 메모: ${valueOrFallback(snapshot.vseprResult?.studentNote)}`,
     '- 안내:',
-    '  VSEPR 결과는 전자쌍 반발 이론에 따른 교육용 예측 모형입니다.',
+    '  입체 구조 예상은 전자쌍 반발 이론에 따른 교육용 예측 모형입니다.',
     '',
-    '## 7. 실제/외부 3D 구조와 VSEPR 모형 비교',
+    '## 7. 참고 3D 구조와 예상 입체 모형 비교',
     `- 비슷한 점: ${valueOrFallback(snapshot.comparisonObservation?.observedSimilarities)}`,
     `- 다른 점: ${valueOrFallback(snapshot.comparisonObservation?.observedDifferences)}`,
     `- 알게 된 점: ${valueOrFallback(snapshot.comparisonObservation?.studentReflection)}`,
@@ -69,7 +69,7 @@ export function formatActivityResultMarkdown(
     ...formatActivityAnswers(snapshot),
     '',
     '## 9. 최종 정리',
-    `- 검증 후 수정한 생각: ${valueOrFallback(snapshot.finalReflection)}`,
+    `- 확인 후 수정한 생각: ${valueOrFallback(snapshot.afterValidationReflection)}`,
     `- 최종 소감: ${valueOrFallback(snapshot.finalReflection)}`,
     '',
     '## 안내',
@@ -118,7 +118,9 @@ export function downloadActivityResultFile(
     anchor.href = url;
     anchor.download = fileName;
     anchor.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 0);
 
     return {
       ok: true,
@@ -129,7 +131,7 @@ export function downloadActivityResultFile(
     return {
       ok: false,
       studentMessage:
-        '내보내기 파일을 생성하지 못했습니다. 클립보드 복사를 대신 사용하세요.',
+        '내보내기 파일을 생성하지 못했습니다. 결과 복사하기를 대신 사용하세요.',
       developerLogs: [`Activity result file download failed: ${getErrorMessage(error)}`],
     };
   }
@@ -153,14 +155,14 @@ export async function copyActivityResultMarkdown(
 
     return {
       ok: true,
-      studentMessage: '활동 결과 Markdown을 클립보드에 복사했습니다.',
+      studentMessage: '활동 결과 보고서 내용을 클립보드에 복사했습니다.',
       developerLogs: ['Copied activity result Markdown to clipboard.'],
     };
   } catch (error) {
     return {
       ok: false,
       studentMessage:
-        '클립보드 복사에 실패했습니다. Markdown 내보내기를 사용하세요.',
+        '클립보드 복사에 실패했습니다. 교사용 보기에서 파일 내보내기를 사용하세요.',
       developerLogs: [`Clipboard write failed: ${getErrorMessage(error)}`],
     };
   }

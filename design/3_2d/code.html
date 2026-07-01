@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Molecule Modeling Workbench - Step 3: Draw</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-surface-variant": "#3e494a",
+                    "surface-dim": "#d8dadc",
+                    "on-tertiary": "#ffffff",
+                    "background": "#f7f9fb",
+                    "primary-container": "#006d77",
+                    "on-primary-fixed-variant": "#004f56",
+                    "on-error-container": "#93000a",
+                    "surface": "#f7f9fb",
+                    "on-secondary": "#ffffff",
+                    "tertiary-fixed-dim": "#ffb3b0",
+                    "on-tertiary-fixed": "#410006",
+                    "on-tertiary-fixed-variant": "#8c1520",
+                    "on-secondary-fixed": "#00201a",
+                    "error-container": "#ffdad6",
+                    "tertiary-fixed": "#ffdad8",
+                    "on-tertiary-container": "#ffd5d2",
+                    "primary-fixed-dim": "#82d3de",
+                    "on-error": "#ffffff",
+                    "tertiary": "#911a23",
+                    "tertiary-container": "#b33338",
+                    "secondary": "#006b5a",
+                    "on-secondary-container": "#00705e",
+                    "on-surface": "#191c1e",
+                    "error": "#ba1a1a",
+                    "surface-container-highest": "#e0e3e5",
+                    "secondary-container": "#98f0da",
+                    "surface-container-high": "#e6e8ea",
+                    "surface-container-low": "#f2f4f6",
+                    "primary": "#00535b",
+                    "outline": "#6f797a",
+                    "surface-bright": "#f7f9fb",
+                    "on-background": "#191c1e",
+                    "inverse-on-surface": "#eff1f3",
+                    "surface-container": "#eceef0",
+                    "on-primary": "#ffffff",
+                    "inverse-surface": "#2d3133",
+                    "outline-variant": "#bec8ca",
+                    "surface-variant": "#e0e3e5",
+                    "primary-fixed": "#9ff0fb",
+                    "on-secondary-fixed-variant": "#005143",
+                    "secondary-fixed": "#9bf3dc",
+                    "on-primary-fixed": "#001f23",
+                    "secondary-fixed-dim": "#7fd7c1",
+                    "on-primary-container": "#9becf7",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-tint": "#006972",
+                    "inverse-primary": "#82d3de"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-lg": "48px",
+                    "container-padding": "24px",
+                    "gutter": "16px",
+                    "base": "8px",
+                    "stack-md": "24px",
+                    "stack-sm": "12px"
+            },
+            "fontFamily": {
+                    "display": [
+                            "Inter"
+                    ],
+                    "headline-lg": [
+                            "Inter"
+                    ],
+                    "headline-md": [
+                            "Inter"
+                    ],
+                    "body-lg": [
+                            "Inter"
+                    ],
+                    "body-md": [
+                            "Inter"
+                    ],
+                    "label-md": [
+                            "Inter"
+                    ],
+                    "label-sm": [
+                            "Inter"
+                    ],
+                    "headline-lg-mobile": [
+                            "Inter"
+                    ]
+            },
+            "fontSize": {
+                    "display": [
+                            "48px",
+                            {
+                                    "lineHeight": "56px",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "headline-lg": [
+                            "32px",
+                            {
+                                    "lineHeight": "40px",
+                                    "letterSpacing": "-0.01em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "headline-md": [
+                            "24px",
+                            {
+                                    "lineHeight": "32px",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "body-lg": [
+                            "18px",
+                            {
+                                    "lineHeight": "28px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "body-md": [
+                            "16px",
+                            {
+                                    "lineHeight": "24px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "label-md": [
+                            "14px",
+                            {
+                                    "lineHeight": "20px",
+                                    "letterSpacing": "0.01em",
+                                    "fontWeight": "500"
+                            }
+                    ],
+                    "label-sm": [
+                            "12px",
+                            {
+                                    "lineHeight": "16px",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "headline-lg-mobile": [
+                            "24px",
+                            {
+                                    "lineHeight": "32px",
+                                    "fontWeight": "600"
+                            }
+                    ]
+            }
+    },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .filled-icon {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col">
+<!-- Top Navigation Bar -->
+<header class="bg-surface border-b border-outline-variant flex justify-between items-center px-container-padding h-16 w-full flex-shrink-0">
+<div class="flex items-center gap-4">
+<span class="font-headline-md text-headline-md font-bold text-primary">Molecule Modeling Workbench</span>
+</div>
+<div class="hidden md:flex items-center gap-6 h-full">
+<a class="h-full flex items-center text-on-surface-variant font-medium hover:bg-surface-container-high transition-colors px-2" href="#">Library</a>
+<a class="h-full flex items-center text-on-surface-variant font-medium hover:bg-surface-container-high transition-colors px-2" href="#">My Models</a>
+<a class="h-full flex items-center text-on-surface-variant font-medium hover:bg-surface-container-high transition-colors px-2" href="#">Classroom</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors scale-95 active:opacity-80">
+<span class="material-symbols-outlined">help</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors scale-95 active:opacity-80">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Phase Stepper -->
+<div class="bg-surface border-b border-outline-variant px-container-padding py-4 flex-shrink-0">
+<div class="max-w-4xl mx-auto flex items-center justify-between relative">
+<div class="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-surface-variant -z-10"></div>
+<div class="flex flex-col items-center bg-surface px-2">
+<div class="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center mb-1">
+<span class="material-symbols-outlined text-sm">check</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Choose</span>
+</div>
+<div class="flex flex-col items-center bg-surface px-2">
+<div class="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center mb-1">
+<span class="material-symbols-outlined text-sm">check</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Predict</span>
+</div>
+<div class="flex flex-col items-center bg-surface px-2">
+<div class="w-8 h-8 rounded-full border-2 border-primary bg-primary text-on-primary flex items-center justify-center mb-1">
+<span class="font-label-md text-label-md">3</span>
+</div>
+<span class="font-label-sm text-label-sm text-primary font-bold">Draw</span>
+</div>
+<div class="flex flex-col items-center bg-surface px-2">
+<div class="w-8 h-8 rounded-full border-2 border-outline-variant bg-surface text-outline flex items-center justify-center mb-1">
+<span class="font-label-md text-label-md">4</span>
+</div>
+<span class="font-label-sm text-label-sm text-outline">Check</span>
+</div>
+<div class="flex flex-col items-center bg-surface px-2">
+<div class="w-8 h-8 rounded-full border-2 border-outline-variant bg-surface text-outline flex items-center justify-center mb-1">
+<span class="font-label-md text-label-md">5</span>
+</div>
+<span class="font-label-sm text-label-sm text-outline">View</span>
+</div>
+<div class="flex flex-col items-center bg-surface px-2">
+<div class="w-8 h-8 rounded-full border-2 border-outline-variant bg-surface text-outline flex items-center justify-center mb-1">
+<span class="font-label-md text-label-md">6</span>
+</div>
+<span class="font-label-sm text-label-sm text-outline">Reflect</span>
+</div>
+</div>
+</div>
+<!-- Main Workspace -->
+<main class="flex-grow flex flex-col md:flex-row overflow-hidden relative">
+<!-- Mobile Bottom Nav (Hidden on md+) -->
+<nav class="md:hidden fixed bottom-0 w-full z-50 flex justify-around items-center h-20 px-4 bg-surface-container-highest shadow-md">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-transform duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">list_alt</span>
+<span class="font-label-sm text-label-sm mt-1">Choose</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-4 py-1 transition-transform duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined filled-icon">edit_note</span>
+<span class="font-label-sm text-label-sm mt-1">Draw</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-transform duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">verified</span>
+<span class="font-label-sm text-label-sm mt-1">Check</span>
+</a>
+</nav>
+<!-- Sidebar / Instruction Panel -->
+<aside class="w-full md:w-64 flex-shrink-0 bg-surface border-b md:border-b-0 md:border-r border-outline-variant flex flex-col p-container-padding overflow-y-auto">
+<div class="mb-stack-md">
+<h2 class="font-headline-md text-headline-md text-on-surface mb-2">Step 3: Draw</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Draw the molecular structure or load an example to begin.</p>
+</div>
+<div class="bg-surface-container-low rounded-lg p-4 mb-stack-md border border-outline-variant">
+<h3 class="font-label-md text-label-md text-on-surface mb-2 font-semibold">Current Task</h3>
+<p class="font-body-md text-body-md text-primary font-medium">Draw Water (H₂O)</p>
+</div>
+<div class="flex-grow"></div>
+<!-- Contextual Help / Tips -->
+<div class="bg-primary-fixed-dim/20 rounded-lg p-4 mt-stack-md border border-primary-fixed-dim/30">
+<div class="flex items-center gap-2 mb-2 text-primary-container">
+<span class="material-symbols-outlined text-sm">lightbulb</span>
+<h4 class="font-label-sm text-label-sm font-semibold">Tip</h4>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Use the element panel on the right to select atoms, and the tools on the left to create bonds.</p>
+</div>
+</aside>
+<!-- Central Canvas Area -->
+<div class="flex-grow flex flex-col bg-surface-container-lowest p-container-padding overflow-hidden">
+<!-- Toolbar above canvas -->
+<div class="flex flex-wrap items-center justify-between gap-4 mb-gutter">
+<div class="flex items-center gap-2 bg-surface p-1 rounded-lg border border-outline-variant shadow-sm">
+<span class="font-label-md text-label-md text-on-surface-variant px-2">Example:</span>
+<select class="form-select border-none bg-transparent font-body-md text-body-md text-on-surface focus:ring-0 py-1 pr-8">
+<option>Water (H₂O)</option>
+<option>Methane (CH₄)</option>
+<option>Carbon Dioxide (CO₂)</option>
+</select>
+<button class="bg-secondary text-on-secondary px-3 py-1.5 rounded-md font-label-md text-label-md hover:bg-on-secondary-container transition-colors shadow-sm ml-2">
+                        Load
+                    </button>
+</div>
+<button class="bg-primary text-on-primary px-4 py-2 rounded-lg font-label-md text-label-md hover:bg-on-primary-fixed-variant transition-colors shadow-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">fact_check</span>
+                    Check My Structure
+                </button>
+</div>
+<!-- The Drawing Canvas Container (Mock Ketcher) -->
+<div class="flex-grow bg-white rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col relative">
+<!-- Inner Header -->
+<div class="bg-surface-container flex justify-between items-center p-2 border-b border-outline-variant">
+<span class="font-label-sm text-label-sm text-on-surface-variant font-medium px-2">Molecule Editor</span>
+<span class="bg-secondary-container text-on-secondary-container font-label-sm text-label-sm px-2 py-0.5 rounded-full border border-secondary">Ready</span>
+</div>
+<!-- Canvas Layout -->
+<div class="flex-grow flex relative">
+<!-- Left Tools (Action) -->
+<div class="w-12 border-r border-outline-variant bg-surface flex flex-col items-center py-2 gap-2 overflow-y-auto">
+<button class="p-1.5 text-on-surface hover:bg-surface-variant rounded-md transition-colors" title="Select">
+<span class="material-symbols-outlined text-sm">pan_tool_alt</span>
+</button>
+<button class="p-1.5 bg-primary-container text-on-primary-container rounded-md transition-colors shadow-inner" title="Lasso">
+<span class="material-symbols-outlined text-sm">lasso_select</span>
+</button>
+<button class="p-1.5 text-on-surface hover:bg-surface-variant rounded-md transition-colors" title="Erase">
+<span class="material-symbols-outlined text-sm">ink_eraser</span>
+</button>
+<div class="w-8 h-px bg-outline-variant my-1"></div>
+<button class="p-1.5 text-on-surface hover:bg-surface-variant rounded-md transition-colors" title="Single Bond">
+<span class="material-symbols-outlined text-sm">remove</span>
+</button>
+<button class="p-1.5 text-on-surface hover:bg-surface-variant rounded-md transition-colors" title="Double Bond">
+<span class="material-symbols-outlined text-sm">drag_handle</span>
+</button>
+</div>
+<!-- Center Area (Placeholder for actual canvas) -->
+<div class="flex-grow relative bg-[#fafbfc] flex items-center justify-center">
+<div class="text-surface-dim font-display text-display opacity-20 pointer-events-none select-none text-center">
+                            Canvas<br/><span class="font-body-lg text-body-lg">Draw here</span>
+</div>
+</div>
+<!-- Right Tools (Elements) -->
+<div class="w-12 border-l border-outline-variant bg-surface flex flex-col items-center py-2 gap-2 overflow-y-auto">
+<button class="p-1 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-variant w-8 h-8 rounded-md flex items-center justify-center">H</button>
+<button class="p-1 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-variant w-8 h-8 rounded-md flex items-center justify-center">C</button>
+<button class="p-1 font-label-md text-label-md font-bold text-blue-600 hover:bg-surface-variant w-8 h-8 rounded-md flex items-center justify-center">N</button>
+<button class="p-1 font-label-md text-label-md font-bold text-red-600 hover:bg-surface-variant w-8 h-8 rounded-md flex items-center justify-center">O</button>
+<button class="p-1 font-label-md text-label-md font-bold text-yellow-600 hover:bg-surface-variant w-8 h-8 rounded-md flex items-center justify-center">S</button>
+<div class="w-8 h-px bg-outline-variant my-1"></div>
+<button class="p-1 font-label-md text-label-md font-bold text-orange-500 hover:bg-surface-variant w-8 h-8 rounded-md flex items-center justify-center">P</button>
+<button class="p-1 font-label-md text-label-md font-bold text-green-600 hover:bg-surface-variant w-8 h-8 rounded-md flex items-center justify-center">F</button>
+<button class="p-1 font-label-md text-label-md font-bold text-green-700 hover:bg-surface-variant w-8 h-8 rounded-md flex items-center justify-center text-xs">Cl</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

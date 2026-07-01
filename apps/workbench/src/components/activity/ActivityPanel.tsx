@@ -24,7 +24,7 @@ type ActivityPanelProps = {
 function formatComparisonStatus(status: ActivityComparisonStatus): string {
   switch (status) {
     case 'not_validated':
-      return '아직 검증 전';
+      return '아직 확인 전';
     case 'not_answered':
       return '예상값 입력 전';
     case 'match':
@@ -65,8 +65,8 @@ export function ActivityPanel({
     <section className="workspace-panel activity-panel" data-testid="activity-panel">
       <div className="panel-heading activity-heading">
         <div>
-          <p className="section-label">수업 활동</p>
-          <h2>수업용 활동 모드</h2>
+          <p className="section-label">오늘의 탐구 활동</p>
+          <h2>수업용 활동</h2>
         </div>
         <span className="status-pill">자동 채점 없음</span>
       </div>
@@ -106,7 +106,7 @@ export function ActivityPanel({
                 <dd>{selectedTemplate.targetMoleculeName}</dd>
               </div>
               <div>
-                <dt>추천 예제</dt>
+                <dt>추천 분자 예시</dt>
                 <dd>{selectedTemplate.recommendedExampleId ?? '없음'}</dd>
               </div>
             </dl>
@@ -162,8 +162,8 @@ export function ActivityPanel({
               <strong>{responses.predictedFormula?.trim() || '미입력'}</strong>
             </div>
             <div className="comparison-row">
-              <span>RDKit 검증 분자식</span>
-              <strong>{comparison.rdkitFormula ?? '아직 검증 전'}</strong>
+              <span>구조 확인 분자식</span>
+              <strong>{comparison.rdkitFormula ?? '아직 확인 전'}</strong>
             </div>
             <div className={`comparison-row ${comparison.formulaStatus}`}>
               <span>분자식 비교 결과</span>
@@ -174,8 +174,8 @@ export function ActivityPanel({
               <strong>{responses.predictedMolecularWeight?.trim() || '미입력'}</strong>
             </div>
             <div className="comparison-row">
-              <span>RDKit 평균 분자량</span>
-              <strong>{comparison.rdkitMolecularWeight ?? '아직 검증 전'}</strong>
+              <span>구조 확인 평균 분자량</span>
+              <strong>{comparison.rdkitMolecularWeight ?? '아직 확인 전'}</strong>
             </div>
             <div className={`comparison-row ${comparison.molecularWeightStatus}`}>
               <span>분자량 비교 결과</span>
@@ -185,7 +185,7 @@ export function ActivityPanel({
             </div>
             <p>
               비교는 단순 문자열 비교입니다. 분자식과 평균 분자량의 기준값은
-              RDKit.js 검증 결과만 사용합니다.
+              구조 확인 결과만 사용합니다.
             </p>
           </div>
         </div>

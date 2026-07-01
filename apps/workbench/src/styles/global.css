@@ -264,6 +264,7 @@ select {
 .viewer-panel {
   display: grid;
   gap: 14px;
+  container: molecule-viewer / inline-size;
 }
 
 .viewer-heading {
@@ -350,6 +351,126 @@ select {
   border-color: #2f6f7b;
   background: #eef7f8;
   color: #245965;
+}
+
+.compact-action {
+  white-space: nowrap;
+}
+
+.student-activity-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.student-step,
+.teacher-advanced-panel {
+  border: 1px solid #c8d5d7;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 18px;
+}
+
+.student-step-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.student-step-heading h2 {
+  margin: 4px 0 0;
+  color: #21313a;
+  font-size: 1.12rem;
+}
+
+.student-step-number {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: #2f6f7b;
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.activity-picker-layout {
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.student-target-card {
+  align-content: start;
+}
+
+.student-question-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.student-drawing-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.student-drawing-actions .example-picker select {
+  max-width: 260px;
+}
+
+.student-result-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.student-result-card {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-height: 104px;
+  border: 1px solid #d7e0e2;
+  border-radius: 8px;
+  background: #fbfcfc;
+  padding: 12px;
+}
+
+.student-result-card strong {
+  color: #21313a;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.student-result-card.ready {
+  border-color: #7fb59a;
+  background: #eff9f3;
+}
+
+.student-result-card.warning {
+  border-color: #dfcf95;
+  background: #fff9e8;
+}
+
+.shape-viewer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.teacher-advanced-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.teacher-advanced-grid {
+  display: grid;
+  gap: 14px;
 }
 
 .measurement-heading {
@@ -1212,6 +1333,13 @@ select {
   background: #f9fbfb;
 }
 
+/* Student activity grids can make the viewer panel narrow while the viewport is still wide. */
+@container molecule-viewer (max-width: 560px) {
+  .viewer-content {
+    grid-template-columns: 1fr;
+  }
+}
+
 .viewer-empty-state {
   display: grid;
   align-content: start;
@@ -1361,7 +1489,9 @@ select {
   }
 
   .activity-layout,
+  .activity-picker-layout,
   .activity-question-grid,
+  .student-question-grid,
   .activity-target dl,
   .comparison-row,
   .activity-result-layout,
@@ -1372,7 +1502,9 @@ select {
   .teacher-question-columns,
   .teacher-info-grid,
   .comparison-summary-grid,
-  .comparison-viewer-grid {
+  .comparison-viewer-grid,
+  .student-result-grid,
+  .shape-viewer-grid {
     grid-template-columns: 1fr;
   }
 

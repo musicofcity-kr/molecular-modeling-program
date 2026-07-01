@@ -30,8 +30,8 @@ type StructureComparisonPanelProps = {
 };
 
 const STUDENT_GUIDANCE = [
-  'VSEPR 모형은 전자쌍 반발 이론으로 분자 모양을 예측하는 도구입니다. 실제 3D 구조 데이터와 항상 완전히 같지는 않습니다.',
-  'PubChem 또는 정적 3D 구조는 좌표 데이터를 시각화한 것입니다. VSEPR 모형은 이론에 따른 교육용 예측입니다.',
+  '예상 입체 모형은 전자쌍 반발 이론으로 분자 모양을 예측하는 도구입니다. 참고 3D 구조와 항상 완전히 같지는 않습니다.',
+  '참고 3D 구조는 3D 자료를 시각화한 것입니다. 예상 입체 모형은 이론에 따른 교육용 예측입니다.',
   '비교 모드는 어느 쪽이 무조건 정답인지 고르는 활동이 아니라, 두 표현의 의미를 구분하는 활동입니다.',
 ];
 
@@ -49,18 +49,38 @@ function formatAvailability(state: StructureComparisonState): string {
     case 'available':
       return '비교 가능';
     case 'missing_real_3d':
-      return '3D 좌표 필요';
+      return '3D 자료 필요';
     case 'missing_vsepr':
-      return 'VSEPR 예측 필요';
+      return '입체 구조 예상 필요';
     case 'low_confidence_vsepr':
-      return 'VSEPR 신뢰도 낮음';
+      return '입체 구조 예상 확인 필요';
     case 'multi_center_not_recommended':
       return '단일 중심 비교 비추천';
     case 'rdkit_invalid':
-      return 'RDKit 검증 필요';
+      return '구조 확인 필요';
     case 'not_supported':
       return '지원하지 않음';
   }
+}
+
+function formatStudentComparisonText(text: string): string {
+  return text
+    .replace(/3D 좌표 데이터/g, '3D 자료')
+    .replace(/VSEPR 예측/g, '입체 구조 예상')
+    .replace(/실제\/외부 3D 자료/g, '참고 3D 자료')
+    .replace(/실제\/외부 3D 구조/g, '참고 3D 구조')
+    .replace(/RDKit\.js 검증/g, '구조 확인')
+    .replace(/RDKit 검증/g, '구조 확인')
+    .replace(/RDKit/g, '구조 확인')
+    .replace(/VSEPR/g, '입체 구조 예상')
+    .replace(/PubChem/g, '외부 자료')
+    .replace(/3D 좌표/g, '3D 자료')
+    .replace(/좌표 데이터/g, '3D 자료')
+    .replace(/canonical SMILES/g, '표준 구조 표현')
+    .replace(/SMILES/g, '구조 문자열')
+    .replace(/실제\/외부/g, '참고')
+    .replace(/검증 전/g, '확인 전')
+    .replace(/검증/g, '확인');
 }
 
 export function StructureComparisonPanel({
@@ -87,8 +107,12 @@ export function StructureComparisonPanel({
     >
       <div className="panel-heading comparison-heading">
         <div>
-          <p className="section-label">비교 모드</p>
-          <h2>실제/외부 3D 구조 vs VSEPR 예측 모형</h2>
+          <p className="section-label">구조 비교하기</p>
+          <h2>
+            {userMode === 'teacher'
+              ? '실제/외부 3D 구조 vs VSEPR 예측 모형'
+              : '참고 3D 구조와 예상 입체 모형 비교'}
+          </h2>
         </div>
         <div className="comparison-heading-actions">
           <span className={available ? 'status-pill ready' : 'status-pill'}>
@@ -101,25 +125,37 @@ export function StructureComparisonPanel({
             type="button"
             onClick={onToggleOpen}
           >
-            {isOpen ? '비교 모드 닫기' : '비교 모드 열기'}
+            {isOpen ? '구조 비교 닫기' : '구조 비교하기'}
           </button>
         </div>
       </div>
 
-      <p className="comparison-student-message">{state.studentMessage}</p>
+      <p className="comparison-student-message">
+        {userMode === 'teacher'
+          ? state.studentMessage
+          : formatStudentComparisonText(state.studentMessage)}
+      </p>
 
       <dl className="comparison-summary-grid">
         <div>
-          <dt>RDKit 기준 분자식</dt>
-          <dd>{state.rdkitFormula ?? '검증 전'}</dd>
+          <dt>{userMode === 'teacher' ? 'RDKit 기준 분자식' : '구조 확인 분자식'}</dt>
+          <dd>{state.rdkitFormula ?? (userMode === 'teacher' ? '검증 전' : '확인 전')}</dd>
         </div>
         <div>
-          <dt>실제/외부 3D 출처</dt>
-          <dd>{state.real3DSourceLabel}</dd>
+          <dt>{userMode === 'teacher' ? '실제/외부 3D 출처' : '참고 3D 자료'}</dt>
+          <dd>
+            {userMode === 'teacher'
+              ? state.real3DSourceLabel
+              : formatStudentComparisonText(state.real3DSourceLabel)}
+          </dd>
         </div>
         <div>
-          <dt>VSEPR 출처</dt>
-          <dd>{state.vseprSourceLabel}</dd>
+          <dt>{userMode === 'teacher' ? 'VSEPR 출처' : '예상 입체 모형'}</dt>
+          <dd>
+            {userMode === 'teacher'
+              ? state.vseprSourceLabel
+              : formatStudentComparisonText(state.vseprSourceLabel)}
+          </dd>
         </div>
         <div>
           <dt>비교 추천</dt>
@@ -130,7 +166,9 @@ export function StructureComparisonPanel({
       {state.warnings.length > 0 ? (
         <ul className="comparison-warning-list">
           {state.warnings.map((warning) => (
-            <li key={warning}>{warning}</li>
+            <li key={warning}>
+              {userMode === 'teacher' ? warning : formatStudentComparisonText(warning)}
+            </li>
           ))}
         </ul>
       ) : null}
@@ -140,10 +178,11 @@ export function StructureComparisonPanel({
           <div className="comparison-viewer-column">
             <div className="comparison-viewer-intro">
               <p className="section-label">왼쪽</p>
-              <h3>실제/외부 3D 좌표 기반 구조</h3>
+              <h3>{userMode === 'teacher' ? '실제/외부 3D 좌표 기반 구조' : '참고 3D 구조'}</h3>
               <p>
-                이 구조는 정적 좌표 또는 PubChem 외부 3D 좌표를 3Dmol.js로
-                시각화한 것입니다.
+                {userMode === 'teacher'
+                  ? '이 구조는 정적 좌표 또는 PubChem 외부 3D 좌표를 3Dmol.js로 시각화한 것입니다.'
+                  : '이 구조는 내장 자료 또는 외부 자료에서 가져온 참고 3D 구조입니다.'}
               </p>
             </div>
             <Molecule3DViewer
@@ -158,7 +197,7 @@ export function StructureComparisonPanel({
           <div className="comparison-viewer-column">
             <div className="comparison-viewer-intro">
               <p className="section-label">오른쪽</p>
-              <h3>VSEPR 교육용 예측 모형</h3>
+              <h3>{userMode === 'teacher' ? 'VSEPR 교육용 예측 모형' : '예상 입체 모형'}</h3>
               <p>
                 이 모형은 중심 원자 주변 전자쌍 반발을 단순화하여 예측한
                 교육용 모형입니다.
@@ -185,7 +224,7 @@ export function StructureComparisonPanel({
           </div>
 
           <label className="comparison-question">
-            <span>실제/외부 3D 구조와 VSEPR 예측 모형에서 비슷하게 보이는 점은 무엇인가요?</span>
+            <span>참고 3D 구조와 예상 입체 모형에서 비슷하게 보이는 점은 무엇인가요?</span>
             <textarea
               value={observation.observedSimilarities}
               placeholder="예: 중심 원자 주변 원자 배치가 비슷해 보인다."
@@ -198,17 +237,17 @@ export function StructureComparisonPanel({
             <span>다르게 보이는 점은 무엇인가요?</span>
             <textarea
               value={observation.observedDifferences}
-              placeholder="예: VSEPR 모형은 비공유 전자쌍 방향을 강조하지만 실제 3D 구조에는 전자쌍 입자가 보이지 않는다."
+              placeholder="예: 예상 입체 모형은 비공유 전자쌍 방향을 강조하지만 참고 3D 구조에는 전자쌍 입자가 보이지 않는다."
               onChange={(event) => {
                 onObservationChange('observedDifferences', event.currentTarget.value);
               }}
             />
           </label>
           <label className="comparison-question">
-            <span>VSEPR 모형이 실제 구조를 완전히 대신할 수 없는 이유는 무엇일까요?</span>
+            <span>예상 입체 모형이 참고 3D 구조를 완전히 대신할 수 없는 이유는 무엇일까요?</span>
             <textarea
               value={observation.studentReflection}
-              placeholder="예: VSEPR은 단순화한 예측이고, 실제/외부 3D 구조는 별도 좌표 출처가 있기 때문이다."
+              placeholder="예: 예상 입체 모형은 단순화한 예측이고, 참고 3D 구조는 별도 자료 출처가 있기 때문이다."
               onChange={(event) => {
                 onObservationChange('studentReflection', event.currentTarget.value);
               }}

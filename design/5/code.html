@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+
+<html lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Molecule Modeling Workbench - Step 5: 3D Visualization and Comparison</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface-variant": "#3e494a",
+                        "surface-dim": "#d8dadc",
+                        "on-tertiary": "#ffffff",
+                        "background": "#f7f9fb",
+                        "primary-container": "#006d77",
+                        "on-primary-fixed-variant": "#004f56",
+                        "on-error-container": "#93000a",
+                        "surface": "#f7f9fb",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed-dim": "#ffb3b0",
+                        "on-tertiary-fixed": "#410006",
+                        "on-tertiary-fixed-variant": "#8c1520",
+                        "on-secondary-fixed": "#00201a",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed": "#ffdad8",
+                        "on-tertiary-container": "#ffd5d2",
+                        "primary-fixed-dim": "#82d3de",
+                        "on-error": "#ffffff",
+                        "tertiary": "#911a23",
+                        "tertiary-container": "#b33338",
+                        "secondary": "#006b5a",
+                        "on-secondary-container": "#00705e",
+                        "on-surface": "#191c1e",
+                        "error": "#ba1a1a",
+                        "surface-container-highest": "#e0e3e5",
+                        "secondary-container": "#98f0da",
+                        "surface-container-high": "#e6e8ea",
+                        "surface-container-low": "#f2f4f6",
+                        "primary": "#00535b",
+                        "outline": "#6f797a",
+                        "surface-bright": "#f7f9fb",
+                        "on-background": "#191c1e",
+                        "inverse-on-surface": "#eff1f3",
+                        "surface-container": "#eceef0",
+                        "on-primary": "#ffffff",
+                        "inverse-surface": "#2d3133",
+                        "outline-variant": "#bec8ca",
+                        "surface-variant": "#e0e3e5",
+                        "primary-fixed": "#9ff0fb",
+                        "on-secondary-fixed-variant": "#005143",
+                        "secondary-fixed": "#9bf3dc",
+                        "on-primary-fixed": "#001f23",
+                        "secondary-fixed-dim": "#7fd7c1",
+                        "on-primary-container": "#9becf7",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-tint": "#006972",
+                        "inverse-primary": "#82d3de"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-lg": "48px",
+                        "container-padding": "24px",
+                        "gutter": "16px",
+                        "base": "8px",
+                        "stack-md": "24px",
+                        "stack-sm": "12px"
+                    },
+                    "fontFamily": {
+                        "display": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "label-md": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "headline-lg-mobile": ["Inter"]
+                    },
+                    "fontSize": {
+                        "display": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col">
+<!-- TopNavBar -->
+<header class="bg-surface border-b border-outline-variant flex justify-between items-center px-container-padding h-16 w-full shrink-0">
+<div class="font-headline-md text-headline-md font-bold text-primary">Molecule Modeling Workbench</div>
+<div class="flex items-center gap-4 hidden">
+<!-- Search bar hidden as per JSON -->
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary cursor-pointer hover:bg-surface-container-high p-2 rounded-full transition-colors" data-icon="help">help</span>
+<span class="material-symbols-outlined text-primary cursor-pointer hover:bg-surface-container-high p-2 rounded-full transition-colors" data-icon="account_circle">account_circle</span>
+</div>
+</header>
+<div class="flex flex-1 overflow-hidden">
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col bg-surface-container-low h-full left-0 w-64 border-r border-outline-variant shrink-0 py-4">
+<div class="px-container-padding mb-6">
+<h2 class="font-headline-md text-headline-md text-primary">Molecules</h2>
+<p class="font-label-sm text-label-sm text-on-surface-variant">v1.0.4-beta</p>
+</div>
+<ul class="flex flex-col gap-2">
+<!-- Highlight 'Classroom' as it fits an educational step-by-step tool -->
+<li>
+<a class="flex items-center gap-3 px-4 py-3 mx-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all active:scale-98" href="#">
+<span class="material-symbols-outlined" data-icon="science">science</span>
+<span class="font-label-md text-label-md">Library</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-4 py-3 mx-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all active:scale-98" href="#">
+<span class="material-symbols-outlined" data-icon="model_training">model_training</span>
+<span class="font-label-md text-label-md">My Models</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-4 py-3 bg-secondary-container text-on-secondary-container rounded-lg mx-2 transition-all active:scale-98" href="#">
+<span class="material-symbols-outlined" data-icon="school">school</span>
+<span class="font-label-md text-label-md font-bold">Classroom</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-4 py-3 mx-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all active:scale-98" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-4 py-3 mx-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all active:scale-98" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span class="font-label-md text-label-md">Archive</span>
+</a>
+</li>
+</ul>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 overflow-y-auto p-container-padding pb-24 md:pb-container-padding">
+<!-- Header Section -->
+<div class="mb-stack-md flex items-start gap-4">
+<div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center font-headline-md font-bold shrink-0">5</div>
+<div>
+<h1 class="font-headline-md text-headline-md md:font-headline-lg md:text-headline-lg text-on-surface font-bold">입체 구조 보기</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">예측 모형과 3D 구조를 구분해서 관찰합니다</p>
+</div>
+</div>
+<!-- Bento Grid Layout for Models -->
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-gutter mb-stack-md">
+<!-- Card 1: VSEPR Prediction Theory -->
+<div class="bg-surface rounded-xl border border-outline-variant p-6 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow">
+<div class="flex justify-between items-center">
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">입체 구조 예상</p>
+<h3 class="font-headline-md text-headline-md text-primary mt-1">전자쌍 반발로 예상한 분자 모양</h3>
+</div>
+<span class="px-3 py-1 rounded-full border border-outline-variant text-outline font-label-sm text-label-sm">대기</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">입체 구조 예상은 전자쌍 반발 이론에 따른 교육용 예측입니다. 실제 측정 구조 또는 계산화학 최적화 구조와 차이가 있을 수 있습니다.</p>
+<div class="bg-surface-container-low p-4 rounded-lg flex items-center justify-between border border-outline-variant">
+<p class="font-body-sm text-body-md text-on-surface-variant text-sm flex-1 mr-4">예상 입체 모형은 실제 3D 자료가 아니라 중심 원자 주변 전자쌍 방향을 이해하기 위한 단위 벡터 모형입니다.</p>
+<button class="bg-surface text-on-surface border border-outline-variant px-4 py-2 rounded-lg font-label-md text-label-md hover:bg-surface-container transition-colors shrink-0 whitespace-nowrap">예상 입체 모형 보기</button>
+</div>
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-auto pt-4">
+<div class="p-3 border border-outline-variant rounded-lg bg-surface flex flex-col justify-center items-center text-center">
+<span class="font-label-sm text-label-sm text-outline block mb-1">전자쌍 모형 표기</span>
+<span class="font-body-sm text-body-md text-on-surface">아직 예측되지 않음</span>
+</div>
+<div class="p-3 border border-outline-variant rounded-lg bg-surface flex flex-col justify-center items-center text-center">
+<span class="font-label-sm text-label-sm text-outline block mb-1">전자쌍 배열</span>
+<span class="font-body-sm text-body-md text-on-surface">아직 예측되지 않음</span>
+</div>
+<div class="p-3 border border-outline-variant rounded-lg bg-surface flex flex-col justify-center items-center text-center">
+<span class="font-label-sm text-label-sm text-outline block mb-1">분자 구조</span>
+<span class="font-body-sm text-body-md text-on-surface">아직 예측되지 않음</span>
+</div>
+<div class="p-3 border border-outline-variant rounded-lg bg-surface flex flex-col justify-center items-center text-center">
+<span class="font-label-sm text-label-sm text-outline block mb-1">결합 원자 수</span>
+<span class="font-body-sm text-body-md text-on-surface">아직 예측되지 않음</span>
+</div>
+</div>
+</div>
+<!-- Card 2: VSEPR 3D Viewer -->
+<div class="bg-surface rounded-xl border border-outline-variant p-6 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow">
+<div class="flex justify-between items-center">
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">입체 구조 예상 보기</p>
+<h3 class="font-headline-md text-headline-md text-primary mt-1">예상 입체 모형</h3>
+</div>
+<span class="px-3 py-1 rounded-full border border-secondary text-secondary font-label-sm text-label-sm bg-secondary-container bg-opacity-20">대기</span>
+</div>
+<div class="bg-surface-container-low p-4 rounded-lg flex items-start gap-4 border border-outline-variant">
+<p class="font-body-sm text-body-md text-on-surface-variant text-sm flex-1">이 화면은 전자쌍 반발 이론에 따른 교육용 예측 모형입니다. 실제 분자의 정밀한 3D 구조와는 차이가 있을 수 있습니다.</p>
+<label class="flex items-center gap-2 cursor-pointer shrink-0 mt-1">
+<input checked="" class="form-checkbox text-primary rounded border-outline-variant focus:ring-primary" type="checkbox"/>
+<span class="font-label-md text-label-md text-on-surface">라벨 표시</span>
+</label>
+</div>
+<div class="flex gap-4 h-64 mt-2">
+<!-- 3D Viewer Placeholder -->
+<div class="w-1/3 bg-[#F1F5F9] rounded-lg border border-outline-variant overflow-hidden relative flex items-center justify-center">
+<span class="material-symbols-outlined text-outline text-4xl opacity-50" data-icon="3d_rotation">3d_rotation</span>
+</div>
+<!-- Information List -->
+<div class="w-2/3 bg-surface border border-outline-variant rounded-lg p-4 overflow-y-auto">
+<h4 class="font-label-md text-label-md font-bold text-on-surface mb-3">입체 구조 예상이 지원되는 구조에서만 교육용 3D 예측 모형을 표시합니다.</h4>
+<div class="mb-3">
+<span class="font-label-sm text-label-sm text-outline block">모형 종류</span>
+<span class="font-body-sm text-body-md text-on-surface-variant text-sm">전자쌍 반발 교육용 예측 모형</span>
+</div>
+<div class="mb-3">
+<span class="font-label-sm text-label-sm text-outline block">참고 3D 구조 여부</span>
+<span class="font-body-sm text-body-md text-on-surface-variant text-sm">아님. 외부 3D 자료와 구분합니다.</span>
+</div>
+<div class="mb-3">
+<span class="font-label-sm text-label-sm text-outline block">전자쌍 모형 표기</span>
+<span class="font-body-sm text-body-md text-on-surface-variant text-sm">아직 예측되지 않음</span>
+</div>
+<div class="mb-3">
+<span class="font-label-sm text-label-sm text-outline block">비공유 전자쌍 표현</span>
+<span class="font-body-sm text-body-md text-on-surface-variant text-sm">실제 입자가 아니라 전자쌍 방향 이해를 위한 시각화입니다.</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 3: Actual 3D Structure Viewer -->
+<div class="bg-surface rounded-xl border border-outline-variant p-6 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow">
+<div class="flex justify-between items-center">
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">3D 구조 보기</p>
+<h3 class="font-headline-md text-headline-md text-primary mt-1">참고 3D 구조 보기</h3>
+</div>
+<span class="px-3 py-1 rounded-full border border-secondary text-secondary font-label-sm text-label-sm flex items-center gap-1 bg-secondary-container bg-opacity-20">
+<span class="material-symbols-outlined text-[14px]" data-icon="check_circle">check_circle</span>
+                            3D 구조 보기 준비됨
+                        </span>
+</div>
+<!-- 3D Viewer Area -->
+<div class="flex-1 bg-[#F1F5F9] rounded-lg border border-outline-variant relative overflow-hidden min-h-[200px] flex items-center justify-center">
+<span class="material-symbols-outlined text-outline text-4xl opacity-50" data-icon="science">science</span>
+</div>
+<div class="bg-surface border border-outline-variant rounded-lg p-4 mt-auto">
+<h4 class="font-label-md text-label-md font-bold text-on-surface mb-2">이 분자의 3D 자료가 아직 준비되지 않았습니다</h4>
+<div class="grid grid-cols-2 gap-2">
+<div>
+<span class="font-label-sm text-label-sm text-outline block">자료 상태</span>
+<span class="font-body-sm text-body-md text-on-surface-variant text-sm">3D 자료 준비 전</span>
+</div>
+<div>
+<span class="font-label-sm text-label-sm text-outline block">계산 기준</span>
+<span class="font-body-sm text-body-md text-on-surface-variant text-sm">분자식과 분자량은 구조 확인 결과입니다.</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Comparison Section -->
+<div class="bg-surface rounded-xl border border-outline-variant p-6 shadow-sm mb-8">
+<div class="flex justify-between items-end mb-4 border-b border-outline-variant pb-4">
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">구조 비교하기</p>
+<h3 class="font-headline-md text-headline-md text-primary mt-1">참고 3D 구조와 예상 입체 모형 비교</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-2">구조 확인을 통과한 구조에서만 비교 모드를 사용할 수 있습니다.</p>
+</div>
+<div class="flex gap-2">
+<button class="px-4 py-2 rounded-lg border border-outline-variant text-on-surface font-label-md text-label-md hover:bg-surface-container-low transition-colors">구조 확인 필요</button>
+<button class="px-4 py-2 rounded-lg bg-surface-container-high text-on-surface font-label-md text-label-md cursor-not-allowed opacity-50">구조 비교하기</button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+<div class="p-4 border border-outline-variant rounded-lg bg-surface">
+<span class="font-label-sm text-label-sm text-outline block mb-1">구조 확인 분자식</span>
+<span class="font-body-md text-body-md text-on-surface font-medium">확인 전</span>
+</div>
+<div class="p-4 border border-outline-variant rounded-lg bg-surface">
+<span class="font-label-sm text-label-sm text-outline block mb-1">참고 3D 자료</span>
+<span class="font-body-md text-body-md text-on-surface font-medium">참고 3D 자료 없음</span>
+</div>
+<div class="p-4 border border-outline-variant rounded-lg bg-surface">
+<span class="font-label-sm text-label-sm text-outline block mb-1">예상 입체 모형</span>
+<span class="font-body-md text-body-md text-on-surface font-medium">입체 구조 예상 결과 없음</span>
+</div>
+<div class="p-4 border border-outline-variant rounded-lg bg-surface">
+<span class="font-label-sm text-label-sm text-outline block mb-1">비교 추천</span>
+<span class="font-body-md text-body-md text-on-surface font-medium">추천</span>
+</div>
+</div>
+<div class="mt-4 p-3 rounded-lg bg-secondary-container bg-opacity-30 border border-secondary-container text-on-surface-variant text-sm font-body-md flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary" data-icon="info">info</span>
+                    외부 자료 또는 정적 3D 구조는 3D 자료를 시각화한 것입니다. 입체 구조 예상 모형은 이론에 따른 교육용 예측입니다.
+                </div>
+</div>
+</main>
+</div>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 w-full z-50 flex justify-around items-center h-20 px-4 shadow-lg bg-surface-container-highest border-t border-outline-variant">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-transform duration-200 ease-in-out w-16" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="list_alt">list_alt</span>
+<span class="font-label-sm text-label-sm">Choose</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-transform duration-200 ease-in-out w-16" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="psychology">psychology</span>
+<span class="font-label-sm text-label-sm">Predict</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-transform duration-200 ease-in-out w-16" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="edit_note">edit_note</span>
+<span class="font-label-sm text-label-sm">Draw</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-transform duration-200 ease-in-out w-16" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="verified">verified</span>
+<span class="font-label-sm text-label-sm">Check</span>
+</a>
+<!-- Highlight 'View' conceptually fitting 3D Visualization -->
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-4 py-1 transition-transform duration-200 ease-in-out w-16" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="3d_rotation">3d_rotation</span>
+<span class="font-label-sm text-label-sm">View</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-transform duration-200 ease-in-out w-16" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="auto_awesome">auto_awesome</span>
+<span class="font-label-sm text-label-sm">Reflect</span>
+</a>
+</nav>
+</body></html>

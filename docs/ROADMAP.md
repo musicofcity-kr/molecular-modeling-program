@@ -12,6 +12,8 @@
 - Completed: 3D Viewer representation controls and coordinate-based bond length/bond angle measurement MVP with explicit source warnings.
 - Completed: actual/external 3D structure vs VSEPR educational model comparison mode with student observation prompts and teacher caution notes.
 - Completed: local activity result save and JSON/Markdown/TXT/clipboard/print export MVP for Classroom MVP Release Candidate.
+- Completed: official classroom terminology cleanup for the default student activity screen.
+- Completed: student 3D flow stabilization for static examples, repeated confirmation, manual external 3D candidate loading, student free-draw 3D shell, and coordinate measurement visibility.
 - Next: classroom pilot QA, accessibility polish, and teacher template authoring/import/export after the release candidate is stable.
 
 ## Phase 0 — Skill and Workspace Setup

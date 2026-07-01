@@ -36,6 +36,7 @@ Student-facing notice:
 - VSEPR educational prediction summary
 - actual/external 3D vs VSEPR comparison observations
 - activity question answers
+- after-validation reflection
 - final reflection
 - export notice
 

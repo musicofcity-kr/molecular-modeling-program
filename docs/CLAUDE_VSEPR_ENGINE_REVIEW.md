@@ -11,7 +11,7 @@ Review date: 2026-06-30
 
 Claude's prototype provides a useful standalone VSEPR classroom simulator with
 13 standard AXE examples, a canvas viewer, and a repulsion-energy relaxation
-demo. The Molecule Modeling Workbench cannot import it wholesale because this
+demo. 다양한 분자의 분자구조 모델링 cannot import it wholesale because this
 project keeps RDKit.js validation, VSEPR prediction, actual 3D coordinate
 rendering, and educational template rendering as separate layers.
 
@@ -86,4 +86,3 @@ Latest targeted result:
 npm test -- --run src/services/vseprEngine.test.ts src/services/vseprGeometryTemplates.test.ts
 2 files passed, 14 tests passed
 ```
-

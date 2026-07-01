@@ -6,10 +6,7 @@ import {
 } from '../components/editor/KetcherEditor';
 import { Molecule3DViewer } from '../components/Molecule3DViewer';
 import { StructureInfoPanel } from '../components/molecule-panel/StructureInfoPanel';
-import {
-  ValidationLogPanel,
-  type WorkbenchLogEntry,
-} from '../components/validation/ValidationLogPanel';
+import type { WorkbenchLogEntry } from '../components/validation/ValidationLogPanel';
 import { PubChemCandidatePanel } from '../components/pubchem/PubChemCandidatePanel';
 import { StructureComparisonPanel } from '../components/comparison/StructureComparisonPanel';
 import { ActivityResultPanel } from '../components/export/ActivityResultPanel';
@@ -17,6 +14,12 @@ import { ActivityPanel } from '../components/activity/ActivityPanel';
 import { VseprPanel } from '../components/vsepr/VseprPanel';
 import { Vsepr3DModelViewer } from '../components/Vsepr3DModelViewer';
 import { TeacherPanel } from '../components/TeacherPanel';
+import { DeveloperDetailsPanel } from '../components/advanced/DeveloperDetailsPanel';
+import { TeacherAdvancedPanel } from '../components/advanced/TeacherAdvancedPanel';
+import { StudentActivityShell } from '../components/student/StudentActivityShell';
+import { MoleculeDrawingStep } from '../components/student/MoleculeDrawingStep';
+import { ShapeViewerSection } from '../components/student/ShapeViewerSection';
+import { ValidationResultCards } from '../components/student/ValidationResultCards';
 import type {
   ChemicalEditorHandle,
   ExtractedStructureData,
@@ -89,8 +92,7 @@ const INITIAL_VSEPR_ANALYSIS: VseprAnalysis = {
   status: 'not_requested',
   confidence: 'low',
   warnings: [],
-  studentMessage:
-    'RDKit.js 검증을 통과한 MOL block이 있을 때 VSEPR 예측을 실행할 수 있습니다.',
+  studentMessage: '구조 확인을 마치면 입체 구조 예상을 볼 수 있습니다.',
 };
 const INITIAL_STRUCTURE_COMPARISON_OBSERVATION = {
   observedSimilarities: '',
@@ -124,6 +126,44 @@ function buildExample3DInput(example: ExampleMolecule): Molecule3DInput | null {
   };
 }
 
+function formatStudentExternal3DMessage(message: string): string {
+  return message
+    .replace(/PubChem 3D 구조 데이터를/g, '외부 3D 자료를')
+    .replace(/PubChem 3D/g, '외부 3D 자료')
+    .replace(/PubChem/g, '외부 자료')
+    .replace(/\bCID\b/g, '후보 번호')
+    .replace(/\bSDF\b/g, '3D 자료')
+    .replace(/RDKit\.js/g, '구조 확인')
+    .replace(/canonical SMILES/g, '표준 구조 표현')
+    .replace(/\bSMILES\b/g, '구조 문자열');
+}
+
+export function resolveValidatedExampleForResult(input: {
+  explicitExample?: ExampleMolecule;
+  selectedExample?: ExampleMolecule;
+  result: MoleculeValidationResult;
+}): ExampleMolecule | null {
+  if (!input.result.ok) {
+    return null;
+  }
+
+  const candidate = input.explicitExample ?? input.selectedExample;
+
+  if (!candidate) {
+    return null;
+  }
+
+  if (buildExpectedFormulaWarning(candidate, input.result.molecularFormula)) {
+    return null;
+  }
+
+  if (input.explicitExample) {
+    return candidate;
+  }
+
+  return candidate.smiles === input.result.canonicalSmiles ? candidate : null;
+}
+
 function getVseprModelStatusForAnalysis(
   analysis: VseprAnalysis,
   options: { renderModel?: boolean } = {},
@@ -149,7 +189,7 @@ export function App() {
   const validationKeyRef = useRef<string | null>(null);
   const pubChem3DRequestIdRef = useRef(0);
   const pubChemCandidateRequestIdRef = useRef(0);
-  const [appMode, setAppMode] = useState<AppMode>('free_draw');
+  const [appMode, setAppMode] = useState<AppMode>('activity');
   const [userMode, setUserMode] = useState<UserMode>('student');
   const [selectedActivityId, setSelectedActivityId] = useState(
     activityTemplates[0]?.id ?? '',
@@ -279,12 +319,14 @@ export function App() {
     const structure = await editorRef.current?.extractStructure();
 
     if (!structure) {
-      throw new Error('Ketcher 편집기가 아직 준비되지 않았습니다.');
+      throw new Error('분자 그리기 도구가 아직 준비되지 않았습니다.');
     }
 
     const labeledStructure = example
       ? { ...structure, label: example.nameKo }
       : structure;
+    const previousValidationKey = validationKeyRef.current;
+    const previous3DInput = molecule3DInput;
 
     setMolecule3DInput(null);
     setValidatedExampleId(null);
@@ -311,9 +353,23 @@ export function App() {
         molBlock: labeledStructure.molBlock,
       });
       const shouldAutoRenderVseprModel = selectedActivityUsesVsepr;
+      const selectedExampleForHandoff = exampleMolecules.find(
+        (item) => item.id === selectedExampleId,
+      );
+      const validatedExampleForHandoff = resolveValidatedExampleForResult({
+        explicitExample: example,
+        selectedExample: selectedExampleForHandoff,
+        result,
+      });
       const expectedFormulaWarning = example
         ? buildExpectedFormulaWarning(example, result.molecularFormula)
         : null;
+      const retained3DInput =
+        !validatedExampleForHandoff &&
+        previous3DInput &&
+        previousValidationKey === result.canonicalSmiles
+          ? previous3DInput
+          : null;
 
       appendLog(
         createLog(
@@ -357,9 +413,11 @@ export function App() {
         );
       }
 
-      setValidatedExampleId(example && !expectedFormulaWarning ? example.id : null);
+      setValidatedExampleId(validatedExampleForHandoff?.id ?? null);
       setMolecule3DInput(
-        example && !expectedFormulaWarning ? buildExample3DInput(example) : null,
+        validatedExampleForHandoff
+          ? buildExample3DInput(validatedExampleForHandoff)
+          : retained3DInput,
       );
     } else {
       console.info('[RDKit validation]', result.developerLogs);
@@ -398,26 +456,28 @@ export function App() {
     example: ExampleMolecule | undefined,
   ): string => {
     if (!example) {
-      return 'PubChem 3D를 불러올 예제 분자를 선택해 주세요.';
+      return '참고 3D 구조를 불러올 분자 예시를 선택해 주세요.';
     }
 
     if (!example.pubchemCid) {
-      return '이 예제는 PubChem 3D 연결이 아직 준비되지 않았습니다.';
+      return '이 분자 예시는 참고 3D 구조 연결이 아직 준비되지 않았습니다.';
     }
 
     if (validatedExampleId !== example.id || validationResult?.ok !== true) {
-      return 'PubChem 3D를 불러오려면 먼저 이 예제를 불러와 RDKit.js 검증을 완료해 주세요.';
+      return '참고 3D 구조를 불러오려면 먼저 이 분자 예시를 불러와 구조 확인을 완료해 주세요.';
     }
 
     if (pubChem3DState.status === 'loading') {
-      return 'PubChem 3D 구조 데이터를 불러오는 중입니다.';
+      return '참고 3D 구조 자료를 불러오는 중입니다.';
     }
 
     if (pubChem3DState.studentMessage) {
-      return pubChem3DState.studentMessage;
+      return userMode === 'student'
+        ? formatStudentExternal3DMessage(pubChem3DState.studentMessage)
+        : pubChem3DState.studentMessage;
     }
 
-    return `PubChem CID ${example.pubchemCid}로 3D SDF를 불러올 수 있습니다.`;
+    return '이 분자 예시는 참고 3D 구조를 불러올 수 있습니다.';
   };
 
   const handleSelectExample = (exampleId: string) => {
@@ -439,7 +499,7 @@ export function App() {
     pubChem3DRequestIdRef.current = requestId;
     setPubChem3DState({
       status: 'loading',
-      studentMessage: `${input.label}의 PubChem 3D 구조 데이터를 불러오는 중입니다.`,
+      studentMessage: `${input.label}의 참고 3D 구조 자료를 불러오는 중입니다.`,
     });
     appendLog(createLog('info', input.requestLogMessage));
 
@@ -490,7 +550,7 @@ export function App() {
     if (!example?.pubchemCid) {
       setPubChem3DState({
         status: 'noData',
-        studentMessage: '이 예제는 PubChem 3D 연결이 아직 준비되지 않았습니다.',
+        studentMessage: '이 분자 예시는 참고 3D 구조 연결이 아직 준비되지 않았습니다.',
       });
       appendLog(
         createLog(
@@ -503,7 +563,7 @@ export function App() {
 
     if (validatedExampleId !== example.id || validationResult?.ok !== true) {
       const message =
-        'PubChem 3D를 불러오려면 먼저 이 예제를 불러와 RDKit.js 검증을 완료해 주세요.';
+        '참고 3D 구조를 불러오려면 먼저 이 분자 예시를 불러와 구조 확인을 완료해 주세요.';
 
       setPubChem3DState({ status: 'idle', studentMessage: message });
       appendLog(createLog('warning', message));
@@ -521,7 +581,7 @@ export function App() {
   const handleSearchPubChemCandidates = async () => {
     if (validationResult?.ok !== true || !validationResult.canonicalSmiles.trim()) {
       const message =
-        'PubChem 후보 검색은 RDKit.js 검증을 통과한 canonical SMILES가 있을 때만 실행할 수 있습니다.';
+        '외부 3D 자료 찾기는 구조 확인을 통과한 표준 구조 표현이 있을 때만 실행할 수 있습니다.';
 
       setPubChemCandidateState({
         status: 'not_requested',
@@ -537,7 +597,7 @@ export function App() {
       status: 'searching',
       candidates: [],
       warnings: [],
-      studentMessage: 'PubChem 외부 데이터 후보를 검색하는 중입니다.',
+      studentMessage: '외부 3D 자료 후보를 검색하는 중입니다.',
     });
     const requestId = pubChemCandidateRequestIdRef.current + 1;
     const requestValidationKey = validationResult.canonicalSmiles;
@@ -608,13 +668,13 @@ export function App() {
         status: 'error',
         studentMessage:
           compatibility.studentMessage ??
-          '선택한 PubChem 후보를 현재 구조의 3D 시각화 자료로 사용할 수 없습니다.',
+          '선택한 외부 3D 자료 후보를 현재 구조의 참고 3D 자료로 사용할 수 없습니다.',
       });
       appendLog(
         createLog(
           'warning',
           compatibility.studentMessage ??
-            '선택한 PubChem 후보를 현재 구조의 3D 시각화 자료로 사용할 수 없습니다.',
+            '선택한 외부 3D 자료 후보를 현재 구조의 참고 3D 자료로 사용할 수 없습니다.',
         ),
       );
       return;
@@ -632,7 +692,7 @@ export function App() {
 
     await loadPubChem3DByCid({
       cid: candidate.cid,
-      label: candidate.title ?? `PubChem CID ${candidate.cid}`,
+      label: candidate.title ?? `3D 자료 후보 ${candidate.cid}`,
       pubchemName: candidate.title,
       structureMatchStatus: compatibility.structureMatchStatus,
       requestLogMessage: `외부 데이터 후보 CID ${candidate.cid}로 3D SDF를 요청합니다. PubChem 후보값은 RDKit.js 검증값을 대체하지 않습니다.`,
@@ -648,7 +708,7 @@ export function App() {
       }
 
       if (!editorRef.current) {
-        throw new Error('Ketcher 편집기가 아직 준비되지 않았습니다.');
+        throw new Error('분자 그리기 도구가 아직 준비되지 않았습니다.');
       }
 
       await editorRef.current.setMolecule({ smiles: example.smiles });
@@ -895,6 +955,198 @@ export function App() {
     window.print();
     setActivityResultStatusMessage('인쇄용 화면을 열었습니다.');
   };
+  const isStudentActivityView = userMode === 'student' && appMode === 'activity';
+  const isStudentFreeDrawView = userMode === 'student' && appMode === 'free_draw';
+  const isTeacherOrAdvancedView = userMode === 'teacher';
+  const shouldShowStudentCoordinateTools =
+    userMode === 'student' &&
+    validationResult?.ok === true &&
+    molecule3DInput?.coordinateDimension === '3d';
+  const shouldShow3DActionSlot =
+    isTeacherOrAdvancedView ||
+    (
+      userMode === 'student' &&
+      validationResult?.ok === true &&
+      Boolean(selectedExample?.pubchemCid) &&
+      validatedExampleId === selectedExample?.id
+    );
+  const pubChem3DActionSlot = (
+    <div className={`pubchem-3d-control ${pubChem3DState.status}`}>
+      <div>
+        <p className="section-label">참고 3D 구조 보기</p>
+        <p className="pubchem-3d-message">
+          {getPubChem3DStatusMessage(selectedExample)}
+        </p>
+      </div>
+      {selectedExample?.pubchemCid ? (
+        <button
+          className="secondary-action"
+          data-testid="load-pubchem-3d-button"
+          type="button"
+          disabled={!canLoadPubChem3D}
+          onClick={handleLoadPubChem3D}
+        >
+          {pubChem3DState.status === 'loading'
+            ? '참고 3D 구조 불러오는 중'
+            : '참고 3D 구조 불러오기'}
+        </button>
+      ) : null}
+    </div>
+  );
+  const studentDrawingSlot = (
+    <KetcherEditor
+      ref={editorRef}
+      onReadyChange={(ready) => {
+        if (ready && !hasLoggedEditorReadyRef.current) {
+          hasLoggedEditorReadyRef.current = true;
+          appendLog(createLog('info', 'Ketcher editor가 준비되었습니다.'));
+        }
+      }}
+      onError={(message) => {
+        appendLog(createLog('error', `Ketcher 오류: ${message}`));
+      }}
+    />
+  );
+  const teacherDrawingSlot = (
+    <section className="workbench-layout" aria-label="분자 모델링 작업 영역">
+      <KetcherEditor
+        ref={editorRef}
+        onReadyChange={(ready) => {
+          if (ready && !hasLoggedEditorReadyRef.current) {
+            hasLoggedEditorReadyRef.current = true;
+            appendLog(createLog('info', 'Ketcher editor가 준비되었습니다.'));
+          }
+        }}
+        onError={(message) => {
+          appendLog(createLog('error', `Ketcher 오류: ${message}`));
+        }}
+      />
+      <StructureInfoPanel
+        extractedStructure={extractedStructure}
+        validationResult={validationResult}
+      />
+    </section>
+  );
+  const vseprPredictionSection = isVseprModuleVisible ? (
+    <>
+      <VseprPanel
+        analysis={vseprAnalysis}
+        selectedCentralAtomId={selectedVseprCentralAtomId}
+        onSelectCentralAtom={handleSelectVseprCentralAtom}
+        canShowModel={
+          vseprAnalysis.status === 'supported' &&
+          hasVseprGeometryTemplate(vseprAnalysis.axeNotation)
+        }
+        modelStatus={vseprModelStatus}
+        modelButtonLabel="예상 입체 모형 보기"
+        renderedModelButtonLabel="예상 입체 모형 표시 중"
+        onShowModel={handleShowVseprModel}
+      />
+
+      <Vsepr3DModelViewer
+        analysis={vseprAnalysis}
+        modelStatus={vseprModelStatus}
+        onDeveloperLog={handle3DDeveloperLog}
+      />
+    </>
+  ) : null;
+  const actual3DViewerSection = (
+    <Molecule3DViewer
+      coordinateData={molecule3DInput}
+      hasValidatedStructure={validationResult?.ok === true}
+      userMode={userMode}
+      showAdvancedControls={isTeacherOrAdvancedView}
+      showMeasurementControls={isTeacherOrAdvancedView || shouldShowStudentCoordinateTools}
+      validatedStructureKey={
+        validationResult?.ok === true ? validationResult.canonicalSmiles : undefined
+      }
+      actionSlot={shouldShow3DActionSlot ? pubChem3DActionSlot : null}
+      onDeveloperLog={handle3DDeveloperLog}
+      onMeasurementResultsChange={setMeasurementResults}
+    />
+  );
+  const comparisonSection = (
+    <StructureComparisonPanel
+      userMode={userMode}
+      state={structureComparisonState}
+      molecule3DInput={molecule3DInput}
+      vseprAnalysis={vseprAnalysis}
+      vseprModelStatus={vseprModelStatus}
+      isOpen={isStructureComparisonOpen}
+      observation={structureComparisonObservation}
+      focusQuestion={
+        appMode === 'activity'
+          ? selectedActivity?.comparisonMode?.focusQuestion
+          : undefined
+      }
+      onToggleOpen={() => {
+        setIsStructureComparisonOpen((current) => !current);
+      }}
+      onObservationChange={handleStructureComparisonObservationChange}
+      onDeveloperLog={handle3DDeveloperLog}
+    />
+  );
+  const resultSection = (
+    <ActivityResultPanel
+      userMode={userMode}
+      currentSnapshot={currentActivityResultSnapshot}
+      previewSnapshot={previewActivityResult}
+      savedResults={savedActivityResults}
+      statusMessage={activityResultStatusMessage}
+      onSave={handleSaveActivityResult}
+      onPreviewSavedResult={setPreviewActivityResultId}
+      onExportJson={() => {
+        handleExportActivityResult('json');
+      }}
+      onExportMarkdown={() => {
+        handleExportActivityResult('md');
+      }}
+      onExportTxt={() => {
+        handleExportActivityResult('txt');
+      }}
+      onCopyMarkdown={() => void handleCopyActivityResultMarkdown()}
+      onPrint={handlePrintActivityResult}
+    />
+  );
+  const studentExternal3DSearchSection =
+    validationResult?.ok === true ? (
+      <PubChemCandidatePanel
+        displayMode="student"
+        canSearch={canSearchPubChemCandidates}
+        status={pubChemCandidateState.status}
+        candidates={pubChemCandidateState.candidates}
+        warnings={pubChemCandidateState.warnings}
+        studentMessage={pubChemCandidateState.studentMessage}
+        selectedCandidateCid={pubChemCandidateState.selectedCandidateCid}
+        isLoading3D={pubChem3DState.status === 'loading'}
+        onSearch={handleSearchPubChemCandidates}
+        onSelectCandidate={handleSelectPubChemCandidate}
+      />
+    ) : null;
+  const studentFreeDrawView = (
+    <div className="student-activity-shell" data-testid="student-free-draw-shell">
+      <MoleculeDrawingStep
+        examples={exampleMolecules}
+        selectedExampleId={selectedExampleId}
+        drawingSlot={studentDrawingSlot}
+        onSelectExample={handleSelectExample}
+        onLoadExample={handleLoadExample}
+        onConfirmStructure={handleExtractAndValidate}
+      />
+      <ValidationResultCards
+        validationResult={validationResult}
+        vseprAnalysis={vseprAnalysis}
+        molecule3DInput={molecule3DInput}
+      />
+      <ShapeViewerSection
+        predictionSlot={vseprPredictionSection}
+        actual3DSlot={actual3DViewerSection}
+        external3DSearchSlot={studentExternal3DSearchSection}
+        comparisonSlot={comparisonSection}
+      />
+      {resultSection}
+    </div>
+  );
 
   return (
     <main className="app-shell" data-testid="app-shell">
@@ -910,87 +1162,80 @@ export function App() {
         onExtractAndValidate={handleExtractAndValidate}
       />
 
-      <section className="workbench-layout" aria-label="분자 모델링 작업 영역">
-        <KetcherEditor
-          ref={editorRef}
-          onReadyChange={(ready) => {
-            if (ready && !hasLoggedEditorReadyRef.current) {
-              hasLoggedEditorReadyRef.current = true;
-              appendLog(createLog('info', 'Ketcher editor가 준비되었습니다.'));
-            }
-          }}
-          onError={(message) => {
-            appendLog(createLog('error', `Ketcher 오류: ${message}`));
-          }}
-        />
-        <StructureInfoPanel
-          extractedStructure={extractedStructure}
+      {isStudentActivityView ? (
+        <StudentActivityShell
+          templates={activityTemplates}
+          selectedActivityId={selectedActivityId}
+          responses={currentActivityResponses}
           validationResult={validationResult}
+          vseprAnalysis={vseprAnalysis}
+          molecule3DInput={molecule3DInput}
+          examples={exampleMolecules}
+          selectedExampleId={selectedExampleId}
+          drawingSlot={studentDrawingSlot}
+          predictionViewerSlot={vseprPredictionSection}
+          actual3DViewerSlot={actual3DViewerSection}
+          external3DSearchSlot={studentExternal3DSearchSection}
+          comparisonSlot={comparisonSection}
+          resultSlot={resultSection}
+          onSelectActivity={setSelectedActivityId}
+          onResponseChange={handleActivityResponseChange}
+          onSelectExample={handleSelectExample}
+          onLoadExample={handleLoadExample}
+          onConfirmStructure={handleExtractAndValidate}
         />
-      </section>
-
-      <section
-        className="workspace-panel vsepr-module-gate"
-        data-testid="vsepr-module-gate"
-      >
-        <div className="panel-heading vsepr-heading">
-          <div>
-            <p className="section-label">선택 교육 모듈</p>
-            <h2>VSEPR 예측 모듈</h2>
-          </div>
-          <button
-            className="secondary-action"
-            data-testid="toggle-vsepr-module-button"
-            type="button"
-            disabled={selectedActivityUsesVsepr}
-            onClick={handleToggleVseprModule}
-          >
-            {selectedActivityUsesVsepr
-              ? '수업 활동에서 표시 중'
-              : isVseprModuleOpen
-                ? 'VSEPR 예측 모듈 닫기'
-                : 'VSEPR 예측 모듈 열기'}
-          </button>
-        </div>
-        <p>
-          자유 그리기에서는 Ketcher 입력, RDKit.js 검증, 실제/외부 3D 구조를
-          기본 흐름으로 사용합니다. VSEPR은 활동 템플릿이 요구하거나 사용자가
-          명시적으로 연 선택 모듈에서만 교육용 예측으로 표시합니다.
-        </p>
-      </section>
-
-      {isVseprModuleVisible ? (
+      ) : isStudentFreeDrawView ? (
+        studentFreeDrawView
+      ) : (
         <>
-          <VseprPanel
-            analysis={vseprAnalysis}
-            selectedCentralAtomId={selectedVseprCentralAtomId}
-            onSelectCentralAtom={handleSelectVseprCentralAtom}
-            canShowModel={
-              vseprAnalysis.status === 'supported' &&
-              hasVseprGeometryTemplate(vseprAnalysis.axeNotation)
-            }
-            modelStatus={vseprModelStatus}
-            onShowModel={handleShowVseprModel}
-          />
+          {teacherDrawingSlot}
 
-          <Vsepr3DModelViewer
-            analysis={vseprAnalysis}
-            modelStatus={vseprModelStatus}
-            onDeveloperLog={handle3DDeveloperLog}
-          />
+          <section
+            className="workspace-panel vsepr-module-gate"
+            data-testid="vsepr-module-gate"
+          >
+            <div className="panel-heading vsepr-heading">
+              <div>
+                <p className="section-label">선택 교육 모듈</p>
+                <h2>입체 구조 예상</h2>
+              </div>
+              <button
+                className="secondary-action"
+                data-testid="toggle-vsepr-module-button"
+                type="button"
+                disabled={selectedActivityUsesVsepr}
+                onClick={handleToggleVseprModule}
+              >
+                {selectedActivityUsesVsepr
+                  ? '수업 활동에서 표시 중'
+                  : isVseprModuleOpen
+                    ? '입체 구조 예상 닫기'
+                    : '입체 구조 예상 보기'}
+              </button>
+            </div>
+            <p>
+              직접 그리기에서는 구조 입력, 구조 확인, 참고 3D 구조를 기본
+              흐름으로 사용합니다. 입체 구조 예상은 활동 템플릿이 요구하거나
+              사용자가 명시적으로 연 선택 모듈에서만 교육용 예측으로 표시합니다.
+            </p>
+          </section>
+
+          {vseprPredictionSection}
         </>
-      ) : null}
+      )}
 
-      <ActivityPanel
-        appMode={appMode}
-        userMode={userMode}
-        templates={activityTemplates}
-        selectedActivityId={selectedActivityId}
-        responses={currentActivityResponses}
-        validationResult={validationResult}
-        onSelectActivity={setSelectedActivityId}
-        onResponseChange={handleActivityResponseChange}
-      />
+      {!isStudentActivityView ? (
+        <ActivityPanel
+          appMode={appMode}
+          userMode={userMode}
+          templates={activityTemplates}
+          selectedActivityId={selectedActivityId}
+          responses={currentActivityResponses}
+          validationResult={validationResult}
+          onSelectActivity={setSelectedActivityId}
+          onResponseChange={handleActivityResponseChange}
+        />
+      ) : null}
 
       <TeacherPanel
         userMode={userMode}
@@ -1008,98 +1253,27 @@ export function App() {
         onSelectActivity={setSelectedActivityId}
       />
 
-      <PubChemCandidatePanel
-        canSearch={canSearchPubChemCandidates}
-        status={pubChemCandidateState.status}
-        candidates={pubChemCandidateState.candidates}
-        warnings={pubChemCandidateState.warnings}
-        studentMessage={pubChemCandidateState.studentMessage}
-        selectedCandidateCid={pubChemCandidateState.selectedCandidateCid}
-        isLoading3D={pubChem3DState.status === 'loading'}
-        onSearch={handleSearchPubChemCandidates}
-        onSelectCandidate={handleSelectPubChemCandidate}
-      />
+      <TeacherAdvancedPanel visible={isTeacherOrAdvancedView}>
+        <PubChemCandidatePanel
+          canSearch={canSearchPubChemCandidates}
+          status={pubChemCandidateState.status}
+          candidates={pubChemCandidateState.candidates}
+          warnings={pubChemCandidateState.warnings}
+          studentMessage={pubChemCandidateState.studentMessage}
+          selectedCandidateCid={pubChemCandidateState.selectedCandidateCid}
+          isLoading3D={pubChem3DState.status === 'loading'}
+          onSearch={handleSearchPubChemCandidates}
+          onSelectCandidate={handleSelectPubChemCandidate}
+        />
+        {comparisonSection}
+        {actual3DViewerSection}
+      </TeacherAdvancedPanel>
 
-      <StructureComparisonPanel
-        userMode={userMode}
-        state={structureComparisonState}
-        molecule3DInput={molecule3DInput}
-        vseprAnalysis={vseprAnalysis}
-        vseprModelStatus={vseprModelStatus}
-        isOpen={isStructureComparisonOpen}
-        observation={structureComparisonObservation}
-        focusQuestion={
-          appMode === 'activity'
-            ? selectedActivity?.comparisonMode?.focusQuestion
-            : undefined
-        }
-        onToggleOpen={() => {
-          setIsStructureComparisonOpen((current) => !current);
-        }}
-        onObservationChange={handleStructureComparisonObservationChange}
-        onDeveloperLog={handle3DDeveloperLog}
-      />
+      {isStudentActivityView ? null : resultSection}
 
-      <Molecule3DViewer
-        coordinateData={molecule3DInput}
-        hasValidatedStructure={validationResult?.ok === true}
-        userMode={userMode}
-        validatedStructureKey={
-          validationResult?.ok === true ? validationResult.canonicalSmiles : undefined
-        }
-        actionSlot={
-          <div className={`pubchem-3d-control ${pubChem3DState.status}`}>
-            <div>
-              <p className="section-label">PubChem 3D</p>
-              <p className="pubchem-3d-message">
-                {getPubChem3DStatusMessage(selectedExample)}
-              </p>
-            </div>
-            {selectedExample?.pubchemCid ? (
-              <button
-                className="secondary-action"
-                data-testid="load-pubchem-3d-button"
-                type="button"
-                disabled={!canLoadPubChem3D}
-                onClick={handleLoadPubChem3D}
-              >
-                {pubChem3DState.status === 'loading'
-                  ? 'PubChem 3D 로딩 중'
-                  : 'PubChem 3D 불러오기'}
-              </button>
-            ) : null}
-          </div>
-        }
-        onDeveloperLog={handle3DDeveloperLog}
-        onMeasurementResultsChange={setMeasurementResults}
-      />
-
-      <ActivityResultPanel
-        userMode={userMode}
-        currentSnapshot={currentActivityResultSnapshot}
-        previewSnapshot={previewActivityResult}
-        savedResults={savedActivityResults}
-        statusMessage={activityResultStatusMessage}
-        onSave={handleSaveActivityResult}
-        onPreviewSavedResult={setPreviewActivityResultId}
-        onExportJson={() => {
-          handleExportActivityResult('json');
-        }}
-        onExportMarkdown={() => {
-          handleExportActivityResult('md');
-        }}
-        onExportTxt={() => {
-          handleExportActivityResult('txt');
-        }}
-        onCopyMarkdown={() => void handleCopyActivityResultMarkdown()}
-        onPrint={handlePrintActivityResult}
-      />
-
-      <ValidationLogPanel
+      <DeveloperDetailsPanel
         logs={logs}
         visible={userMode === 'teacher'}
-        collapsible
-        defaultExpanded={false}
       />
     </main>
   );

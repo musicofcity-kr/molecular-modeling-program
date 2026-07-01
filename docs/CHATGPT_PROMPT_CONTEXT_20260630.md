@@ -1,4 +1,4 @@
-# Molecule Modeling Workbench - ChatGPT Prompt Context
+# 다양한 분자의 분자구조 모델링 - ChatGPT Prompt Context
 
 작성일: 2026-06-30  
 상태: prototype  
@@ -9,7 +9,7 @@
 
 ## 1. 프로젝트 한 문장 정의
 
-Molecule Modeling Workbench는 고등학교 화학 수업에서 학생이 2D 분자 구조를 그리고, 검증된 구조 정보와 3D 시각화를 확인할 수 있게 하는 ChemDraw-like 교육용 분자 구조 편집기 MVP이다.
+다양한 분자의 분자구조 모델링은 고등학교 화학 수업에서 학생이 2D 분자 구조를 그리고, 검증된 구조 정보와 3D 시각화를 확인할 수 있게 하는 ChemDraw-like 교육용 분자 구조 편집기 MVP이다.
 
 목표는 ChemDraw 전체 복제가 아니다.  
 1차 목표는 수업용 구조 입력, 검증, 예제 로드, 3D 시각화, 활동 모드를 갖춘 안정적인 classroom MVP이다.
@@ -604,7 +604,7 @@ e82371b feat: add VSEPR educational geometry engine MVP
 아래 프롬프트를 ChatGPT 프로젝트에 붙여넣고, 필요한 후속 작업을 요청하면 된다.
 
 ```text
-너는 React + Vite + TypeScript 기반 Molecule Modeling Workbench 프로젝트를 이어받는 개발 보조자다.
+너는 React + Vite + TypeScript 기반 다양한 분자의 분자구조 모델링 프로젝트를 이어받는 개발 보조자다.
 
 프로젝트 목표:
 - ChemDraw 전체 복제가 아니라, 고등학교 화학 수업용 ChemDraw-like 분자 구조 편집기 MVP를 만든다.
@@ -661,7 +661,7 @@ e82371b feat: add VSEPR educational geometry engine MVP
 ### 14.1 현재 변경 정리 및 커밋 전 점검
 
 ```text
-현재 Molecule Modeling Workbench의 미커밋 변경을 점검해줘.
+현재 다양한 분자의 분자구조 모델링의 미커밋 변경을 점검해줘.
 목표는 VSEPR 선택 교육 모듈 격리, 학생/교사 모드 분리, PubChem 3D 정상 흐름을 깨지 않는지 확인하는 것이다.
 코딩 전 git diff를 읽고, 변경 파일별 위험도와 테스트 필요 항목을 먼저 보고해줘.
 ```
@@ -709,4 +709,3 @@ free_draw + student, free_draw + teacher, activity + student, activity + teacher
 | V-004 | 학생/교사 정보 분리 | 학생에게 내부 로그/교사용 해설 노출 금지 | 4가지 모드 조합 UI 확인 | 검토 필요 |
 | V-005 | 미커밋 파일 정리 | 테스트 산출물/영상/Claude 원본 포함 여부 결정 필요 | `git status --short`, `git diff --cached` 확인 | 검토 필요 |
 | V-006 | 배포 전 번들 경고 | 3Dmol.js eval/chunk size 경고 | Vite build 로그와 lazy loading 검토 | 검토 필요 |
-

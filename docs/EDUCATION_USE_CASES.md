@@ -1,4 +1,4 @@
-# Education Use Cases — Molecule Modeling Workbench
+# Education Use Cases — 다양한 분자의 분자구조 모델링
 
 Date: 2026-06-30
 

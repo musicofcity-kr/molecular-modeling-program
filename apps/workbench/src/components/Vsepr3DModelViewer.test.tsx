@@ -23,9 +23,9 @@ describe('Vsepr3DModelViewer', () => {
       <Vsepr3DModelViewer analysis={waterAnalysis} modelStatus="ready" />,
     );
 
-    expect(markup).toContain('VSEPR 예측 모형');
+    expect(markup).toContain('예상 입체 모형');
     expect(markup).toContain('교육용 예측 모형');
-    expect(markup).toContain('PubChem 3D 구조와 구분합니다.');
+    expect(markup).toContain('외부 3D 자료와 구분합니다.');
     expect(markup).toContain('실제 결합길이 측정값이 아닙니다.');
     expect(markup).toContain('라벨 표시');
   });
@@ -35,7 +35,7 @@ describe('Vsepr3DModelViewer', () => {
       <Vsepr3DModelViewer analysis={waterAnalysis} modelStatus="rendered" />,
     );
 
-    expect(markup).toContain('AX2E2 VSEPR 교육용 예측 모형을 표시합니다.');
+    expect(markup).toContain('AX2E2 전자쌍 반발 교육용 예측 모형을 표시합니다.');
     expect(markup).toContain('AX2E2');
     expect(markup).toContain('&lt;109.5° 이상화 각도');
     expect(markup).toContain('비공유 전자쌍');

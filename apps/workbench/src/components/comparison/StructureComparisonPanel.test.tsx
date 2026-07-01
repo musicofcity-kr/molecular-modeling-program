@@ -85,12 +85,12 @@ describe('StructureComparisonPanel', () => {
       />,
     );
 
-    expect(markup).toContain('실제/외부 3D 좌표 기반 구조');
-    expect(markup).toContain('VSEPR 교육용 예측 모형');
-    expect(markup).toContain('두 화면은 서로 다른 출처의 구조입니다.');
+    expect(markup).toContain('참고 3D 구조');
+    expect(markup).toContain('예상 입체 모형');
+    expect(markup).toContain('구조 비교하기');
     expect(markup).toContain('비교 관찰 기록');
-    expect(markup).toContain('결합길이/결합각 측정 MVP');
-    expect(markup).toContain('VSEPR 예측 모형');
+    expect(markup).toContain('참고 3D 구조와 예상 입체 모형');
+    expect(markup).not.toContain('VSEPR 예측 모형');
   });
 
   it('hides teacher-only comparison guidance in student mode', () => {
@@ -149,10 +149,10 @@ describe('StructureComparisonPanel', () => {
       />,
     );
 
-    expect(markup).toContain('3D 좌표 필요');
+    expect(markup).toContain('3D 자료 필요');
     expect(markup).toContain('disabled=""');
-    expect(markup).toContain('비교 모드는 3D 좌표 데이터와 VSEPR 예측 결과가 모두 있을 때');
+    expect(markup).toContain('비교 모드는 3D 자료와 입체 구조 예상 결과가 모두 있을 때');
     expect(markup).not.toContain('비교 관찰 기록');
-    expect(markup).not.toContain('실제/외부 3D 구조와 VSEPR 예측 모형에서 비슷하게 보이는 점');
+    expect(markup).not.toContain('참고 3D 구조와 예상 입체 모형에서 비슷하게 보이는 점');
   });
 });

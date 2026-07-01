@@ -9,6 +9,7 @@ vsepr-engine.js
 
 node_modules/
 dist/
+dist-single/
 .vite/
 coverage/
 *.tsbuildinfo

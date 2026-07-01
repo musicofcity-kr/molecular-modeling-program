@@ -33,7 +33,7 @@ const predictionQuestions = [
   },
   {
     id: 'predictedVseprShape',
-    label: 'VSEPR 이론에 따른 분자 구조는 무엇인가요?',
+    label: '전자쌍 반발 원리에 따른 분자 모양은 무엇인가요?',
     placeholder: '예: 굽은형, 정사면체, 삼각뿔형',
   },
 ] satisfies ActivityTemplate['predictionQuestions'];
@@ -41,18 +41,18 @@ const predictionQuestions = [
 const reflectionQuestions = [
   {
     id: 'afterValidationReflection',
-    label: '검증 후 알게 된 점',
-    placeholder: 'RDKit.js 검증 결과와 내 예상이 같거나 달랐던 이유를 적어 보세요.',
+    label: '확인 후 알게 된 점',
+    placeholder: '구조 확인 결과와 내 예상이 같거나 달랐던 이유를 적어 보세요.',
   },
   {
     id: 'vseprReflection',
-    label: '2D 구조와 VSEPR 예측 구조는 어떻게 다른가요?',
+    label: '2D 구조와 입체 구조 예상은 어떻게 다른가요?',
     placeholder:
-      '2D 구조식은 연결 관계를, VSEPR 예측은 중심 원자 주변의 입체적인 배열을 설명한다는 점을 비교해 보세요.',
+      '2D 구조식은 연결 관계를, 입체 구조 예상은 중심 원자 주변의 입체적인 배열을 설명한다는 점을 비교해 보세요.',
   },
   {
     id: 'vseprModelElectronDomainObservation',
-    label: 'VSEPR 모형에서 중심 원자 주위 전자쌍은 어떻게 배치되어 있나요?',
+    label: '예상 입체 모형에서 중심 원자 주위 전자쌍은 어떻게 배치되어 있나요?',
     placeholder: '결합 전자쌍과 비공유 전자쌍의 방향을 구분해 관찰해 보세요.',
   },
   {
@@ -64,9 +64,9 @@ const reflectionQuestions = [
   {
     id: 'vseprModelVsPubChemObservation',
     label:
-      '실제 3D 구조 또는 PubChem 구조와 VSEPR 예측 모형이 같거나 다르게 보이는 부분은 무엇인가요?',
+      '참고 3D 구조와 예상 입체 모형이 같거나 다르게 보이는 부분은 무엇인가요?',
     placeholder:
-      'VSEPR 모형은 이상화된 예측 모형이고 PubChem 구조는 외부 좌표 데이터라는 점을 비교해 보세요.',
+      '예상 입체 모형은 단순화한 예측 모형이고 참고 3D 구조는 별도 자료라는 점을 비교해 보세요.',
   },
 ] satisfies ActivityTemplate['reflectionQuestions'];
 
@@ -93,7 +93,7 @@ export const activityTemplates: ActivityTemplate[] = [
     comparisonMode: {
       enabled: true,
       recommended: true,
-      focusQuestion: '물의 실제/외부 3D 구조와 VSEPR 굽은형 예측 모형이 어떻게 비슷하고 다른지 관찰해 보세요.',
+      focusQuestion: '물의 참고 3D 구조와 굽은형 예상 입체 모형이 어떻게 비슷하고 다른지 관찰해 보세요.',
       teacherNote:
         '물은 단일 중심 원자와 비공유 전자쌍 2쌍을 비교하기 좋은 예입니다. 단, VSEPR 모형의 각도는 이상화된 설명임을 강조하세요.',
     },
@@ -127,7 +127,7 @@ export const activityTemplates: ActivityTemplate[] = [
     comparisonMode: {
       enabled: true,
       recommended: true,
-      focusQuestion: '메테인의 실제/외부 3D 구조와 VSEPR 정사면체 예측 모형이 왜 비슷하게 보이는지 관찰해 보세요.',
+      focusQuestion: '메테인의 참고 3D 구조와 정사면체 예상 입체 모형이 왜 비슷하게 보이는지 관찰해 보세요.',
       teacherNote:
         '메테인은 VSEPR AX4 정사면체 모형과 실제/외부 3D 구조가 유사하게 보일 수 있는 대표 예입니다.',
     },
@@ -178,7 +178,7 @@ export const activityTemplates: ActivityTemplate[] = [
     title: '이산화탄소 분자 구조 그리기',
     targetMoleculeName: '이산화탄소',
     targetSmiles: 'O=C=O',
-    learningGoal: '이중 결합도 VSEPR 전자쌍 영역에서는 한 방향으로 세어 선형 구조를 예측한다.',
+    learningGoal: '이중 결합도 전자쌍 영역에서는 한 방향으로 세어 선형 구조를 예측한다.',
     prompt: '탄소 원자 양쪽에 산소 원자가 이중 결합으로 연결된 구조를 그려 보세요.',
     predictionQuestions,
     reflectionQuestions,
@@ -195,7 +195,7 @@ export const activityTemplates: ActivityTemplate[] = [
     comparisonMode: {
       enabled: true,
       recommended: true,
-      focusQuestion: '이산화탄소에서 두 이중 결합 방향이 VSEPR 선형 예측과 어떻게 연결되는지 관찰해 보세요.',
+      focusQuestion: '이산화탄소에서 두 이중 결합 방향이 선형 입체 구조 예상과 어떻게 연결되는지 관찰해 보세요.',
       teacherNote:
         '이산화탄소는 이중 결합도 VSEPR 전자쌍 영역 1개로 다룬다는 점을 지도하기 좋은 비교 예입니다.',
     },
@@ -262,7 +262,7 @@ export const activityTemplates: ActivityTemplate[] = [
     comparisonMode: {
       enabled: false,
       recommended: false,
-      focusQuestion: '벤젠은 VSEPR 단일 중심 비교보다 방향족 고리와 평면성 설명에 집중하세요.',
+      focusQuestion: '벤젠은 단일 중심 원자 비교보다 방향족 고리와 평면성 설명에 집중하세요.',
       teacherNote:
         '벤젠은 공명과 방향족성을 함께 다루어야 하므로 전체 분자를 하나의 AXE 구조로 비교하지 않습니다.',
     },

@@ -3,7 +3,7 @@
 ## 1. Workspace planning prompt
 
 ```text
-이 저장소의 AGENTS.md와 .agents/skills를 먼저 읽고, docs/PRD_DRAFT.md와 docs/TDD_DRAFT.md를 기준으로 Molecule Modeling Workbench의 MVP 구현 계획을 수립해줘. 아직 코딩하지 말고 /plan 모드처럼 단계별 파일 구조, 필요한 dependency 후보, 검증 기준, 테스트 전략부터 제안해줘.
+이 저장소의 AGENTS.md와 .agents/skills를 먼저 읽고, docs/PRD_DRAFT.md와 docs/TDD_DRAFT.md를 기준으로 다양한 분자의 분자구조 모델링의 MVP 구현 계획을 수립해줘. 아직 코딩하지 말고 /plan 모드처럼 단계별 파일 구조, 필요한 dependency 후보, 검증 기준, 테스트 전략부터 제안해줘.
 ```
 
 ## 2. React/Vite scaffold prompt

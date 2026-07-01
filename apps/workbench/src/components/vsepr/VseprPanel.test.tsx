@@ -10,19 +10,18 @@ describe('VseprPanel', () => {
           status: 'not_requested',
           confidence: 'low',
           warnings: [],
-          studentMessage:
-            'RDKit.js 검증을 통과한 MOL block이 있을 때 VSEPR 예측을 실행할 수 있습니다.',
+          studentMessage: '구조 확인을 마치면 입체 구조 예상을 볼 수 있습니다.',
         }}
         onSelectCentralAtom={() => {}}
       />,
     );
 
-    expect(markup).toContain('분자 구조 예측');
+    expect(markup).toContain('전자쌍 반발로 예상한 분자 모양');
     expect(markup).toContain('대기');
     expect(markup).toContain('교육용 예측');
-    expect(markup).toContain('VSEPR 모형 보기');
+    expect(markup).toContain('예상 입체 모형 보기');
     expect(markup).toContain('disabled=""');
-    expect(markup).toContain('RDKit.js 검증을 통과한 MOL block');
+    expect(markup).toContain('구조 확인을 마치면 입체 구조 예상을 볼 수 있습니다.');
     expect(markup).not.toContain('AX2E2');
   });
 

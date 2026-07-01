@@ -45,6 +45,7 @@ export interface ActivityResultSnapshot {
     studentReflection?: string;
   };
   activityAnswers: ActivityResultAnswer[];
+  afterValidationReflection?: string;
   finalReflection?: string;
   exportNotice: string;
 }

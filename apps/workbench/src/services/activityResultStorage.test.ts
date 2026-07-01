@@ -53,7 +53,7 @@ const activityTemplate: ActivityTemplate = {
     { id: 'drawingReason', label: '구조를 그렇게 그린 이유' },
   ],
   reflectionQuestions: [
-    { id: 'afterValidationReflection', label: '검증 후 알게 된 점' },
+    { id: 'afterValidationReflection', label: '확인 후 알게 된 점' },
   ],
 };
 
@@ -105,6 +105,7 @@ function buildSnapshot(index = 0) {
       predictedMolecularWeight: '16.043',
       drawingReason: '탄소가 수소 네 개와 결합한다.',
       afterValidationReflection: '예상과 RDKit 검증값이 같았다.',
+      finalReflection: '다음에는 결합각도 확인해 보겠다.',
     },
     validationResult,
     molecule3DInput: {
@@ -143,6 +144,8 @@ describe('activity result storage', () => {
     expect(snapshot.measurements[0].unit).toBe('degree');
     expect(snapshot.vseprResult?.axeNotation).toBe('AX4');
     expect(snapshot.comparisonObservation?.observedSimilarities).toContain('정사면체');
+    expect(snapshot.afterValidationReflection).toBe('예상과 RDKit 검증값이 같았다.');
+    expect(snapshot.finalReflection).toBe('다음에는 결합각도 확인해 보겠다.');
     expect(JSON.stringify(snapshot)).not.toContain('methane\\nC 0 0 0');
   });
 
