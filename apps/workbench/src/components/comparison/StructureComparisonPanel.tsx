@@ -1,6 +1,4 @@
-import { useId, useState } from 'react';
-import { Molecule3DViewer } from '../Molecule3DViewer';
-import { Vsepr3DModelViewer } from '../Vsepr3DModelViewer';
+import { lazy, Suspense, useId, useState } from 'react';
 import type { UserMode } from '../../types/activity';
 import type { Molecule3DInput } from '../../types/molecule';
 import type {
@@ -9,6 +7,18 @@ import type {
 } from '../../types/structureComparison';
 import type { VseprAnalysis, VseprModelViewStatus } from '../../types/vsepr';
 import { isComparisonAvailable } from '../../services/structureComparison';
+
+const LazyMolecule3DViewer = lazy(() =>
+  import('../Molecule3DViewer').then((module) => ({
+    default: module.Molecule3DViewer,
+  })),
+);
+
+const LazyVsepr3DModelViewer = lazy(() =>
+  import('../Vsepr3DModelViewer').then((module) => ({
+    default: module.Vsepr3DModelViewer,
+  })),
+);
 
 type StructureComparisonPanelProps = {
   userMode: UserMode;
@@ -44,6 +54,14 @@ const TEACHER_GUIDANCE = [
   '에탄올, 벤젠, 아스피린처럼 중심 원자가 여러 개이거나 구조가 복잡한 분자는 전체 분자를 하나의 VSEPR 모형으로 단정하지 않도록 지도해야 합니다.',
   'VSEPR 예측은 분자 전체의 실제 입체배치를 완전히 설명하지 못할 수 있습니다.',
 ];
+
+function ComparisonViewerLoadingFallback() {
+  return (
+    <section className="workspace-panel molecule-3d-panel">
+      <div className="viewer-placeholder">비교용 3D 보기를 불러오는 중입니다.</div>
+    </section>
+  );
+}
 
 function formatAvailability(state: StructureComparisonState): string {
   switch (state.availability) {
@@ -204,13 +222,15 @@ export function StructureComparisonPanel({
                   : '이 구조는 내장 자료 또는 외부 자료에서 가져온 참고 3D 구조입니다.'}
               </p>
             </div>
-            <Molecule3DViewer
-              coordinateData={molecule3DInput}
-              hasValidatedStructure={state.availability === 'available'}
-              userMode={userMode}
-              validatedStructureKey={state.rdkitCanonicalSmiles}
-              onDeveloperLog={onDeveloperLog}
-            />
+            <Suspense fallback={<ComparisonViewerLoadingFallback />}>
+              <LazyMolecule3DViewer
+                coordinateData={molecule3DInput}
+                hasValidatedStructure={state.availability === 'available'}
+                userMode={userMode}
+                validatedStructureKey={state.rdkitCanonicalSmiles}
+                onDeveloperLog={onDeveloperLog}
+              />
+            </Suspense>
           </div>
 
           <div className="comparison-viewer-column">
@@ -222,11 +242,13 @@ export function StructureComparisonPanel({
                 교육용 모형입니다.
               </p>
             </div>
-            <Vsepr3DModelViewer
-              analysis={vseprAnalysis}
-              modelStatus={comparisonModelStatus}
-              onDeveloperLog={onDeveloperLog}
-            />
+            <Suspense fallback={<ComparisonViewerLoadingFallback />}>
+              <LazyVsepr3DModelViewer
+                analysis={vseprAnalysis}
+                modelStatus={comparisonModelStatus}
+                onDeveloperLog={onDeveloperLog}
+              />
+            </Suspense>
           </div>
         </div>
       ) : null}

@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppHeader } from '../components/header/AppHeader';
 import {
-  KetcherEditor,
-  normalizeKetcherError,
-} from '../components/editor/KetcherEditor';
-import { Molecule3DViewer } from '../components/Molecule3DViewer';
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { AppHeader } from '../components/header/AppHeader';
 import { StructureInfoPanel } from '../components/molecule-panel/StructureInfoPanel';
 import type { WorkbenchLogEntry } from '../components/validation/ValidationLogPanel';
 import { PubChemCandidatePanel } from '../components/pubchem/PubChemCandidatePanel';
@@ -12,7 +15,6 @@ import { StructureComparisonPanel } from '../components/comparison/StructureComp
 import { ActivityResultPanel } from '../components/export/ActivityResultPanel';
 import { ActivityPanel } from '../components/activity/ActivityPanel';
 import { VseprPanel } from '../components/vsepr/VseprPanel';
-import { Vsepr3DModelViewer } from '../components/Vsepr3DModelViewer';
 import { TeacherPanel } from '../components/TeacherPanel';
 import { DeveloperDetailsPanel } from '../components/advanced/DeveloperDetailsPanel';
 import { TeacherAdvancedPanel } from '../components/advanced/TeacherAdvancedPanel';
@@ -37,6 +39,7 @@ import type {
   ChemicalEditorHandle,
   ExtractedStructureData,
 } from '../editor/chemical-editor-handle';
+import { normalizeKetcherError } from '../editor/ketcher-structure-extraction';
 import {
   buildExpectedFormulaWarning,
   exampleMolecules,
@@ -100,6 +103,24 @@ import type {
   TeacherFeedbackDraft,
 } from '../types/feedback';
 
+const LazyKetcherEditor = lazy(() =>
+  import('../components/editor/KetcherEditor').then((module) => ({
+    default: module.KetcherEditor,
+  })),
+);
+
+const LazyMolecule3DViewer = lazy(() =>
+  import('../components/Molecule3DViewer').then((module) => ({
+    default: module.Molecule3DViewer,
+  })),
+);
+
+const LazyVsepr3DModelViewer = lazy(() =>
+  import('../components/Vsepr3DModelViewer').then((module) => ({
+    default: module.Vsepr3DModelViewer,
+  })),
+);
+
 type PubChem3DState = {
   status: PubChem3DLoadStatus;
   studentMessage?: string;
@@ -130,6 +151,48 @@ const INITIAL_STRUCTURE_COMPARISON_OBSERVATION = {
   observedDifferences: '',
   studentReflection: '',
 };
+
+function EditorLoadingFallback() {
+  return (
+    <section className="workspace-panel editor-panel" data-testid="chemical-editor">
+      <div className="panel-heading editor-heading">
+        <div>
+          <p className="section-label">좌측</p>
+          <h2>분자 편집 영역</h2>
+        </div>
+        <span className="status-pill">그리기 도구 준비 중</span>
+      </div>
+      <div className="ketcher-host editor-loading-state">
+        분자 그리기 도구를 불러오는 중입니다.
+      </div>
+    </section>
+  );
+}
+
+type ViewerLoadingFallbackProps = {
+  label?: string;
+  title?: string;
+  message?: string;
+};
+
+function ViewerLoadingFallback({
+  label = '3D 구조 보기',
+  title = '참고 3D 구조 보기',
+  message = '3D 구조 보기를 불러오는 중입니다.',
+}: ViewerLoadingFallbackProps) {
+  return (
+    <section className="workspace-panel molecule-3d-panel">
+      <div className="panel-heading viewer-heading">
+        <div>
+          <p className="section-label">{label}</p>
+          <h2>{title}</h2>
+        </div>
+        <span className="status-pill">준비 중</span>
+      </div>
+      <div className="viewer-placeholder">{message}</div>
+    </section>
+  );
+}
 
 function createLog(level: WorkbenchLogEntry['level'], message: string): WorkbenchLogEntry {
   return {
@@ -1283,22 +1346,8 @@ function WorkbenchApp({
     </div>
   );
   const studentDrawingSlot = (
-    <KetcherEditor
-      ref={editorRef}
-      onReadyChange={(ready) => {
-        if (ready && !hasLoggedEditorReadyRef.current) {
-          hasLoggedEditorReadyRef.current = true;
-          appendLog(createLog('info', 'Ketcher editor가 준비되었습니다.'));
-        }
-      }}
-      onError={(message) => {
-        appendLog(createLog('error', `Ketcher 오류: ${message}`));
-      }}
-    />
-  );
-  const teacherDrawingSlot = (
-    <section className="workbench-layout" aria-label="분자 모델링 작업 영역">
-      <KetcherEditor
+    <Suspense fallback={<EditorLoadingFallback />}>
+      <LazyKetcherEditor
         ref={editorRef}
         onReadyChange={(ready) => {
           if (ready && !hasLoggedEditorReadyRef.current) {
@@ -1310,6 +1359,24 @@ function WorkbenchApp({
           appendLog(createLog('error', `Ketcher 오류: ${message}`));
         }}
       />
+    </Suspense>
+  );
+  const teacherDrawingSlot = (
+    <section className="workbench-layout" aria-label="분자 모델링 작업 영역">
+      <Suspense fallback={<EditorLoadingFallback />}>
+        <LazyKetcherEditor
+          ref={editorRef}
+          onReadyChange={(ready) => {
+            if (ready && !hasLoggedEditorReadyRef.current) {
+              hasLoggedEditorReadyRef.current = true;
+              appendLog(createLog('info', 'Ketcher editor가 준비되었습니다.'));
+            }
+          }}
+          onError={(message) => {
+            appendLog(createLog('error', `Ketcher 오류: ${message}`));
+          }}
+        />
+      </Suspense>
       <StructureInfoPanel
         extractedStructure={extractedStructure}
         validationResult={validationResult}
@@ -1332,27 +1399,39 @@ function WorkbenchApp({
         onShowModel={handleShowVseprModel}
       />
 
-      <Vsepr3DModelViewer
-        analysis={vseprAnalysis}
-        modelStatus={vseprModelStatus}
-        onDeveloperLog={handle3DDeveloperLog}
-      />
+      <Suspense
+        fallback={
+          <ViewerLoadingFallback
+            label="입체 구조 예상"
+            title="예상 입체 모형 보기"
+            message="예상 입체 모형을 불러오는 중입니다."
+          />
+        }
+      >
+        <LazyVsepr3DModelViewer
+          analysis={vseprAnalysis}
+          modelStatus={vseprModelStatus}
+          onDeveloperLog={handle3DDeveloperLog}
+        />
+      </Suspense>
     </>
   ) : null;
   const actual3DViewerSection = (
-    <Molecule3DViewer
-      coordinateData={molecule3DInput}
-      hasValidatedStructure={validationResult?.ok === true}
-      userMode={userMode}
-      showAdvancedControls={isTeacherOrAdvancedView}
-      showMeasurementControls={isTeacherOrAdvancedView || shouldShowStudentCoordinateTools}
-      validatedStructureKey={
-        validationResult?.ok === true ? validationResult.canonicalSmiles : undefined
-      }
-      actionSlot={shouldShow3DActionSlot ? pubChem3DActionSlot : null}
-      onDeveloperLog={handle3DDeveloperLog}
-      onMeasurementResultsChange={setMeasurementResults}
-    />
+    <Suspense fallback={<ViewerLoadingFallback />}>
+      <LazyMolecule3DViewer
+        coordinateData={molecule3DInput}
+        hasValidatedStructure={validationResult?.ok === true}
+        userMode={userMode}
+        showAdvancedControls={isTeacherOrAdvancedView}
+        showMeasurementControls={isTeacherOrAdvancedView || shouldShowStudentCoordinateTools}
+        validatedStructureKey={
+          validationResult?.ok === true ? validationResult.canonicalSmiles : undefined
+        }
+        actionSlot={shouldShow3DActionSlot ? pubChem3DActionSlot : null}
+        onDeveloperLog={handle3DDeveloperLog}
+        onMeasurementResultsChange={setMeasurementResults}
+      />
+    </Suspense>
   );
   const comparisonSection = (
     <StructureComparisonPanel
