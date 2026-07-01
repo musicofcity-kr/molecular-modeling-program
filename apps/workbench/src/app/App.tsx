@@ -16,11 +16,15 @@ import { Vsepr3DModelViewer } from '../components/Vsepr3DModelViewer';
 import { TeacherPanel } from '../components/TeacherPanel';
 import { DeveloperDetailsPanel } from '../components/advanced/DeveloperDetailsPanel';
 import { TeacherAdvancedPanel } from '../components/advanced/TeacherAdvancedPanel';
+import { EthicsGuideGate } from '../components/auth/EthicsGuideGate';
 import { RoleGate } from '../components/auth/RoleGate';
 import { RoleSelectionScreen } from '../components/auth/RoleSelectionScreen';
 import { StudentEntryScreen } from '../components/auth/StudentEntryScreen';
 import { TeacherDashboardPlaceholder } from '../components/auth/TeacherDashboardPlaceholder';
 import { TeacherEntryScreen } from '../components/auth/TeacherEntryScreen';
+import { TeacherFeedbackPanel } from '../components/feedback/TeacherFeedbackPanel';
+import { LegalDocumentPanel } from '../components/legal/LegalDocumentPanel';
+import { LegalFooter } from '../components/legal/LegalFooter';
 import { StudentActivityShell } from '../components/student/StudentActivityShell';
 import {
   LearningProgressRail,
@@ -61,6 +65,13 @@ import {
   saveActivityResult,
 } from '../services/activityResultStorage';
 import {
+  createActivitySubmission,
+  loadActivitySubmissions,
+  saveActivitySubmission,
+  updateActivitySubmissionFeedback,
+} from '../services/activitySubmissionStorage';
+import { createTeacherFeedbackDraft } from '../services/aiFeedbackService';
+import {
   UserSessionProvider,
   useUserSession,
 } from '../contexts/UserSessionContext';
@@ -82,6 +93,12 @@ import type { StructureComparisonObservation } from '../types/structureCompariso
 import type { ActivityResultSnapshot } from '../types/activityResult';
 import type { AppRoute, UserSession } from '../types/session';
 import type { VseprAnalysis, VseprModelViewStatus } from '../types/vsepr';
+import type { LegalDocumentId } from '../content/legalDocuments';
+import type {
+  ActivitySubmission,
+  AiFeedbackDraftStatus,
+  TeacherFeedbackDraft,
+} from '../types/feedback';
 
 type PubChem3DState = {
   status: PubChem3DLoadStatus;
@@ -247,17 +264,31 @@ function getPathForRoute(route: AppRoute): string {
 type AppProps = {
   initialRoute?: AppRoute;
   initialSession?: UserSession | null;
+  initialEthicsGateAccepted?: boolean;
 };
 
-export function App({ initialRoute, initialSession = null }: AppProps = {}) {
+export function App({
+  initialRoute,
+  initialSession = null,
+  initialEthicsGateAccepted = false,
+}: AppProps = {}) {
   return (
     <UserSessionProvider initialSession={initialSession}>
-      <WorkbenchApp initialRoute={initialRoute} />
+      <WorkbenchApp
+        initialRoute={initialRoute}
+        initialEthicsGateAccepted={initialEthicsGateAccepted}
+      />
     </UserSessionProvider>
   );
 }
 
-function WorkbenchApp({ initialRoute }: { initialRoute?: AppRoute }) {
+function WorkbenchApp({
+  initialRoute,
+  initialEthicsGateAccepted,
+}: {
+  initialRoute?: AppRoute;
+  initialEthicsGateAccepted: boolean;
+}) {
   const { session } = useUserSession();
   const editorRef = useRef<ChemicalEditorHandle | null>(null);
   const hasLoggedEditorReadyRef = useRef(false);
@@ -271,6 +302,11 @@ function WorkbenchApp({ initialRoute }: { initialRoute?: AppRoute }) {
   const [userMode, setUserMode] = useState<UserMode>(
     getUserModeForRoute(initialRoute ?? getInitialAppRoute()),
   );
+  const [isEthicsGateAccepted, setIsEthicsGateAccepted] = useState(
+    initialEthicsGateAccepted,
+  );
+  const [activeLegalDocumentId, setActiveLegalDocumentId] =
+    useState<LegalDocumentId | null>(null);
   const [selectedActivityId, setSelectedActivityId] = useState(
     activityTemplates[0]?.id ?? '',
   );
@@ -307,10 +343,22 @@ function WorkbenchApp({ initialRoute }: { initialRoute?: AppRoute }) {
   const [savedActivityResults, setSavedActivityResults] = useState<
     ActivityResultSnapshot[]
   >([]);
+  const [activitySubmissions, setActivitySubmissions] = useState<
+    ActivitySubmission[]
+  >([]);
   const [previewActivityResultId, setPreviewActivityResultId] =
     useState<string | null>(null);
   const [activityResultStatusMessage, setActivityResultStatusMessage] =
     useState<string>('');
+  const [activitySubmissionStatusMessage, setActivitySubmissionStatusMessage] =
+    useState<string>('');
+  const [teacherFeedbackStatusMessage, setTeacherFeedbackStatusMessage] =
+    useState<string>('');
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(
+    null,
+  );
+  const [aiFeedbackDraftStatus, setAiFeedbackDraftStatus] =
+    useState<AiFeedbackDraftStatus>('idle');
   const [pubChem3DState, setPubChem3DState] = useState<PubChem3DState>(
     INITIAL_PUBCHEM_3D_STATE,
   );
@@ -415,6 +463,18 @@ function WorkbenchApp({ initialRoute }: { initialRoute?: AppRoute }) {
     if (!result.ok) {
       setActivityResultStatusMessage(result.studentMessage);
       console.info('[Activity result storage]', result.developerLogs);
+    }
+  }, []);
+
+  useEffect(() => {
+    const result = loadActivitySubmissions();
+
+    setActivitySubmissions(result.data);
+    setSelectedSubmissionId(result.data[0]?.id ?? null);
+
+    if (!result.ok) {
+      setTeacherFeedbackStatusMessage(result.studentMessage);
+      console.info('[Activity submission storage]', result.developerLogs);
     }
   }, []);
 
@@ -1002,6 +1062,17 @@ function WorkbenchApp({ initialRoute }: { initialRoute?: AppRoute }) {
       vseprAnalysis,
     ],
   );
+  const returnedStudentFeedbacks = useMemo(() => {
+    if (session?.role !== 'student') {
+      return [];
+    }
+
+    return activitySubmissions.filter(
+      (submission) =>
+        submission.status === 'feedback_returned' &&
+        submission.anonymousStudentId === session.anonymousStudentId,
+    );
+  }, [activitySubmissions, session]);
   const previewActivityResult =
     savedActivityResults.find((result) => result.id === previewActivityResultId) ??
     null;
@@ -1054,6 +1125,99 @@ function WorkbenchApp({ initialRoute }: { initialRoute?: AppRoute }) {
         ...currentResults.filter((item) => item.id !== snapshot.id),
       ].slice(0, 10));
       setPreviewActivityResultId(snapshot.id);
+    }
+  };
+  const handleSubmitActivityResult = () => {
+    const snapshot = createActivityResultSnapshot({
+      appMode,
+      userMode,
+      activityTemplate: appMode === 'activity' ? selectedActivity : null,
+      responses: currentActivityResponses,
+      validationResult,
+      molecule3DInput,
+      measurementResults,
+      vseprAnalysis,
+      comparisonObservation: structureComparisonObservation,
+    });
+    const submission = createActivitySubmission({
+      snapshot,
+      studentSession: session?.role === 'student' ? session : undefined,
+    });
+    const result = saveActivitySubmission(submission);
+
+    setActivitySubmissionStatusMessage(result.studentMessage);
+    console.info('[Activity submission storage]', result.developerLogs);
+
+    if (result.ok) {
+      setActivitySubmissions(result.data);
+      setSelectedSubmissionId(submission.id);
+    }
+  };
+  const handleCreateFeedbackDraft = async (submissionId: string) => {
+    const submission = activitySubmissions.find((item) => item.id === submissionId);
+
+    if (!submission) {
+      setTeacherFeedbackStatusMessage('선택한 제출 자료를 찾지 못했습니다.');
+      return;
+    }
+
+    setAiFeedbackDraftStatus('loading');
+    setTeacherFeedbackStatusMessage('피드백 초안을 만드는 중입니다.');
+
+    const result = await createTeacherFeedbackDraft(submission);
+    setAiFeedbackDraftStatus(result.status);
+    setTeacherFeedbackStatusMessage(result.studentMessage);
+    console.info('[AI feedback draft]', result.developerLogs);
+
+    if (!result.ok) {
+      return;
+    }
+
+    const saveResult = updateActivitySubmissionFeedback(
+      activitySubmissions,
+      submissionId,
+      result.feedback,
+      'feedback_draft',
+    );
+
+    setTeacherFeedbackStatusMessage(saveResult.studentMessage);
+    console.info('[Activity submission feedback]', saveResult.developerLogs);
+
+    if (saveResult.ok) {
+      setActivitySubmissions(saveResult.data);
+      setSelectedSubmissionId(submissionId);
+    }
+  };
+  const handleReturnFeedback = (
+    submissionId: string,
+    studentMessage: string,
+  ) => {
+    const submission = activitySubmissions.find((item) => item.id === submissionId);
+
+    if (!submission?.teacherFeedback) {
+      setTeacherFeedbackStatusMessage(
+        '학생에게 전달할 피드백 초안이 아직 없습니다.',
+      );
+      return;
+    }
+
+    const feedback: TeacherFeedbackDraft = {
+      ...submission.teacherFeedback,
+      studentMessage,
+    };
+    const result = updateActivitySubmissionFeedback(
+      activitySubmissions,
+      submissionId,
+      feedback,
+      'feedback_returned',
+    );
+
+    setTeacherFeedbackStatusMessage(result.studentMessage);
+    console.info('[Activity submission feedback]', result.developerLogs);
+
+    if (result.ok) {
+      setActivitySubmissions(result.data);
+      setSelectedSubmissionId(submissionId);
     }
   };
   const handleExportActivityResult = (format: 'json' | 'md' | 'txt') => {
@@ -1218,7 +1382,12 @@ function WorkbenchApp({ initialRoute }: { initialRoute?: AppRoute }) {
       previewSnapshot={previewActivityResult}
       savedResults={savedActivityResults}
       statusMessage={activityResultStatusMessage}
+      submissionStatusMessage={activitySubmissionStatusMessage}
+      returnedFeedbacks={returnedStudentFeedbacks}
       onSave={handleSaveActivityResult}
+      onSubmitForTeacher={
+        userMode === 'student' ? handleSubmitActivityResult : undefined
+      }
       onPreviewSavedResult={setPreviewActivityResultId}
       onExportJson={() => {
         handleExportActivityResult('json');
@@ -1316,6 +1485,33 @@ function WorkbenchApp({ initialRoute }: { initialRoute?: AppRoute }) {
       onExtractAndValidate={handleExtractAndValidate}
     />
   );
+  const legalPanel = activeLegalDocumentId ? (
+    <LegalDocumentPanel
+      documentId={activeLegalDocumentId}
+      onClose={() => {
+        setActiveLegalDocumentId(null);
+      }}
+    />
+  ) : null;
+  const legalFooter = (
+    <LegalFooter
+      onOpenDocument={(documentId) => {
+        setActiveLegalDocumentId(documentId);
+      }}
+    />
+  );
+
+  if (!isEthicsGateAccepted) {
+    return (
+      <EthicsGuideGate
+        legalPanelSlot={legalPanel}
+        footerSlot={legalFooter}
+        onStart={() => {
+          setIsEthicsGateAccepted(true);
+        }}
+      />
+    );
+  }
 
   if (appRoute === 'home') {
     return (
@@ -1329,6 +1525,8 @@ function WorkbenchApp({ initialRoute }: { initialRoute?: AppRoute }) {
             navigateToRoute('teacher');
           }}
         />
+        {legalPanel}
+        {legalFooter}
       </main>
     );
   }
@@ -1343,6 +1541,8 @@ function WorkbenchApp({ initialRoute }: { initialRoute?: AppRoute }) {
             navigateToRoute('teacher');
           }}
         />
+        {legalPanel}
+        {legalFooter}
       </main>
     );
   }
@@ -1376,7 +1576,9 @@ function WorkbenchApp({ initialRoute }: { initialRoute?: AppRoute }) {
             pubChemCandidateStatus={pubChemCandidateState.status}
             onSelectActivity={setSelectedActivityId}
           />
-        </RoleGate>
+          </RoleGate>
+        {legalPanel}
+        {legalFooter}
       </main>
     );
   }
@@ -1484,6 +1686,20 @@ function WorkbenchApp({ initialRoute }: { initialRoute?: AppRoute }) {
         onSelectActivity={setSelectedActivityId}
       />
 
+      {isTeacherOrAdvancedView ? (
+        <TeacherFeedbackPanel
+          submissions={activitySubmissions}
+          selectedSubmissionId={selectedSubmissionId}
+          draftStatus={aiFeedbackDraftStatus}
+          statusMessage={teacherFeedbackStatusMessage}
+          onSelectSubmission={setSelectedSubmissionId}
+          onCreateFeedbackDraft={(submissionId) => {
+            void handleCreateFeedbackDraft(submissionId);
+          }}
+          onReturnFeedback={handleReturnFeedback}
+        />
+      ) : null}
+
       <TeacherAdvancedPanel visible={isTeacherOrAdvancedView}>
         <PubChemCandidatePanel
           canSearch={canSearchPubChemCandidates}
@@ -1506,6 +1722,8 @@ function WorkbenchApp({ initialRoute }: { initialRoute?: AppRoute }) {
         logs={logs}
         visible={userMode === 'teacher'}
       />
+      {legalPanel}
+      {legalFooter}
     </main>
   );
 }

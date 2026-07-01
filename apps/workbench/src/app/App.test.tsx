@@ -33,8 +33,31 @@ describe('App scaffold', () => {
     signedInAt: '2026-07-01T00:00:00.000Z',
   };
 
-  it('renders the role selection screen at the root route', () => {
+  it('renders the ethics guide gate before entering the app', () => {
     const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('다양한 분자의 분자구조 모델링');
+    expect(markup).toContain('생성형 AI 윤리 핵심가이드');
+    expect(markup).toContain('핵심 가치');
+    expect(markup).toContain('핵심 가이드');
+    expect(markup).toContain('생성형 AI 활용의 목적과 범위를 스스로 설정하고 책임져요.');
+    expect(markup).toContain('내가 먼저 시도하고, 생성형 AI의 결과물에 나만의 통찰을 담아 완성해요.');
+    expect(markup).toContain('생성형 AI의 한계를 분석하고, 자료를 찾아 결과물을 비판적으로 검증해요.');
+    expect(markup).toContain('생성형 AI를 보조 도구로 삼아 사고의 범위와 깊이를 확장해요.');
+    expect(markup).toContain('데이터 보안과 정서적 자립을 통해 디지털 시민성을 완성해요.');
+    expect(markup).toContain('생성형 AI 활용 사실을 투명하게 공개하며 학술적 정직성을 실천해요.');
+    expect(markup).toContain('이 사진에 있는 윤리 핵심가이드를 빠짐없이 읽겠습니다.');
+    expect(markup).toContain('개인정보처리방침');
+    expect(markup).toContain('이용약관');
+    expect(markup).toContain('정보관리책임자');
+    expect(markup).toContain('© 2026');
+    expect(markup).toContain('disabled=""');
+    expect(markup).not.toContain('수업에서 사용할 화면을 선택합니다');
+    expect(markup).not.toContain('분자 편집 영역');
+  });
+
+  it('renders the role selection screen at the root route after the ethics gate is accepted', () => {
+    const markup = renderToStaticMarkup(<App initialEthicsGateAccepted />);
 
     expect(markup).toContain('다양한 분자의 분자구조 모델링');
     expect(markup).toContain('고1 화학 · 결합의 세계');
@@ -42,11 +65,17 @@ describe('App scaffold', () => {
     expect(markup).toContain('수업에서 사용할 화면을 선택합니다');
     expect(markup).toContain('학생으로 입장하기');
     expect(markup).toContain('교사용 로그인으로 이동');
+    expect(markup).toContain('개인정보처리방침');
+    expect(markup).toContain('이용약관');
+    expect(markup).toContain('정보관리책임자');
+    expect(markup).toContain('© 2026');
     expect(markup).not.toContain('분자 편집 영역');
   });
 
   it('renders the student entry gate before the classroom activity starts', () => {
-    const markup = renderToStaticMarkup(<App initialRoute="student" />);
+    const markup = renderToStaticMarkup(
+      <App initialRoute="student" initialEthicsGateAccepted />,
+    );
 
     expect(markup).toContain('다양한 분자의 분자구조 모델링');
     expect(markup).toContain('학생 입장');
@@ -59,7 +88,9 @@ describe('App scaffold', () => {
   });
 
   it('renders the teacher auth preparation screen without exposing teacher-only panels', () => {
-    const markup = renderToStaticMarkup(<App initialRoute="teacher" />);
+    const markup = renderToStaticMarkup(
+      <App initialRoute="teacher" initialEthicsGateAccepted />,
+    );
 
     expect(markup).toContain('교사용 로그인');
     expect(markup).toContain('Firebase Auth 기반 교사용 접근을 준비합니다');
@@ -73,7 +104,11 @@ describe('App scaffold', () => {
 
   it('renders the student activity flow after an anonymous classroom session starts without raw chemistry or developer details', () => {
     const markup = renderToStaticMarkup(
-      <App initialRoute="student-workbench" initialSession={studentSession} />,
+      <App
+        initialRoute="student-workbench"
+        initialSession={studentSession}
+        initialEthicsGateAccepted
+      />,
     );
 
     expect(markup).toContain('다양한 분자의 분자구조 모델링');
@@ -159,7 +194,11 @@ describe('App scaffold', () => {
 
   it('renders the authenticated teacher dashboard placeholder without enabling server persistence', () => {
     const markup = renderToStaticMarkup(
-      <App initialRoute="teacher-dashboard" initialSession={teacherSession} />,
+      <App
+        initialRoute="teacher-dashboard"
+        initialSession={teacherSession}
+        initialEthicsGateAccepted
+      />,
     );
 
     expect(markup).toContain('교사용 대시보드 준비');

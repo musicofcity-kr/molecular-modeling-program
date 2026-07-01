@@ -4,6 +4,7 @@ import type {
   ActivityResultAnswer,
   ActivityResultSnapshot,
 } from '../../types/activityResult';
+import type { ActivitySubmission } from '../../types/feedback';
 import { formatKoreanDateTime } from '../../utils/formatKoreanDateTime';
 
 type ActivityResultPanelProps = {
@@ -12,7 +13,10 @@ type ActivityResultPanelProps = {
   previewSnapshot?: ActivityResultSnapshot | null;
   savedResults: ActivityResultSnapshot[];
   statusMessage?: string;
+  submissionStatusMessage?: string;
+  returnedFeedbacks?: ActivitySubmission[];
   onSave: () => void;
+  onSubmitForTeacher?: () => void;
   onPreviewSavedResult: (snapshotId: string) => void;
   onExportJson: () => void;
   onExportMarkdown: () => void;
@@ -65,7 +69,10 @@ export function ActivityResultPanel({
   previewSnapshot,
   savedResults,
   statusMessage,
+  submissionStatusMessage,
+  returnedFeedbacks = [],
   onSave,
+  onSubmitForTeacher,
   onPreviewSavedResult,
   onExportJson,
   onExportMarkdown,
@@ -133,11 +140,29 @@ export function ActivityResultPanel({
           {statusMessage}
         </p>
       ) : null}
+      {submissionStatusMessage ? (
+        <p
+          className="activity-result-status"
+          data-testid="activity-submission-status"
+        >
+          {submissionStatusMessage}
+        </p>
+      ) : null}
 
       <div className="activity-result-actions">
         <button className="primary-action" type="button" onClick={onSave}>
           임시 저장하기
         </button>
+        {!isTeacherMode && onSubmitForTeacher ? (
+          <button
+            className="secondary-action"
+            data-testid="submit-activity-result-button"
+            type="button"
+            onClick={onSubmitForTeacher}
+          >
+            교사에게 제출하기
+          </button>
+        ) : null}
         <button className="secondary-action" type="button" onClick={onExportMarkdown}>
           보고서로 저장하기
         </button>
@@ -328,6 +353,38 @@ export function ActivityResultPanel({
             />
             <ResultRow label="최종 소감" value={snapshot.finalReflection} />
           </ActivityResultBlock>
+
+          {!isTeacherMode ? (
+            <ActivityResultBlock title="교사 피드백">
+              {returnedFeedbacks.length > 0 ? (
+                <ul className="activity-result-list teacher-feedback-return-list">
+                  {returnedFeedbacks.map((submission) => (
+                    <li key={submission.id}>
+                      <strong>
+                        {submission.snapshot.activityTitle ??
+                          submission.snapshot.moleculeName ??
+                          '활동 피드백'}
+                      </strong>
+                      <span>
+                        {submission.teacherFeedback?.studentMessage ??
+                          '피드백 내용이 없습니다.'}
+                      </span>
+                      <small>
+                        {submission.feedbackReturnedAt
+                          ? formatKoreanDateTime(submission.feedbackReturnedAt)
+                          : '전달 시각 없음'}
+                      </small>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>
+                  아직 교사가 전달한 피드백이 없습니다. 활동 결과를 제출한 뒤
+                  교사의 확인을 기다려 주세요.
+                </p>
+              )}
+            </ActivityResultBlock>
+          ) : null}
         </div>
 
         <aside className="activity-result-side">
