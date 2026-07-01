@@ -1,0 +1,13 @@
+node_modules/
+dist/
+dist-single/
+coverage/
+.vite/
+*.tsbuildinfo
+
+.env
+.env.*
+
+.playwright-mcp/
+.test_runs/
+*.mp4
