@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { CollapsibleStudentStep } from './CollapsibleStudentStep';
 
 type ShapeViewerSectionProps = {
   predictionSlot: ReactNode;
@@ -14,22 +15,23 @@ export function ShapeViewerSection({
   external3DSearchSlot,
 }: ShapeViewerSectionProps) {
   return (
-    <section className="student-step shape-viewer-section" data-testid="shape-viewer-section">
-      <div className="student-step-heading">
-        <span className="student-step-number">5</span>
-        <div>
-          <p className="section-label">입체 구조 보기</p>
-          <h2>예측 모형과 3D 구조를 구분해서 관찰합니다</h2>
+    <>
+      <CollapsibleStudentStep
+        id="student-step-5"
+        className="student-step shape-viewer-section phase-verify"
+        testId="shape-viewer-section"
+        stepNumber={5}
+        sectionLabel="입체 구조 보기"
+        title="예측 모형과 3D 구조를 구분해서 관찰합니다"
+      >
+        {external3DSearchSlot}
+
+        <div className="shape-viewer-grid">
+          {predictionSlot}
+          {actual3DSlot}
         </div>
-      </div>
-
-      {external3DSearchSlot}
-
-      <div className="shape-viewer-grid">
-        {predictionSlot}
-        {actual3DSlot}
-      </div>
+      </CollapsibleStudentStep>
       {comparisonSlot}
-    </section>
+    </>
   );
 }

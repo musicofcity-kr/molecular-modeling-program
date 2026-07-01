@@ -7,6 +7,7 @@ type AppHeaderProps = {
   onModeChange: (mode: AppMode) => void;
   onUserModeChange: (mode: UserMode) => void;
   onExtractAndValidate: () => void;
+  teacherControlsEnabled?: boolean;
   examples: ExampleMolecule[];
   selectedExampleId: string;
   onSelectExample: (exampleId: string) => void;
@@ -19,24 +20,25 @@ export function AppHeader({
   onModeChange,
   onUserModeChange,
   onExtractAndValidate,
+  teacherControlsEnabled = true,
   examples,
   selectedExampleId,
   onSelectExample,
   onLoadExample,
 }: AppHeaderProps) {
   const categories = Array.from(new Set(examples.map((example) => example.category)));
-  const showTeacherControls = userMode === 'teacher';
+  const showTeacherControls = userMode === 'teacher' && teacherControlsEnabled;
   const showHeaderExampleControls = showTeacherControls;
 
   return (
     <header className="app-header">
       <div>
-        <p className="eyebrow">수업용 분자 구조 편집기 MVP</p>
+        <p className="eyebrow">고1 화학 · 결합의 세계</p>
         <h1>다양한 분자의 분자구조 모델링</h1>
       </div>
       <div className="header-actions">
         <p className="header-status" aria-label="현재 구현 상태">
-          Phase 15: Classroom MVP Release Candidate
+          검증된 값만 표시
         </p>
         {showTeacherControls ? (
           <>

@@ -1,4 +1,5 @@
 import type { ActivityQuestion, ActivityResponseState } from '../../types/activity';
+import { CollapsibleStudentStep } from './CollapsibleStudentStep';
 
 type PredictionStepProps = {
   questions: ActivityQuestion[];
@@ -16,15 +17,14 @@ export function PredictionStep({
   onResponseChange,
 }: PredictionStepProps) {
   return (
-    <section className="student-step prediction-step" data-testid="prediction-step">
-      <div className="student-step-heading">
-        <span className="student-step-number">2</span>
-        <div>
-          <p className="section-label">예측 입력하기</p>
-          <h2>분자 구조를 그리기 전에 먼저 예상해 봅니다</h2>
-        </div>
-      </div>
-
+    <CollapsibleStudentStep
+      id="student-step-2"
+      className="student-step prediction-step phase-predict"
+      testId="prediction-step"
+      stepNumber={2}
+      sectionLabel="예측 입력하기"
+      title="분자 구조를 그리기 전에 먼저 예상해 봅니다"
+    >
       <div className="student-question-grid">
         {questions.map((question) => (
           <label className="activity-question" key={question.id}>
@@ -49,6 +49,6 @@ export function PredictionStep({
           </label>
         ))}
       </div>
-    </section>
+    </CollapsibleStudentStep>
   );
 }

@@ -1,4 +1,5 @@
 import type { ActivityTemplate } from '../../types/activity';
+import { CollapsibleStudentStep } from './CollapsibleStudentStep';
 
 type ActivityPickerProps = {
   templates: ActivityTemplate[];
@@ -19,15 +20,14 @@ export function ActivityPicker({
   }
 
   return (
-    <section className="student-step activity-picker" data-testid="activity-picker">
-      <div className="student-step-heading">
-        <span className="student-step-number">1</span>
-        <div>
-          <p className="section-label">오늘의 활동 선택하기</p>
-          <h2>{selectedTemplate.title}</h2>
-        </div>
-      </div>
-
+    <CollapsibleStudentStep
+      id="student-step-1"
+      className="student-step activity-picker phase-predict"
+      testId="activity-picker"
+      stepNumber={1}
+      sectionLabel="오늘의 활동 선택하기"
+      title={selectedTemplate.title}
+    >
       <div className="activity-picker-layout">
         <nav className="activity-list" aria-label="활동 목록">
           {templates.map((template) => (
@@ -68,6 +68,6 @@ export function ActivityPicker({
           </dl>
         </div>
       </div>
-    </section>
+    </CollapsibleStudentStep>
   );
 }

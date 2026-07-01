@@ -51,7 +51,23 @@ const snapshot: ActivityResultSnapshot = {
     observedDifferences: '출처가 다르다.',
     studentReflection: '입체 구조 예상은 예측 모형이다.',
   },
-  activityAnswers: [],
+  activityAnswers: [
+    {
+      questionId: 'predictedFormula',
+      questionText: '예상 분자식',
+      answer: 'CH4',
+    },
+    {
+      questionId: 'afterValidationReflection',
+      questionText: '확인 후 알게 된 점',
+      answer: '분자식이 예상과 같았다.',
+    },
+    {
+      questionId: 'closingReflection',
+      questionText: '최종 정리 문항',
+      answer: '',
+    },
+  ],
   afterValidationReflection: '예상과 구조 확인값을 비교해 생각을 수정했다.',
   finalReflection: '구조 확인값을 기준으로 정리했다.',
   exportNotice:
@@ -76,6 +92,13 @@ describe('ActivityResultPanel', () => {
     );
 
     expect(markup).toContain('활동 결과 정리');
+    expect(markup).toContain('2 / 3 문항 작성됨');
+    expect(markup).toContain('나의 예측');
+    expect(markup).toContain('확인과 비교');
+    expect(markup).toContain('성찰');
+    expect(markup).toContain('아직 작성하지 않음');
+    expect(markup).toContain('2026년 6월 30일');
+    expect(markup).not.toContain('2026-06-30T13:00:00.000Z');
     expect(markup).toContain('임시 저장하기');
     expect(markup).toContain('보고서로 저장하기');
     expect(markup).toContain('활동지 인쇄하기');

@@ -1,6 +1,10 @@
-import type { ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import type { UserMode } from '../../types/activity';
-import type { ActivityResultSnapshot } from '../../types/activityResult';
+import type {
+  ActivityResultAnswer,
+  ActivityResultSnapshot,
+} from '../../types/activityResult';
+import { formatKoreanDateTime } from '../../utils/formatKoreanDateTime';
 
 type ActivityResultPanelProps = {
   userMode: UserMode;
@@ -72,20 +76,43 @@ export function ActivityResultPanel({
   const snapshot = previewSnapshot ?? currentSnapshot;
   const hasSavedResults = savedResults.length > 0;
   const isTeacherMode = userMode === 'teacher';
+  const answerGroups = buildActivityAnswerGroups(snapshot.activityAnswers);
+  const completedAnswerCount = snapshot.activityAnswers.filter((answer) =>
+    Boolean(answer.answer.trim()),
+  ).length;
+  const totalAnswerCount = snapshot.activityAnswers.length;
+  const [isSectionOpen, setIsSectionOpen] = useState(true);
+  const contentId = useId();
 
   return (
     <section
-      className="workspace-panel activity-result-panel"
+      id="student-step-7"
+      className={`workspace-panel activity-result-panel ${
+        isSectionOpen ? 'is-open' : 'is-collapsed'
+      }`}
       data-testid="activity-result-panel"
+      tabIndex={-1}
     >
       <div className="panel-heading activity-result-heading">
-        <div>
-          <p className="section-label">수업 제출 자료</p>
-          <h2>활동 결과 정리</h2>
-        </div>
+        <button
+          className="panel-tab-button"
+          type="button"
+          aria-expanded={isSectionOpen}
+          aria-controls={contentId}
+          onClick={() => {
+            setIsSectionOpen((current) => !current);
+          }}
+        >
+          <span className="section-label">수업 제출 자료</span>
+          <span className="panel-tab-title">활동 결과 정리</span>
+          <span className="student-step-toggle">
+            {isSectionOpen ? '접기' : '열기'}
+          </span>
+        </button>
         <span className="status-pill">자동 채점 없음</span>
       </div>
 
+      <div className="collapsible-panel-content" id={contentId} hidden={!isSectionOpen}>
       <p className="activity-result-notice">
         아래 내용은 수업 활동 결과 요약입니다. 필요한 경우 임시 저장하거나
         보고서로 저장할 수 있습니다.
@@ -95,6 +122,12 @@ export function ActivityResultPanel({
         브라우저에서는 보이지 않습니다. 최근 결과는 최대 10개까지만 보관되며,
         오래된 결과는 새 저장 결과에 밀려날 수 있습니다.
       </p>
+      <div className="activity-result-progress" aria-label="활동 문항 작성 현황">
+        <strong>
+          {completedAnswerCount} / {totalAnswerCount || 0} 문항 작성됨
+        </strong>
+        <span>나의 예측, 확인과 비교, 성찰을 나누어 정리합니다.</span>
+      </div>
       {statusMessage ? (
         <p className="activity-result-status" data-testid="activity-result-status">
           {statusMessage}
@@ -134,7 +167,10 @@ export function ActivityResultPanel({
           <ActivityResultBlock title="활동 정보">
             <ResultRow label="활동명" value={snapshot.activityTitle} />
             <ResultRow label="분자명" value={snapshot.moleculeName} />
-            <ResultRow label="작성 시각" value={snapshot.createdAt} />
+            <ResultRow
+              label="작성 시각"
+              value={formatKoreanDateTime(snapshot.createdAt)}
+            />
           </ActivityResultBlock>
 
           <ActivityResultBlock title="나의 예측">
@@ -262,15 +298,27 @@ export function ActivityResultPanel({
           </ActivityResultBlock>
 
           <ActivityResultBlock title="정리 문항 답변">
-            {snapshot.activityAnswers.length > 0 ? (
-              <ul className="activity-result-list">
-                {snapshot.activityAnswers.map((answer) => (
-                  <li key={answer.questionId}>
-                    <strong>{answer.questionText}</strong>
-                    <span>{answer.answer || '미입력'}</span>
-                  </li>
+            {answerGroups.length > 0 ? (
+              <div className="activity-answer-groups">
+                {answerGroups.map((group) => (
+                  <section className="activity-answer-group" key={group.title}>
+                    <div className="activity-answer-group-heading">
+                      <strong>{group.title}</strong>
+                      <span>
+                        {group.completed} / {group.answers.length} 작성
+                      </span>
+                    </div>
+                    <ul className="activity-result-list">
+                      {group.answers.map((answer) => (
+                        <li key={answer.questionId}>
+                          <strong>{answer.questionText}</strong>
+                          <span>{answer.answer || '아직 작성하지 않음'}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
                 ))}
-              </ul>
+              </div>
             ) : (
               <p>저장된 활동 문항 답변이 없습니다.</p>
             )}
@@ -298,7 +346,7 @@ export function ActivityResultPanel({
                     >
                       {savedResult.activityTitle ?? savedResult.moleculeName ?? '저장 결과'}
                     </button>
-                    <small>{savedResult.createdAt}</small>
+                    <small>{formatKoreanDateTime(savedResult.createdAt)}</small>
                   </li>
                 ))}
               </ul>
@@ -333,8 +381,50 @@ export function ActivityResultPanel({
           ) : null}
         </aside>
       </div>
+      </div>
     </section>
   );
+}
+
+function buildActivityAnswerGroups(answers: ActivityResultAnswer[]) {
+  const predictionIds = new Set([
+    'predictedFormula',
+    'predictedMolecularWeight',
+    'drawingReason',
+    'predictedCentralAtom',
+    'predictedBondingDomains',
+    'predictedLonePairs',
+    'predictedVseprShape',
+  ]);
+  const compareIds = new Set([
+    'afterValidationReflection',
+    'vseprReflection',
+    'vseprModelElectronDomainObservation',
+    'vseprModelLonePairEffect',
+    'vseprModelVsPubChemObservation',
+  ]);
+  const groups = [
+    {
+      title: '나의 예측',
+      answers: answers.filter((answer) => predictionIds.has(answer.questionId)),
+    },
+    {
+      title: '확인과 비교',
+      answers: answers.filter((answer) => compareIds.has(answer.questionId)),
+    },
+    {
+      title: '성찰',
+      answers: answers.filter(
+        (answer) =>
+          !predictionIds.has(answer.questionId) && !compareIds.has(answer.questionId),
+      ),
+    },
+  ].filter((group) => group.answers.length > 0);
+
+  return groups.map((group) => ({
+    ...group,
+    completed: group.answers.filter((answer) => Boolean(answer.answer.trim())).length,
+  }));
 }
 
 function ActivityResultBlock({

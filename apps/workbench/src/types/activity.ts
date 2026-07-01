@@ -1,8 +1,9 @@
 import type { MoleculeValidationResult } from './molecule';
 import type { ActivityComparisonModeConfig } from './structureComparison';
+import type { UserRole } from './session';
 
 export type AppMode = 'free_draw' | 'activity';
-export type UserMode = 'student' | 'teacher';
+export type UserMode = UserRole;
 
 export interface ActivityQuestion {
   id: string;

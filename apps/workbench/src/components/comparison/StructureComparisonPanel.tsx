@@ -1,3 +1,4 @@
+import { useId, useState } from 'react';
 import { Molecule3DViewer } from '../Molecule3DViewer';
 import { Vsepr3DModelViewer } from '../Vsepr3DModelViewer';
 import type { UserMode } from '../../types/activity';
@@ -99,21 +100,38 @@ export function StructureComparisonPanel({
   const available = isComparisonAvailable(state);
   const comparisonModelStatus: VseprModelViewStatus =
     available && isOpen ? 'rendered' : vseprModelStatus;
+  const [isSectionOpen, setIsSectionOpen] = useState(true);
+  const contentId = useId();
 
   return (
     <section
-      className={`structure-comparison-panel ${state.availability}`}
+      id="student-step-6"
+      className={`structure-comparison-panel ${state.availability} ${
+        isSectionOpen ? 'is-open' : 'is-collapsed'
+      }`}
       data-testid="structure-comparison-panel"
+      tabIndex={-1}
     >
       <div className="panel-heading comparison-heading">
-        <div>
-          <p className="section-label">구조 비교하기</p>
-          <h2>
+        <button
+          className="panel-tab-button"
+          type="button"
+          aria-expanded={isSectionOpen}
+          aria-controls={contentId}
+          onClick={() => {
+            setIsSectionOpen((current) => !current);
+          }}
+        >
+          <span className="section-label">구조 비교하기</span>
+          <span className="panel-tab-title">
             {userMode === 'teacher'
               ? '실제/외부 3D 구조 vs VSEPR 예측 모형'
               : '참고 3D 구조와 예상 입체 모형 비교'}
-          </h2>
-        </div>
+          </span>
+          <span className="student-step-toggle">
+            {isSectionOpen ? '접기' : '열기'}
+          </span>
+        </button>
         <div className="comparison-heading-actions">
           <span className={available ? 'status-pill ready' : 'status-pill'}>
             {formatAvailability(state)}
@@ -130,6 +148,7 @@ export function StructureComparisonPanel({
         </div>
       </div>
 
+      <div className="collapsible-panel-content" id={contentId} hidden={!isSectionOpen}>
       <p className="comparison-student-message">
         {userMode === 'teacher'
           ? state.studentMessage
@@ -291,6 +310,7 @@ export function StructureComparisonPanel({
           </ul>
         </div>
       ) : null}
+      </div>
     </section>
   );
 }

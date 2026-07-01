@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { ExampleMolecule } from '../../data/exampleMolecules';
+import { CollapsibleStudentStep } from './CollapsibleStudentStep';
 
 type MoleculeDrawingStepProps = {
   drawingSlot: ReactNode;
@@ -21,15 +22,14 @@ export function MoleculeDrawingStep({
   const categories = Array.from(new Set(examples.map((example) => example.category)));
 
   return (
-    <section className="student-step drawing-step" data-testid="drawing-step">
-      <div className="student-step-heading">
-        <span className="student-step-number">3</span>
-        <div>
-          <p className="section-label">분자 그리기</p>
-          <h2>분자 구조를 그리거나 예제를 불러옵니다</h2>
-        </div>
-      </div>
-
+    <CollapsibleStudentStep
+      id="student-step-3"
+      className="student-step drawing-step phase-build"
+      testId="drawing-step"
+      stepNumber={3}
+      sectionLabel="분자 그리기"
+      title="분자 구조를 그리거나 예제를 불러옵니다"
+    >
       <div className="student-drawing-actions">
         <label className="example-picker">
           <span>분자 예시 선택</span>
@@ -68,6 +68,6 @@ export function MoleculeDrawingStep({
       </div>
 
       {drawingSlot}
-    </section>
+    </CollapsibleStudentStep>
   );
 }

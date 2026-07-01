@@ -16,7 +16,16 @@ import { Vsepr3DModelViewer } from '../components/Vsepr3DModelViewer';
 import { TeacherPanel } from '../components/TeacherPanel';
 import { DeveloperDetailsPanel } from '../components/advanced/DeveloperDetailsPanel';
 import { TeacherAdvancedPanel } from '../components/advanced/TeacherAdvancedPanel';
+import { RoleGate } from '../components/auth/RoleGate';
+import { RoleSelectionScreen } from '../components/auth/RoleSelectionScreen';
+import { StudentEntryScreen } from '../components/auth/StudentEntryScreen';
+import { TeacherDashboardPlaceholder } from '../components/auth/TeacherDashboardPlaceholder';
+import { TeacherEntryScreen } from '../components/auth/TeacherEntryScreen';
 import { StudentActivityShell } from '../components/student/StudentActivityShell';
+import {
+  LearningProgressRail,
+  type LearningStepId,
+} from '../components/student/LearningProgressRail';
 import { MoleculeDrawingStep } from '../components/student/MoleculeDrawingStep';
 import { ShapeViewerSection } from '../components/student/ShapeViewerSection';
 import { ValidationResultCards } from '../components/student/ValidationResultCards';
@@ -51,6 +60,10 @@ import {
   loadActivityResults,
   saveActivityResult,
 } from '../services/activityResultStorage';
+import {
+  UserSessionProvider,
+  useUserSession,
+} from '../contexts/UserSessionContext';
 import type {
   GeometryMeasurementResult,
   Molecule3DInput,
@@ -67,6 +80,7 @@ import {
 } from '../types/activity';
 import type { StructureComparisonObservation } from '../types/structureComparison';
 import type { ActivityResultSnapshot } from '../types/activityResult';
+import type { AppRoute, UserSession } from '../types/session';
 import type { VseprAnalysis, VseprModelViewStatus } from '../types/vsepr';
 
 type PubChem3DState = {
@@ -183,14 +197,80 @@ function getVseprModelStatusForAnalysis(
   return options.renderModel ? 'rendered' : 'ready';
 }
 
-export function App() {
+function getInitialAppRoute(): AppRoute {
+  if (typeof window === 'undefined') {
+    return 'home';
+  }
+
+  const { pathname } = window.location;
+
+  if (pathname.startsWith('/teacher/dashboard')) {
+    return 'teacher-dashboard';
+  }
+
+  if (pathname.startsWith('/teacher')) {
+    return 'teacher';
+  }
+
+  if (pathname.startsWith('/student/workbench')) {
+    return 'student-workbench';
+  }
+
+  if (pathname.startsWith('/student')) {
+    return 'student';
+  }
+
+  return 'home';
+}
+
+function getUserModeForRoute(route: AppRoute): UserMode {
+  return route === 'teacher' || route === 'teacher-dashboard'
+    ? 'teacher'
+    : 'student';
+}
+
+function getPathForRoute(route: AppRoute): string {
+  switch (route) {
+    case 'home':
+      return '/';
+    case 'student':
+      return '/student';
+    case 'student-workbench':
+      return '/student/workbench';
+    case 'teacher':
+      return '/teacher';
+    case 'teacher-dashboard':
+      return '/teacher/dashboard';
+  }
+}
+
+type AppProps = {
+  initialRoute?: AppRoute;
+  initialSession?: UserSession | null;
+};
+
+export function App({ initialRoute, initialSession = null }: AppProps = {}) {
+  return (
+    <UserSessionProvider initialSession={initialSession}>
+      <WorkbenchApp initialRoute={initialRoute} />
+    </UserSessionProvider>
+  );
+}
+
+function WorkbenchApp({ initialRoute }: { initialRoute?: AppRoute }) {
+  const { session } = useUserSession();
   const editorRef = useRef<ChemicalEditorHandle | null>(null);
   const hasLoggedEditorReadyRef = useRef(false);
   const validationKeyRef = useRef<string | null>(null);
   const pubChem3DRequestIdRef = useRef(0);
   const pubChemCandidateRequestIdRef = useRef(0);
+  const [appRoute, setAppRoute] = useState<AppRoute>(
+    initialRoute ?? getInitialAppRoute(),
+  );
   const [appMode, setAppMode] = useState<AppMode>('activity');
-  const [userMode, setUserMode] = useState<UserMode>('student');
+  const [userMode, setUserMode] = useState<UserMode>(
+    getUserModeForRoute(initialRoute ?? getInitialAppRoute()),
+  );
   const [selectedActivityId, setSelectedActivityId] = useState(
     activityTemplates[0]?.id ?? '',
   );
@@ -252,6 +332,33 @@ export function App() {
     setLogs((currentLogs) => [entry, ...currentLogs].slice(0, 6));
   };
 
+  const navigateToRoute = useCallback((nextRoute: AppRoute) => {
+    setAppRoute(nextRoute);
+    setUserMode(getUserModeForRoute(nextRoute));
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const nextPath = getPathForRoute(nextRoute);
+
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState(null, '', nextPath);
+    }
+  }, []);
+
+  const handleUserModeChange = useCallback(
+    (nextMode: UserMode) => {
+      navigateToRoute(nextMode === 'teacher' ? 'teacher' : 'student');
+    },
+    [navigateToRoute],
+  );
+
+  const handleStudentEntered = useCallback(() => {
+    setAppMode('activity');
+    navigateToRoute('student-workbench');
+  }, [navigateToRoute]);
+
   const resetPubChem3DState = () => {
     pubChem3DRequestIdRef.current += 1;
     setPubChem3DState(INITIAL_PUBCHEM_3D_STATE);
@@ -275,6 +382,24 @@ export function App() {
 
   const handle3DDeveloperLog = useCallback((message: string) => {
     console.info('[3Dmol viewer]', message);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const handlePopState = () => {
+      const nextRoute = getInitialAppRoute();
+      setAppRoute(nextRoute);
+      setUserMode(getUserModeForRoute(nextRoute));
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
   }, []);
 
   useEffect(() => {
@@ -1123,6 +1248,28 @@ export function App() {
         onSelectCandidate={handleSelectPubChemCandidate}
       />
     ) : null;
+  const hasPredictionResponse =
+    selectedActivity?.predictionQuestions.some((question) =>
+      Boolean(currentActivityResponses[question.id]?.trim()),
+    ) ?? false;
+  const hasReflectionResponse =
+    selectedActivity?.reflectionQuestions.some((question) =>
+      Boolean(currentActivityResponses[question.id]?.trim()),
+    ) ?? false;
+  const hasComparisonObservation = Object.values(
+    structureComparisonObservationText,
+  ).some((value) => Boolean(value.trim()));
+  const currentLearningStep: LearningStepId = hasReflectionResponse
+    ? 7
+    : hasComparisonObservation
+      ? 6
+      : molecule3DInput || vseprModelStatus === 'rendered'
+        ? 5
+        : validationResult
+          ? 4
+          : appMode === 'free_draw' || hasPredictionResponse
+            ? 3
+            : 1;
   const studentFreeDrawView = (
     <div className="student-activity-shell" data-testid="student-free-draw-shell">
       <MoleculeDrawingStep
@@ -1147,20 +1294,104 @@ export function App() {
       {resultSection}
     </div>
   );
+  const isStudentSessionActive = session?.role === 'student';
+  const isTeacherSessionActive = session?.role === 'teacher';
+  const isStudentRoute =
+    appRoute === 'student' || appRoute === 'student-workbench';
+  const isTeacherRoute =
+    appRoute === 'teacher' || appRoute === 'teacher-dashboard';
+  const shouldShowTeacherDashboardPlaceholder =
+    appRoute === 'teacher-dashboard' && isTeacherSessionActive;
+  const appHeader = (
+    <AppHeader
+      appMode={appMode}
+      userMode={userMode}
+      teacherControlsEnabled={isTeacherSessionActive}
+      onModeChange={setAppMode}
+      onUserModeChange={handleUserModeChange}
+      examples={exampleMolecules}
+      selectedExampleId={selectedExampleId}
+      onSelectExample={handleSelectExample}
+      onLoadExample={handleLoadExample}
+      onExtractAndValidate={handleExtractAndValidate}
+    />
+  );
+
+  if (appRoute === 'home') {
+    return (
+      <main className="app-shell" data-testid="role-selection-shell">
+        {appHeader}
+        <RoleSelectionScreen
+          onOpenStudent={() => {
+            navigateToRoute('student');
+          }}
+          onOpenTeacher={() => {
+            navigateToRoute('teacher');
+          }}
+        />
+      </main>
+    );
+  }
+
+  if (isStudentRoute && !isStudentSessionActive) {
+    return (
+      <main className="app-shell" data-testid="student-entry-shell">
+        {appHeader}
+        <StudentEntryScreen
+          onEntered={handleStudentEntered}
+          onOpenTeacher={() => {
+            navigateToRoute('teacher');
+          }}
+        />
+      </main>
+    );
+  }
+
+  if (isTeacherRoute && !isTeacherSessionActive) {
+    return (
+      <main className="app-shell" data-testid="teacher-entry-shell">
+        {appHeader}
+        <RoleGate
+          allow={['teacher']}
+          fallback={
+            <TeacherEntryScreen
+              onOpenStudent={() => {
+                navigateToRoute('student');
+              }}
+            />
+          }
+        >
+          <TeacherPanel
+            userMode="teacher"
+            appMode={appMode}
+            templates={activityTemplates}
+            selectedActivityId={selectedActivityId}
+            examples={exampleMolecules}
+            selectedExample={selectedExample}
+            validationResult={validationResult}
+            vseprAnalysis={vseprAnalysis}
+            molecule3DInput={molecule3DInput}
+            structureComparisonState={structureComparisonState}
+            pubChem3DStatus={pubChem3DState.status}
+            pubChemCandidateStatus={pubChemCandidateState.status}
+            onSelectActivity={setSelectedActivityId}
+          />
+        </RoleGate>
+      </main>
+    );
+  }
 
   return (
     <main className="app-shell" data-testid="app-shell">
-      <AppHeader
-        appMode={appMode}
-        userMode={userMode}
-        onModeChange={setAppMode}
-        onUserModeChange={setUserMode}
-        examples={exampleMolecules}
-        selectedExampleId={selectedExampleId}
-        onSelectExample={handleSelectExample}
-        onLoadExample={handleLoadExample}
-        onExtractAndValidate={handleExtractAndValidate}
-      />
+      {appHeader}
+
+      {shouldShowTeacherDashboardPlaceholder ? (
+        <TeacherDashboardPlaceholder />
+      ) : null}
+
+      {userMode === 'student' ? (
+        <LearningProgressRail currentStep={currentLearningStep} />
+      ) : null}
 
       {isStudentActivityView ? (
         <StudentActivityShell

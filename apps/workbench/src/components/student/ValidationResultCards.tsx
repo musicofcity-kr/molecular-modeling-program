@@ -1,5 +1,6 @@
 import type { Molecule3DInput, MoleculeValidationResult } from '../../types/molecule';
 import type { VseprAnalysis } from '../../types/vsepr';
+import { CollapsibleStudentStep } from './CollapsibleStudentStep';
 
 type ValidationResultCardsProps = {
   validationResult: MoleculeValidationResult | null;
@@ -79,18 +80,14 @@ export function ValidationResultCards({
   const isValid = validationResult?.ok === true;
 
   return (
-    <section
-      className="student-step validation-result-cards"
-      data-testid="validation-result-cards"
+    <CollapsibleStudentStep
+      id="student-step-4"
+      className="student-step validation-result-cards phase-verify"
+      testId="validation-result-cards"
+      stepNumber={4}
+      sectionLabel="내 구조 확인하기"
+      title="확인된 값만 결과로 봅니다"
     >
-      <div className="student-step-heading">
-        <span className="student-step-number">4</span>
-        <div>
-          <p className="section-label">내 구조 확인하기</p>
-          <h2>확인된 값만 결과로 봅니다</h2>
-        </div>
-      </div>
-
       <div className="student-result-grid">
         <article className={`student-result-card ${status.tone}`}>
           <p className="section-label">{status.label}</p>
@@ -117,6 +114,6 @@ export function ValidationResultCards({
           <strong>{get3DAvailability(molecule3DInput)}</strong>
         </article>
       </div>
-    </section>
+    </CollapsibleStudentStep>
   );
 }
