@@ -85,7 +85,7 @@ export function saveActivitySubmission(
       ok: true,
       data: nextSubmissions,
       studentMessage:
-        '활동 결과를 교사용 제출함에 보냈습니다. 현재 MVP에서는 같은 브라우저의 교사용 화면에서 확인합니다.',
+        '현재 활동 결과를 이 브라우저 제출함에 임시 저장했습니다.',
       developerLogs: [
         ...current.developerLogs,
         `Saved activity submission: ${submission.id}`,

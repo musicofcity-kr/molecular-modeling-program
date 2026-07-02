@@ -74,12 +74,12 @@ import {
   updateActivitySubmissionFeedback,
 } from '../services/activitySubmissionStorage';
 import {
-  saveSubmissionToFirestore,
   updateSubmissionFeedbackInFirestore,
   type ClassroomDraft,
 } from '../services/firebase/classroomRepository';
 import { createClassroomWithTrustedEndpoint } from '../services/firebase/createClassroomService';
 import { loadClassroomSubmissionsWithTrustedEndpoint } from '../services/firebase/listSubmissionsService';
+import { saveSubmissionWithTrustedEndpoint } from '../services/firebase/saveSubmissionService';
 import { createTeacherFeedbackDraft } from '../services/aiFeedbackService';
 import {
   UserSessionProvider,
@@ -1481,10 +1481,10 @@ function WorkbenchApp({
     );
 
     if (session?.role === 'student') {
-      const remoteResult = await saveSubmissionToFirestore(
+      const remoteResult = await saveSubmissionWithTrustedEndpoint({
         submission,
-        session.firebaseUid,
-      );
+        idToken: session.idToken,
+      });
 
       developerLogs.push(...remoteResult.developerLogs);
       statusMessages.push(remoteResult.studentMessage);

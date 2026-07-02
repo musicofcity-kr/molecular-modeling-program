@@ -110,6 +110,7 @@ export function UserSessionProvider({
           displayName: validation.displayName,
           anonymousStudentId,
           startedAt: new Date().toISOString(),
+          idToken: authResult.ok ? authResult.idToken : undefined,
           firebaseUid: authResult.ok ? authResult.uid : undefined,
           authProvider: authResult.ok ? 'firebase-anonymous' : 'local-only',
           authStatus: authResult.ok ? 'authenticated' : 'local_only',

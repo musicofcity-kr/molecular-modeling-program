@@ -32,6 +32,7 @@ export interface StudentSession {
   displayName: string;
   anonymousStudentId: string;
   startedAt: string;
+  idToken?: string;
   firebaseUid?: string;
   authProvider?: StudentAuthProvider;
   authStatus?: StudentAuthStatus;
