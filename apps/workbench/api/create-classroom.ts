@@ -147,6 +147,10 @@ export async function createClassroomFetch(request: Request): Promise<Response> 
   try {
     return handleCreateClassroomBody(body, createFirebaseAdminDependencies());
   } catch (error) {
+    console.error('[create-classroom] admin setup failed', {
+      message: getErrorMessage(error),
+    });
+
     return jsonResponse(
       {
         ok: false,
@@ -217,6 +221,11 @@ export async function handleCreateClassroomBody(
       200,
     );
   } catch (error) {
+    console.error('[create-classroom] request failed', {
+      classCode: request.draft.classCode,
+      message: getErrorMessage(error),
+    });
+
     return jsonResponse(
       {
         ok: false,

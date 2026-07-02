@@ -22,6 +22,8 @@ type TeacherDashboardPlaceholderProps = {
   authorizationStatus?: TeacherAuthorizationStatus;
   templates?: ActivityTemplate[];
   statusMessage?: string;
+  statusTone?: 'info' | 'success' | 'warning';
+  developerLogs?: string[];
   onCreateClassroom?: (draft: ClassroomDraft) => void;
   onLoadSubmissions?: (classCode: string) => void;
   onSignOut?: () => void;
@@ -59,6 +61,8 @@ export function TeacherDashboardPlaceholder({
   authorizationStatus,
   templates = [],
   statusMessage,
+  statusTone = 'info',
+  developerLogs = [],
   onCreateClassroom,
   onLoadSubmissions,
   onSignOut,
@@ -120,9 +124,25 @@ export function TeacherDashboardPlaceholder({
         {formatAuthorizationHelp(authorizationStatus)}
       </p>
       {statusMessage ? (
-        <p className="activity-result-status" data-testid="teacher-classroom-status">
+        <p
+          className={`activity-result-status ${statusTone}`}
+          data-testid="teacher-classroom-status"
+        >
           {statusMessage}
         </p>
+      ) : null}
+      {developerLogs.length > 0 ? (
+        <details
+          className="teacher-debug-details"
+          data-testid="teacher-classroom-developer-logs"
+        >
+          <summary>교사용 서버 진단 정보 보기</summary>
+          <ul>
+            {developerLogs.map((log) => (
+              <li key={log}>{log}</li>
+            ))}
+          </ul>
+        </details>
       ) : null}
 
       <div className="teacher-classroom-grid">

@@ -2081,6 +2081,44 @@ select {
   padding: 10px 12px;
 }
 
+.activity-result-status.warning {
+  border-color: #dfcf95;
+  background: #fff9e8;
+  color: #6b5618;
+}
+
+.activity-result-status.success {
+  border-color: #7fb59a;
+  background: #eff9f3;
+  color: #1f6a47;
+}
+
+.teacher-debug-details {
+  border: 1px solid #d7e0e2;
+  border-radius: 8px;
+  background: #fbfcfc;
+  color: #34464d;
+  padding: 10px 12px;
+}
+
+.teacher-debug-details summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.teacher-debug-details ul {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
+
+.teacher-debug-details li {
+  overflow-wrap: anywhere;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.88rem;
+}
+
 .activity-result-actions {
   display: flex;
   align-items: center;

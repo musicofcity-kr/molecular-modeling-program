@@ -531,6 +531,10 @@ function WorkbenchApp({
     useState<string>('');
   const [teacherClassroomStatusMessage, setTeacherClassroomStatusMessage] =
     useState<string>('');
+  const [teacherClassroomStatusTone, setTeacherClassroomStatusTone] =
+    useState<'info' | 'success' | 'warning'>('info');
+  const [teacherClassroomDeveloperLogs, setTeacherClassroomDeveloperLogs] =
+    useState<string[]>([]);
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(
     null,
   );
@@ -587,6 +591,8 @@ function WorkbenchApp({
   const handleTeacherSignOut = useCallback(() => {
     clearSession();
     setTeacherClassroomStatusMessage('');
+    setTeacherClassroomStatusTone('info');
+    setTeacherClassroomDeveloperLogs([]);
     setTeacherFeedbackStatusMessage('');
     navigateToRoute('teacher');
   }, [clearSession, navigateToRoute]);
@@ -1463,12 +1469,16 @@ function WorkbenchApp({
     });
 
     setTeacherClassroomStatusMessage(result.studentMessage);
+    setTeacherClassroomStatusTone(result.ok ? 'success' : 'warning');
+    setTeacherClassroomDeveloperLogs(result.developerLogs);
     console.info('[Firestore classroom]', result.developerLogs);
   };
   const handleLoadFirestoreSubmissions = async (classCode: string) => {
     const result = await loadClassroomSubmissionsFromFirestore(classCode);
 
     setTeacherClassroomStatusMessage(result.studentMessage);
+    setTeacherClassroomStatusTone(result.ok ? 'success' : 'warning');
+    setTeacherClassroomDeveloperLogs(result.developerLogs);
     console.info('[Firestore submissions]', result.developerLogs);
 
     if (result.ok) {
@@ -1998,6 +2008,8 @@ function WorkbenchApp({
           }
           templates={activityTemplates}
           statusMessage={teacherClassroomStatusMessage}
+          statusTone={teacherClassroomStatusTone}
+          developerLogs={teacherClassroomDeveloperLogs}
           onSignOut={handleTeacherSignOut}
           onCreateClassroom={
             isTeacherAuthorizedSession
