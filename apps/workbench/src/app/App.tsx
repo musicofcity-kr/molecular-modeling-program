@@ -463,7 +463,7 @@ function WorkbenchApp({
   initialRoute?: AppRoute;
   initialEthicsGateAccepted: boolean;
 }) {
-  const { session } = useUserSession();
+  const { session, clearSession } = useUserSession();
   const editorRef = useRef<ChemicalEditorHandle | null>(null);
   const hasLoggedEditorReadyRef = useRef(false);
   const validationKeyRef = useRef<string | null>(null);
@@ -583,6 +583,13 @@ function WorkbenchApp({
     setAppMode('activity');
     navigateToRoute('student-workbench');
   }, [navigateToRoute]);
+
+  const handleTeacherSignOut = useCallback(() => {
+    clearSession();
+    setTeacherClassroomStatusMessage('');
+    setTeacherFeedbackStatusMessage('');
+    navigateToRoute('teacher');
+  }, [clearSession, navigateToRoute]);
 
   const resetPubChem3DState = () => {
     pubChem3DRequestIdRef.current += 1;
@@ -1970,6 +1977,7 @@ function WorkbenchApp({
               ? session.teacherAuthorizationStatus
               : undefined
           }
+          onSignOut={handleTeacherSignOut}
         />
         {legalPanel}
         {legalFooter}
@@ -1990,6 +1998,7 @@ function WorkbenchApp({
           }
           templates={activityTemplates}
           statusMessage={teacherClassroomStatusMessage}
+          onSignOut={handleTeacherSignOut}
           onCreateClassroom={
             isTeacherAuthorizedSession
               ? (draft) => {

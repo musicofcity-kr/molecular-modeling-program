@@ -24,6 +24,7 @@ type TeacherDashboardPlaceholderProps = {
   statusMessage?: string;
   onCreateClassroom?: (draft: ClassroomDraft) => void;
   onLoadSubmissions?: (classCode: string) => void;
+  onSignOut?: () => void;
 };
 
 function formatAuthorizationLabel(
@@ -60,6 +61,7 @@ export function TeacherDashboardPlaceholder({
   statusMessage,
   onCreateClassroom,
   onLoadSubmissions,
+  onSignOut,
 }: TeacherDashboardPlaceholderProps) {
   const [title, setTitle] = useState('고1 화학 분자구조 탐구');
   const [classCode, setClassCode] = useState('CHEM-101');
@@ -90,12 +92,24 @@ export function TeacherDashboardPlaceholder({
           <p className="section-label">교사용 대시보드 준비</p>
           <h2>인증 기반 수업 운영 화면의 뼈대입니다</h2>
         </div>
-        <span className="status-pill">
-          {formatAuthorizationLabel(authorizationStatus)}
-        </span>
-        <span className="status-pill">
-          {canUseFirestoreTools ? 'Firestore 연결 가능' : 'Firestore 권한 필요'}
-        </span>
+        <div className="teacher-dashboard-actions">
+          <span className="status-pill">
+            {formatAuthorizationLabel(authorizationStatus)}
+          </span>
+          <span className="status-pill">
+            {canUseFirestoreTools ? 'Firestore 연결 가능' : 'Firestore 권한 필요'}
+          </span>
+          {onSignOut ? (
+            <button
+              className="secondary-action compact-action"
+              data-testid="teacher-sign-out-button"
+              type="button"
+              onClick={onSignOut}
+            >
+              로그아웃
+            </button>
+          ) : null}
+        </div>
       </div>
       <p className="entry-help">
         이 영역은 Firebase Auth와 Firestore Security Rules가 준비된 뒤 실제

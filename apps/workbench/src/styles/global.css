@@ -794,6 +794,17 @@ select {
   gap: 12px;
 }
 
+.teacher-dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.compact-action {
+  padding: 7px 12px;
+}
+
 .teacher-login-grid,
 .teacher-placeholder-grid {
   display: grid;

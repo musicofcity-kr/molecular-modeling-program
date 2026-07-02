@@ -213,6 +213,8 @@ describe('App scaffold', () => {
 
     expect(markup).toContain('교사용 대시보드 준비');
     expect(markup).toContain('Firestore 연결 가능');
+    expect(markup).toContain('로그아웃');
+    expect(markup).toContain('data-testid="teacher-sign-out-button"');
     expect(markup).toContain('수업방 만들기');
     expect(markup).toContain('서버 제출 목록 불러오기');
     expect(markup).toContain('수업코드와 입장 확인코드');
@@ -237,6 +239,8 @@ describe('App scaffold', () => {
     expect(markup).toContain('교사 권한 승인 대기');
     expect(markup).toContain('아직 teacher custom claim이 없습니다');
     expect(markup).toContain('Firestore 권한 필요');
+    expect(markup).toContain('로그아웃');
+    expect(markup).toContain('data-testid="teacher-sign-out-button"');
     expect(markup).not.toContain('교사용 지도 패널');
     expect(markup).not.toContain('개발자 로그 보기');
     expect(markup).not.toContain('외부 3D 자료 찾기');
