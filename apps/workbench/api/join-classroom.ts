@@ -23,6 +23,7 @@ type JoinClassroomApiPayload = {
   ok: boolean;
   status: JoinClassroomApiStatus;
   classCode?: string;
+  activityTemplateIds?: string[];
   studentMessage: string;
   developerMessage: string;
 };
@@ -35,6 +36,7 @@ type ClassroomRecord = {
   exists: boolean;
   joinEnabled?: unknown;
   joinCodeHash?: unknown;
+  activityTemplateIds?: unknown;
 };
 
 type JoinClassroomDependencies = {
@@ -223,6 +225,9 @@ export async function handleJoinClassroomBody(
     }
 
     const now = dependencies.now();
+    const activityTemplateIds = normalizeActivityTemplateIds(
+      classroom.activityTemplateIds,
+    );
     const membership = buildStudentMembershipDocument({
       uid: decodedToken.uid,
       displayName: request.displayName,
@@ -241,6 +246,7 @@ export async function handleJoinClassroomBody(
         ok: true,
         status: 'joined',
         classCode: request.classCode,
+        activityTemplateIds,
         studentMessage:
           '수업코드 확인이 완료되었습니다. 활동 결과를 서버 제출함에 보낼 수 있습니다.',
         developerMessage: `joinClassroom membership created: classCode=${request.classCode}, uid=${decodedToken.uid}`,
@@ -367,12 +373,17 @@ function createFirebaseAdminDependencies(): JoinClassroomDependencies {
   return {
     verifyIdToken: async (idToken) => auth.verifyIdToken(idToken),
     getClassroom: async (classCode) => {
-      const snapshot = await db.collection('classrooms').doc(classCode).get();
+      const classroomRef = db.collection('classrooms').doc(classCode);
+      const [snapshot, publicInfoSnapshot] = await Promise.all([
+        classroomRef.get(),
+        classroomRef.collection('public').doc('info').get(),
+      ]);
 
       return {
         exists: snapshot.exists,
         joinEnabled: snapshot.get('joinEnabled'),
         joinCodeHash: snapshot.get('joinCodeHash'),
+        activityTemplateIds: publicInfoSnapshot.get('activityTemplateIds'),
       };
     },
     writeMembership: async (classCode, uid, document) => {
@@ -468,6 +479,20 @@ function isJoinCodeAccepted(
         joinCode: request.joinCode,
       })
   );
+}
+
+function normalizeActivityTemplateIds(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      value
+        .map((item) => sanitizeString(item, 80))
+        .filter((item) => /^[a-z0-9_-]+$/i.test(item)),
+    ),
+  ).slice(0, 20);
 }
 
 function sanitizeStudentText(value: unknown, maxLength: number): string {

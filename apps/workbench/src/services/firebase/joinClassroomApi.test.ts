@@ -94,6 +94,12 @@ describe('join-classroom API helpers', () => {
             classCode: 'CHEM-101',
             joinCode: 'A1B2',
           }),
+          activityTemplateIds: [
+            'draw-water',
+            'draw-methane',
+            'draw-ammonia',
+            'bad template id',
+          ],
         }),
         writeMembership,
         now: () => '2026-07-02T00:00:00.000Z',
@@ -106,6 +112,7 @@ describe('join-classroom API helpers', () => {
       ok: true,
       status: 'joined',
       classCode: 'CHEM-101',
+      activityTemplateIds: ['draw-water', 'draw-methane', 'draw-ammonia'],
     });
     expect(writeMembership).toHaveBeenCalledWith(
       'CHEM-101',

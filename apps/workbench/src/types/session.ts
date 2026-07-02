@@ -37,6 +37,7 @@ export interface StudentSession {
   authStatus?: StudentAuthStatus;
   classroomJoinStatus?: ClassroomJoinStatus;
   classroomJoinMessage?: string;
+  activityTemplateIds?: string[];
 }
 
 export interface TeacherSession {

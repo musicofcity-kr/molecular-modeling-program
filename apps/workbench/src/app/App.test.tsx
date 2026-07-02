@@ -202,6 +202,28 @@ describe('App scaffold', () => {
     expect(markup).not.toContain('data-testid="molecular-weight-output"');
   });
 
+  it('limits the student activity picker to templates selected by the classroom', () => {
+    const allowedTemplates = activityTemplates.slice(0, 3);
+    const hiddenTemplates = activityTemplates.slice(3);
+    const markup = renderToStaticMarkup(
+      <App
+        initialRoute="student-workbench"
+        initialSession={{
+          ...studentSession,
+          activityTemplateIds: allowedTemplates.map((template) => template.id),
+        }}
+        initialEthicsGateAccepted
+      />,
+    );
+
+    allowedTemplates.forEach((template) => {
+      expect(markup).toContain(template.title);
+    });
+    hiddenTemplates.forEach((template) => {
+      expect(markup).not.toContain(template.title);
+    });
+  });
+
   it('renders the authenticated teacher dashboard with Firestore classroom controls', () => {
     const markup = renderToStaticMarkup(
       <App

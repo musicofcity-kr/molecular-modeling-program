@@ -13,6 +13,7 @@ export type JoinClassroomResult = {
   ok: true;
   status: ClassroomJoinStatus;
   classCode: string;
+  activityTemplateIds: string[];
   studentMessage: string;
   developerMessage: string;
 };
@@ -38,6 +39,7 @@ type JoinClassroomApiResponse = {
   ok?: boolean;
   status?: string;
   classCode?: string;
+  activityTemplateIds?: unknown;
   studentMessage?: string;
   developerMessage?: string;
 };
@@ -51,6 +53,7 @@ export async function joinClassroomWithTrustedEndpoint(
       ok: true,
       status: 'local_session_only',
       classCode: input.classCode,
+      activityTemplateIds: [],
       studentMessage: JOIN_CLASSROOM_LOCAL_ONLY_MESSAGE,
       developerMessage:
         'joinClassroom skipped: Firebase anonymous UID is missing; no Firestore membership write attempted.',
@@ -96,6 +99,9 @@ export async function joinClassroomWithTrustedEndpoint(
         ok: true,
         status: 'joined',
         classCode: body.classCode ?? input.classCode,
+        activityTemplateIds: normalizeActivityTemplateIds(
+          body.activityTemplateIds,
+        ),
         studentMessage:
           body.studentMessage ?? JOIN_CLASSROOM_JOINED_MESSAGE,
         developerMessage:
@@ -108,6 +114,7 @@ export async function joinClassroomWithTrustedEndpoint(
       ok: true,
       status: 'deferred_until_trusted_endpoint',
       classCode: input.classCode,
+      activityTemplateIds: [],
       studentMessage:
         body.studentMessage ?? JOIN_CLASSROOM_SERVER_FALLBACK_MESSAGE,
       developerMessage:
@@ -142,9 +149,25 @@ function deferredJoinResult(
     ok: true,
     status: 'deferred_until_trusted_endpoint',
     classCode,
+    activityTemplateIds: [],
     studentMessage,
     developerMessage,
   };
+}
+
+function normalizeActivityTemplateIds(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      value
+        .filter((item): item is string => typeof item === 'string')
+        .map((item) => item.trim().slice(0, 80))
+        .filter((item) => /^[a-z0-9_-]+$/i.test(item)),
+    ),
+  ).slice(0, 20);
 }
 
 function getErrorMessage(error: unknown): string {

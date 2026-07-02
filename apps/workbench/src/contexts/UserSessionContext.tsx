@@ -115,6 +115,10 @@ export function UserSessionProvider({
           authStatus: authResult.ok ? 'authenticated' : 'local_only',
           classroomJoinStatus: joinResult.status,
           classroomJoinMessage: joinResult.studentMessage,
+          activityTemplateIds:
+            joinResult.activityTemplateIds.length > 0
+              ? joinResult.activityTemplateIds
+              : undefined,
         };
 
         setSession(nextSession);

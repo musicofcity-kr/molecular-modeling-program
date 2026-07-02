@@ -50,6 +50,12 @@ describe('classroomJoinService', () => {
           ok: true,
           status: 'joined',
           classCode: 'CHEM-101',
+          activityTemplateIds: [
+            'draw-water',
+            'draw-methane',
+            'draw-ammonia',
+            'bad template id',
+          ],
           studentMessage: JOIN_CLASSROOM_JOINED_MESSAGE,
           developerMessage: 'membership created',
         }),
@@ -73,6 +79,7 @@ describe('classroomJoinService', () => {
       ok: true,
       status: 'joined',
       classCode: 'CHEM-101',
+      activityTemplateIds: ['draw-water', 'draw-methane', 'draw-ammonia'],
       studentMessage: JOIN_CLASSROOM_JOINED_MESSAGE,
     });
 

@@ -551,11 +551,40 @@ function WorkbenchApp({
       'Ketcher에서 구조를 추출한 뒤 RDKit.js 검증을 실행합니다.',
     ),
   ]);
+  const studentActivityTemplates = useMemo(() => {
+    const activityTemplateIds =
+      session?.role === 'student' ? session.activityTemplateIds : undefined;
+
+    if (!activityTemplateIds || activityTemplateIds.length === 0) {
+      return activityTemplates;
+    }
+
+    const allowedTemplateIds = new Set(activityTemplateIds);
+    const filteredTemplates = activityTemplates.filter((template) =>
+      allowedTemplateIds.has(template.id),
+    );
+
+    return filteredTemplates.length > 0 ? filteredTemplates : activityTemplates;
+  }, [session]);
+  const currentActivityTemplates =
+    userMode === 'student' ? studentActivityTemplates : activityTemplates;
   const selectedActivity =
-    activityTemplates.find((template) => template.id === selectedActivityId) ??
-    activityTemplates[0];
+    currentActivityTemplates.find(
+      (template) => template.id === selectedActivityId,
+    ) ?? currentActivityTemplates[0];
   const selectedActivityUsesVsepr =
     appMode === 'activity' && selectedActivity?.requiresVsepr === true;
+
+  useEffect(() => {
+    if (
+      currentActivityTemplates.length > 0 &&
+      !currentActivityTemplates.some(
+        (template) => template.id === selectedActivityId,
+      )
+    ) {
+      setSelectedActivityId(currentActivityTemplates[0].id);
+    }
+  }, [currentActivityTemplates, selectedActivityId]);
 
   const appendLog = (entry: WorkbenchLogEntry) => {
     setLogs((currentLogs) => [entry, ...currentLogs].slice(0, 6));
@@ -876,7 +905,7 @@ function WorkbenchApp({
   const handleSelectExample = (exampleId: string) => {
     const nextActivityId = resolveActivityIdForExample({
       exampleId,
-      templates: activityTemplates,
+      templates: currentActivityTemplates,
       fallbackActivityId: selectedActivityId,
     });
     const nextExample = exampleMolecules.find((example) => example.id === exampleId);
@@ -899,10 +928,12 @@ function WorkbenchApp({
   };
 
   const handleSelectActivity = (activityId: string) => {
-    const nextTemplate = activityTemplates.find((template) => template.id === activityId);
+    const nextTemplate = currentActivityTemplates.find(
+      (template) => template.id === activityId,
+    );
     const nextExampleId = resolveRecommendedExampleIdForActivity({
       activityId,
-      templates: activityTemplates,
+      templates: currentActivityTemplates,
       examples: exampleMolecules,
       fallbackExampleId: selectedExampleId,
     });
@@ -2034,7 +2065,7 @@ function WorkbenchApp({
 
       {isStudentActivityView ? (
         <StudentActivityShell
-          templates={activityTemplates}
+          templates={currentActivityTemplates}
           selectedActivityId={selectedActivityId}
           responses={currentActivityResponses}
           validationResult={validationResult}
@@ -2098,7 +2129,7 @@ function WorkbenchApp({
         <ActivityPanel
           appMode={appMode}
           userMode={userMode}
-          templates={activityTemplates}
+          templates={currentActivityTemplates}
           selectedActivityId={selectedActivityId}
           responses={currentActivityResponses}
           validationResult={validationResult}
