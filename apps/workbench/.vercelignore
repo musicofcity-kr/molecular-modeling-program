@@ -4,6 +4,8 @@ dist-single/
 coverage/
 .vite/
 *.tsbuildinfo
+**/*.test.ts
+**/*.test.tsx
 
 .env
 .env.*

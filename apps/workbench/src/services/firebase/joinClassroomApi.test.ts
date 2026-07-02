@@ -4,7 +4,7 @@ import {
   handleJoinClassroomBody,
   parseJoinClassroomRequest,
   resolveAdminCredentialConfig,
-} from './join-classroom';
+} from '../../../api/join-classroom';
 
 describe('join-classroom API helpers', () => {
   it('normalizes and validates a trusted classroom join request', () => {
