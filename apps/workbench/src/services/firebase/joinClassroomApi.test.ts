@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  buildJoinCodeHash as buildApiJoinCodeHash,
   buildStudentMembershipDocument,
   handleJoinClassroomBody,
   parseJoinClassroomRequest,
   resolveAdminCredentialConfig,
 } from '../../../api/join-classroom';
-import { buildJoinCodeHash } from './classroomJoinCode';
+import { buildJoinCodeHash as buildClientJoinCodeHash } from './classroomJoinCode';
 
 describe('join-classroom API helpers', () => {
   it('normalizes and validates a trusted classroom join request', () => {
@@ -27,6 +28,12 @@ describe('join-classroom API helpers', () => {
         anonymousStudentId: 'anon-1',
       },
     });
+  });
+
+  it('keeps server and client join-code hashing consistent', () => {
+    const input = { classCode: ' chem/101 ', joinCode: ' a1 b2 ' };
+
+    expect(buildApiJoinCodeHash(input)).toBe(buildClientJoinCodeHash(input));
   });
 
   it('builds a minimal student membership document without student personal identifiers', () => {
@@ -83,7 +90,7 @@ describe('join-classroom API helpers', () => {
         getClassroom: vi.fn().mockResolvedValue({
           exists: true,
           joinEnabled: true,
-          joinCodeHash: buildJoinCodeHash({
+          joinCodeHash: buildApiJoinCodeHash({
             classCode: 'CHEM-101',
             joinCode: 'A1B2',
           }),
@@ -156,7 +163,7 @@ describe('join-classroom API helpers', () => {
         getClassroom: vi.fn().mockResolvedValue({
           exists: true,
           joinEnabled: true,
-          joinCodeHash: buildJoinCodeHash({
+          joinCodeHash: buildApiJoinCodeHash({
             classCode: 'CHEM-101',
             joinCode: 'A1B2',
           }),
