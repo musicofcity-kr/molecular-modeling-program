@@ -16,9 +16,15 @@ export type StudentAuthStatus =
   | 'authenticated'
   | 'auth_unavailable';
 
+export type ClassroomJoinStatus =
+  | 'local_session_only'
+  | 'deferred_until_trusted_endpoint'
+  | 'joined';
+
 export type TeacherAuthorizationStatus =
   | 'not_checked'
-  | 'pending_custom_claim';
+  | 'pending_custom_claim'
+  | 'authorized';
 
 export interface StudentSession {
   role: 'student';
@@ -29,6 +35,8 @@ export interface StudentSession {
   firebaseUid?: string;
   authProvider?: StudentAuthProvider;
   authStatus?: StudentAuthStatus;
+  classroomJoinStatus?: ClassroomJoinStatus;
+  classroomJoinMessage?: string;
 }
 
 export interface TeacherSession {
@@ -85,4 +93,25 @@ export function validateStudentEntryInput(
     classCode,
     displayName: displayName || '익명 학생',
   };
+}
+
+export function resolveTeacherAuthorizationStatus(
+  claims: Record<string, unknown> | undefined,
+): TeacherAuthorizationStatus {
+  if (!claims) {
+    return 'not_checked';
+  }
+
+  return claims.teacher === true || claims.role === 'teacher'
+    ? 'authorized'
+    : 'pending_custom_claim';
+}
+
+export function isTeacherAuthorized(
+  session: UserSession | null | undefined,
+): boolean {
+  return (
+    session?.role === 'teacher' &&
+    session.teacherAuthorizationStatus === 'authorized'
+  );
 }

@@ -7,6 +7,10 @@ import {
   type User,
 } from 'firebase/auth';
 import { getFirebaseAuth } from '../../config/firebaseConfig';
+import {
+  resolveTeacherAuthorizationStatus,
+  type TeacherAuthorizationStatus,
+} from '../../types/session';
 
 export type FirebaseAuthFailureStatus = 'not_configured' | 'auth_error';
 
@@ -17,6 +21,8 @@ export type FirebaseAuthUserResult = {
   email?: string;
   providerId?: string;
   isAnonymous: boolean;
+  teacherAuthorizationStatus?: TeacherAuthorizationStatus;
+  developerMessage?: string;
 };
 
 export type FirebaseAuthFailureResult = {
@@ -97,6 +103,32 @@ function userResult(user: User, providerId?: string): FirebaseAuthUserResult {
   };
 }
 
+async function teacherUserResult(
+  user: User,
+  providerId?: string,
+): Promise<FirebaseAuthUserResult> {
+  const baseResult = userResult(user, providerId);
+
+  try {
+    const tokenResult = await user.getIdTokenResult();
+
+    return {
+      ...baseResult,
+      teacherAuthorizationStatus: resolveTeacherAuthorizationStatus(
+        tokenResult.claims,
+      ),
+    };
+  } catch (error) {
+    const details = getAuthErrorDetails(error);
+
+    return {
+      ...baseResult,
+      teacherAuthorizationStatus: 'not_checked',
+      developerMessage: `Firebase teacher custom claim check failed: ${details.message}`,
+    };
+  }
+}
+
 export async function signInStudentAnonymously(): Promise<FirebaseAuthResult> {
   const auth = getFirebaseAuth();
 
@@ -128,7 +160,7 @@ export async function signInTeacherWithGooglePopup(): Promise<FirebaseAuthResult
     const provider = new GoogleAuthProvider();
     const credential = await signInWithPopup(auth, provider);
 
-    return userResult(credential.user, 'google.com');
+    return teacherUserResult(credential.user, 'google.com');
   } catch (error) {
     return authErrorResult(
       error,
@@ -163,7 +195,7 @@ export async function signInTeacherWithEmailPassword(input: {
   try {
     const credential = await signInWithEmailAndPassword(auth, email, password);
 
-    return userResult(credential.user, 'password');
+    return teacherUserResult(credential.user, 'password');
   } catch (error) {
     return authErrorResult(
       error,

@@ -119,6 +119,23 @@ function teacherDb(uid = teacherUid) {
     .firestore();
 }
 
+function googleUserWithoutTeacherClaimDb(uid = teacherUid) {
+  return testEnv
+    .authenticatedContext(uid, {
+      firebase: { sign_in_provider: 'google.com' },
+    })
+    .firestore();
+}
+
+function userWithFalseTeacherClaimDb(uid = teacherUid) {
+  return testEnv
+    .authenticatedContext(uid, {
+      teacher: false,
+      role: 'student',
+    })
+    .firestore();
+}
+
 async function seedClassroom() {
   await testEnv.withSecurityRulesDisabled(async (context) => {
     const adminDb = context.firestore();
@@ -199,6 +216,22 @@ describe('Firestore Security Rules for classroom persistence', () => {
 
     await assertFails(
       setDoc(doc(db, 'classrooms/newClass'), classroomData(studentUid)),
+    );
+  });
+
+  it('blocks Google-authenticated users when teacher custom claim is missing', async () => {
+    const db = googleUserWithoutTeacherClaimDb();
+
+    await assertFails(
+      setDoc(doc(db, 'classrooms/newClass'), classroomData(teacherUid)),
+    );
+  });
+
+  it('blocks users with an explicit non-teacher claim', async () => {
+    const db = userWithFalseTeacherClaimDb();
+
+    await assertFails(
+      setDoc(doc(db, 'classrooms/newClass'), classroomData(teacherUid)),
     );
   });
 
@@ -373,6 +406,31 @@ describe('Firestore Security Rules for classroom persistence', () => {
         doc(db, `classrooms/${classroomId}/students/${otherStudentUid}`),
         studentMembershipData(otherStudentUid),
       ),
+    );
+  });
+
+  it('blocks teachers from directly creating student membership documents', async () => {
+    await seedClassroom();
+    const db = teacherDb();
+
+    await assertFails(
+      setDoc(
+        doc(db, `classrooms/${classroomId}/students/${otherStudentUid}`),
+        studentMembershipData(otherStudentUid),
+      ),
+    );
+  });
+
+  it('blocks students from changing membership ownership fields', async () => {
+    await seedClassroom();
+    const db = studentDb();
+
+    await assertFails(
+      updateDoc(doc(db, `classrooms/${classroomId}/students/${studentUid}`), {
+        uid: otherStudentUid,
+        displayName: '다른 학생',
+        lastActiveAt: nowIso(),
+      }),
     );
   });
 });

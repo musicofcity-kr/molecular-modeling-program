@@ -94,7 +94,11 @@ import {
 } from '../types/activity';
 import type { StructureComparisonObservation } from '../types/structureComparison';
 import type { ActivityResultSnapshot } from '../types/activityResult';
-import type { AppRoute, UserSession } from '../types/session';
+import {
+  isTeacherAuthorized,
+  type AppRoute,
+  type UserSession,
+} from '../types/session';
 import type { VseprAnalysis, VseprModelViewStatus } from '../types/vsepr';
 import type { LegalDocumentId } from '../content/legalDocuments';
 import type {
@@ -218,6 +222,16 @@ function buildExample3DInput(example: ExampleMolecule): Molecule3DInput | null {
     sourceNote: example.structure3D.sourceNote,
     sourceUrl: example.structure3D.sourceUrl,
   };
+}
+
+export function shouldAutoLoadPubChem3DForExample(
+  example: ExampleMolecule | null | undefined,
+): example is ExampleMolecule & { pubchemCid: number } {
+  return (
+    example?.external3DSource === 'pubchem' &&
+    typeof example.pubchemCid === 'number' &&
+    !example.structure3D
+  );
 }
 
 function formatStudentExternal3DMessage(message: string): string {
@@ -357,6 +371,7 @@ function WorkbenchApp({
   const hasLoggedEditorReadyRef = useRef(false);
   const validationKeyRef = useRef<string | null>(null);
   const pubChem3DRequestIdRef = useRef(0);
+  const autoLoadedPubChemExampleIdRef = useRef<string | null>(null);
   const pubChemCandidateRequestIdRef = useRef(0);
   const [appRoute, setAppRoute] = useState<AppRoute>(
     initialRoute ?? getInitialAppRoute(),
@@ -472,6 +487,7 @@ function WorkbenchApp({
 
   const resetPubChem3DState = () => {
     pubChem3DRequestIdRef.current += 1;
+    autoLoadedPubChemExampleIdRef.current = null;
     setPubChem3DState(INITIAL_PUBCHEM_3D_STATE);
   };
 
@@ -723,6 +739,10 @@ function WorkbenchApp({
       return userMode === 'student'
         ? formatStudentExternal3DMessage(pubChem3DState.studentMessage)
         : pubChem3DState.studentMessage;
+    }
+
+    if (shouldAutoLoadPubChem3DForExample(example)) {
+      return '구조 확인이 완료되면 준비된 외부 3D 자료를 자동으로 불러옵니다.';
     }
 
     return '이 분자 예시는 참고 3D 구조를 불러올 수 있습니다.';
@@ -1153,6 +1173,32 @@ function WorkbenchApp({
     isModuleOpen: isVseprModuleOpen,
     selectedTemplate: selectedActivity,
   });
+
+  useEffect(() => {
+    if (
+      !shouldAutoLoadPubChem3DForExample(currentValidatedExample) ||
+      validationResult?.ok !== true ||
+      molecule3DInput ||
+      pubChem3DState.status !== 'idle' ||
+      autoLoadedPubChemExampleIdRef.current === currentValidatedExample.id
+    ) {
+      return;
+    }
+
+    autoLoadedPubChemExampleIdRef.current = currentValidatedExample.id;
+    void loadPubChem3DByCid({
+      cid: currentValidatedExample.pubchemCid,
+      label: currentValidatedExample.nameKo,
+      pubchemName: currentValidatedExample.pubchemName,
+      requestLogMessage: `${currentValidatedExample.nameKo} 예제는 내장 3D 자료가 없어 구조 확인 완료 후 외부 3D 자료를 자동 요청합니다. CID ${currentValidatedExample.pubchemCid}`,
+    });
+  }, [
+    currentValidatedExample,
+    molecule3DInput,
+    pubChem3DState.status,
+    validationResult,
+  ]);
+
   const handleStructureComparisonObservationChange = (
     field: keyof Pick<
       StructureComparisonObservation,
@@ -1307,9 +1353,11 @@ function WorkbenchApp({
     window.print();
     setActivityResultStatusMessage('인쇄용 화면을 열었습니다.');
   };
+  const isTeacherAuthorizedSession = isTeacherAuthorized(session);
   const isStudentActivityView = userMode === 'student' && appMode === 'activity';
   const isStudentFreeDrawView = userMode === 'student' && appMode === 'free_draw';
-  const isTeacherOrAdvancedView = userMode === 'teacher';
+  const isTeacherOrAdvancedView =
+    userMode === 'teacher' && isTeacherAuthorizedSession;
   const shouldShowStudentCoordinateTools =
     userMode === 'student' &&
     validationResult?.ok === true &&
@@ -1554,7 +1602,7 @@ function WorkbenchApp({
     <AppHeader
       appMode={appMode}
       userMode={userMode}
-      teacherControlsEnabled={isTeacherSessionActive}
+      teacherControlsEnabled={isTeacherAuthorizedSession}
       onModeChange={setAppMode}
       onUserModeChange={handleUserModeChange}
       examples={exampleMolecules}
@@ -1665,12 +1713,39 @@ function WorkbenchApp({
     );
   }
 
+  if (
+    isTeacherRoute &&
+    isTeacherSessionActive &&
+    !isTeacherAuthorizedSession
+  ) {
+    return (
+      <main className="app-shell" data-testid="teacher-pending-authorization-shell">
+        {appHeader}
+        <TeacherDashboardPlaceholder
+          authorizationStatus={
+            session?.role === 'teacher'
+              ? session.teacherAuthorizationStatus
+              : undefined
+          }
+        />
+        {legalPanel}
+        {legalFooter}
+      </main>
+    );
+  }
+
   return (
     <main className="app-shell" data-testid="app-shell">
       {appHeader}
 
       {shouldShowTeacherDashboardPlaceholder ? (
-        <TeacherDashboardPlaceholder />
+        <TeacherDashboardPlaceholder
+          authorizationStatus={
+            session?.role === 'teacher'
+              ? session.teacherAuthorizationStatus
+              : undefined
+          }
+        />
       ) : null}
 
       {userMode === 'student' ? (
@@ -1752,21 +1827,23 @@ function WorkbenchApp({
         />
       ) : null}
 
-      <TeacherPanel
-        userMode={userMode}
-        appMode={appMode}
-        templates={activityTemplates}
-        selectedActivityId={selectedActivityId}
-        examples={exampleMolecules}
-        selectedExample={selectedExample}
-        validationResult={validationResult}
-        vseprAnalysis={vseprAnalysis}
-        molecule3DInput={molecule3DInput}
-        structureComparisonState={structureComparisonState}
-        pubChem3DStatus={pubChem3DState.status}
-        pubChemCandidateStatus={pubChemCandidateState.status}
-        onSelectActivity={setSelectedActivityId}
-      />
+      {isTeacherAuthorizedSession ? (
+        <TeacherPanel
+          userMode={userMode}
+          appMode={appMode}
+          templates={activityTemplates}
+          selectedActivityId={selectedActivityId}
+          examples={exampleMolecules}
+          selectedExample={selectedExample}
+          validationResult={validationResult}
+          vseprAnalysis={vseprAnalysis}
+          molecule3DInput={molecule3DInput}
+          structureComparisonState={structureComparisonState}
+          pubChem3DStatus={pubChem3DState.status}
+          pubChemCandidateStatus={pubChemCandidateState.status}
+          onSelectActivity={setSelectedActivityId}
+        />
+      ) : null}
 
       {isTeacherOrAdvancedView ? (
         <TeacherFeedbackPanel

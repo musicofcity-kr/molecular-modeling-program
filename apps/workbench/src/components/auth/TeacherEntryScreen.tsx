@@ -85,8 +85,8 @@ export function TeacherEntryScreen({
       </div>
       <p className="entry-help">
         Google 로그인 또는 이메일 로그인을 사용합니다. 이번 단계에서는 로그인
-        연결만 수행하며, 교사 권한 확인과 수업방 서버 저장은 다음 단계에서
-        활성화합니다.
+        후 teacher custom claim을 확인합니다. 교사 권한이 승인되지 않은 계정은
+        교사용 비공개 패널과 서버 저장 기능을 사용할 수 없습니다.
       </p>
 
       <div className="teacher-login-grid">

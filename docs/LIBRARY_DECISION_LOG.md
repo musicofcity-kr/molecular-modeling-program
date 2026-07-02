@@ -153,6 +153,15 @@ Superseded by the adoption decision below.
 - Test added: `apps/workbench/src/services/pubchem3d.test.ts` covers successful SDF mapping, no-data HTTP failure, network failure, and keeping the long API URL out of `Molecule3DInput.sourceUrl`.
 - Decision: spike only for curated CID-based example molecules.
 
+## 2026-07-02 — Curated example PubChem 3D auto-load
+
+- Purpose: Reduce classroom confusion where examples with a curated PubChem CID but no static 3D payload appeared to have no 3D structure until the user found the manual load button.
+- Decision: After RDKit.js validation succeeds for a selected example, the app automatically requests CID-based PubChem 3D SDF only when the example has `external3DSource: 'pubchem'`, has a numeric `pubchemCid`, and does not already have static `structure3D`.
+- Boundary: This is not automatic PubChem matching for arbitrary user-drawn structures. Free-draw structures still require manual candidate search and manual candidate selection.
+- Chemistry boundary: RDKit.js remains the source for formula, average molecular weight, canonical SMILES, and validation status. PubChem SDF remains coordinate visualization input only.
+- Failure behavior: If PubChem has no 3D data or the network fails, the RDKit.js validation result remains visible and the viewer reports that external 3D data could not be loaded.
+- Test added: `apps/workbench/src/app/App.test.tsx` covers that auto-load eligibility applies to PubChem-only curated examples such as ethanol, but not to static examples such as water or no-CID examples such as aspirin.
+
 ## 2026-06-30 — PubChem manual candidate matching policy
 
 - Purpose: Define the safety boundary for later connecting user-drawn RDKit-validated structures to PubChem candidate search.

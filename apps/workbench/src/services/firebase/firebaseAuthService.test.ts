@@ -32,12 +32,23 @@ function userFixture(overrides: Partial<{
   displayName: string | null;
   email: string | null;
   isAnonymous: boolean;
+  claims: Record<string, unknown>;
+  tokenError: Error;
 }> = {}) {
   return {
     uid: overrides.uid ?? 'uid-test',
     displayName: overrides.displayName ?? null,
     email: overrides.email ?? null,
     isAnonymous: overrides.isAnonymous ?? false,
+    getIdTokenResult: vi.fn().mockImplementation(() => {
+      if (overrides.tokenError) {
+        return Promise.reject(overrides.tokenError);
+      }
+
+      return Promise.resolve({
+        claims: overrides.claims ?? {},
+      });
+    }),
   };
 }
 
@@ -106,6 +117,7 @@ describe('firebaseAuthService', () => {
         uid: 'teacher-google-uid',
         displayName: '테스트 교사',
         email: 'teacher@example.com',
+        claims: { teacher: true },
       }),
     } as never);
 
@@ -118,6 +130,46 @@ describe('firebaseAuthService', () => {
       displayName: '테스트 교사',
       email: 'teacher@example.com',
       providerId: 'google.com',
+      teacherAuthorizationStatus: 'authorized',
+    });
+  });
+
+  it('marks teacher sign-in as pending when custom claim is missing', async () => {
+    vi.mocked(getFirebaseAuth).mockReturnValue(firebaseAuthMock as never);
+    vi.mocked(signInWithPopup).mockResolvedValue({
+      user: userFixture({
+        uid: 'teacher-no-claim',
+        email: 'teacher@example.com',
+      }),
+    } as never);
+
+    const result = await signInTeacherWithGooglePopup();
+
+    expect(result).toMatchObject({
+      ok: true,
+      uid: 'teacher-no-claim',
+      teacherAuthorizationStatus: 'pending_custom_claim',
+    });
+  });
+
+  it('keeps teacher login successful but separates developer detail when claim check fails', async () => {
+    vi.mocked(getFirebaseAuth).mockReturnValue(firebaseAuthMock as never);
+    vi.mocked(signInWithPopup).mockResolvedValue({
+      user: userFixture({
+        uid: 'teacher-token-error',
+        email: 'teacher@example.com',
+        tokenError: new Error('token refresh failed'),
+      }),
+    } as never);
+
+    const result = await signInTeacherWithGooglePopup();
+
+    expect(result).toMatchObject({
+      ok: true,
+      uid: 'teacher-token-error',
+      teacherAuthorizationStatus: 'not_checked',
+      developerMessage:
+        'Firebase teacher custom claim check failed: token refresh failed',
     });
   });
 
@@ -142,6 +194,7 @@ describe('firebaseAuthService', () => {
       user: userFixture({
         uid: 'teacher-email-uid',
         email: 'teacher@example.com',
+        claims: { role: 'teacher' },
       }),
     } as never);
 
@@ -160,6 +213,7 @@ describe('firebaseAuthService', () => {
       uid: 'teacher-email-uid',
       email: 'teacher@example.com',
       providerId: 'password',
+      teacherAuthorizationStatus: 'authorized',
     });
   });
 });

@@ -1,3 +1,5 @@
+import type { TeacherAuthorizationStatus } from '../../types/session';
+
 const TEACHER_DASHBOARD_ITEMS = [
   {
     title: '수업방 생성',
@@ -13,7 +15,41 @@ const TEACHER_DASHBOARD_ITEMS = [
   },
 ];
 
-export function TeacherDashboardPlaceholder() {
+type TeacherDashboardPlaceholderProps = {
+  authorizationStatus?: TeacherAuthorizationStatus;
+};
+
+function formatAuthorizationLabel(
+  status: TeacherAuthorizationStatus | undefined,
+): string {
+  if (status === 'authorized') {
+    return '교사 권한 확인 완료';
+  }
+
+  if (status === 'not_checked') {
+    return '교사 권한 확인 필요';
+  }
+
+  return '교사 권한 승인 대기';
+}
+
+function formatAuthorizationHelp(
+  status: TeacherAuthorizationStatus | undefined,
+): string {
+  if (status === 'authorized') {
+    return '교사 custom claim이 확인되었습니다. Firestore 저장은 별도 활성화 전까지 계속 비활성입니다.';
+  }
+
+  if (status === 'not_checked') {
+    return '로그인은 되었지만 ID token의 교사 권한 정보를 확인하지 못했습니다. Firebase 설정과 토큰 갱신 상태를 확인해야 합니다.';
+  }
+
+  return '로그인은 되었지만 아직 teacher custom claim이 없습니다. 교사용 비공개 자료와 서버 저장 기능은 열지 않습니다.';
+}
+
+export function TeacherDashboardPlaceholder({
+  authorizationStatus,
+}: TeacherDashboardPlaceholderProps) {
   return (
     <section
       className="workspace-panel entry-panel teacher-dashboard-placeholder"
@@ -24,12 +60,18 @@ export function TeacherDashboardPlaceholder() {
           <p className="section-label">교사용 대시보드 준비</p>
           <h2>인증 기반 수업 운영 화면의 뼈대입니다</h2>
         </div>
+        <span className="status-pill">
+          {formatAuthorizationLabel(authorizationStatus)}
+        </span>
         <span className="status-pill">Firestore 저장 비활성</span>
       </div>
       <p className="entry-help">
         이 영역은 Firebase Auth와 Firestore Security Rules가 준비된 뒤 실제
         교사용 대시보드로 연결합니다. 지금은 기존 분자구조 모델링 기능과
         교사용 안내를 검토하는 placeholder입니다.
+      </p>
+      <p className="entry-security-note">
+        {formatAuthorizationHelp(authorizationStatus)}
       </p>
       <div className="teacher-placeholder-grid">
         {TEACHER_DASHBOARD_ITEMS.map((item) => (

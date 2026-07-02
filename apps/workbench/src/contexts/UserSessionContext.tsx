@@ -18,6 +18,8 @@ import {
   signInTeacherWithGooglePopup,
   signOutFirebaseAuth,
 } from '../services/firebase/firebaseAuthService';
+import { joinClassroomWithTrustedEndpoint } from '../services/firebase/classroomJoinService';
+import type { TeacherAuthorizationStatus } from '../types/session';
 
 type SessionActionResult = {
   ok: boolean;
@@ -51,6 +53,18 @@ function createAnonymousId(): string {
   return `student-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function getTeacherAuthorizationMessage(status: TeacherAuthorizationStatus): string {
+  if (status === 'authorized') {
+    return '교사 권한 확인이 완료되었습니다.';
+  }
+
+  if (status === 'not_checked') {
+    return '교사용 로그인은 완료되었지만 교사 권한 상태를 확인하지 못했습니다.';
+  }
+
+  return '교사용 로그인은 완료되었지만 교사 권한 승인이 아직 필요합니다.';
+}
+
 export function UserSessionProvider({
   children,
   initialSession = null,
@@ -80,23 +94,40 @@ export function UserSessionProvider({
           };
         }
 
+        const anonymousStudentId = createAnonymousId();
+        const joinResult = await joinClassroomWithTrustedEndpoint({
+          classCode: validation.classCode,
+          displayName: validation.displayName,
+          anonymousStudentId,
+          firebaseUid: authResult.ok ? authResult.uid : undefined,
+        });
+
         const nextSession: StudentSession = {
           role: 'student',
           classCode: validation.classCode,
           displayName: validation.displayName,
-          anonymousStudentId: createAnonymousId(),
+          anonymousStudentId,
           startedAt: new Date().toISOString(),
           firebaseUid: authResult.ok ? authResult.uid : undefined,
           authProvider: authResult.ok ? 'firebase-anonymous' : 'local-only',
           authStatus: authResult.ok ? 'authenticated' : 'local_only',
+          classroomJoinStatus: joinResult.status,
+          classroomJoinMessage: joinResult.studentMessage,
         };
 
         setSession(nextSession);
 
         return {
           ok: true,
-          studentMessage: authResult.ok ? undefined : authResult.studentMessage,
-          developerMessage: authResult.ok ? undefined : authResult.developerMessage,
+          studentMessage: authResult.ok
+            ? joinResult.studentMessage
+            : authResult.studentMessage,
+          developerMessage: [
+            authResult.ok ? undefined : authResult.developerMessage,
+            joinResult.developerMessage,
+          ]
+            .filter(Boolean)
+            .join(' | '),
         };
       },
       signInTeacherWithGoogle: async () => {
@@ -110,6 +141,8 @@ export function UserSessionProvider({
           };
         }
 
+        const teacherAuthorizationStatus =
+          authResult.teacherAuthorizationStatus ?? 'pending_custom_claim';
         const nextSession: TeacherSession = {
           role: 'teacher',
           uid: authResult.uid,
@@ -117,15 +150,17 @@ export function UserSessionProvider({
           email: authResult.email,
           authProvider: 'firebase-google',
           signedInAt: new Date().toISOString(),
-          teacherAuthorizationStatus: 'pending_custom_claim',
+          teacherAuthorizationStatus,
         };
 
         setSession(nextSession);
 
         return {
           ok: true,
-          studentMessage:
-            '교사용 로그인이 완료되었습니다. 교사 권한 확인은 다음 단계에서 연결합니다.',
+          studentMessage: getTeacherAuthorizationMessage(
+            teacherAuthorizationStatus,
+          ),
+          developerMessage: authResult.developerMessage,
         };
       },
       signInTeacherWithEmail: async (input) => {
@@ -139,6 +174,8 @@ export function UserSessionProvider({
           };
         }
 
+        const teacherAuthorizationStatus =
+          authResult.teacherAuthorizationStatus ?? 'pending_custom_claim';
         const nextSession: TeacherSession = {
           role: 'teacher',
           uid: authResult.uid,
@@ -146,15 +183,17 @@ export function UserSessionProvider({
           email: authResult.email,
           authProvider: 'firebase-email',
           signedInAt: new Date().toISOString(),
-          teacherAuthorizationStatus: 'pending_custom_claim',
+          teacherAuthorizationStatus,
         };
 
         setSession(nextSession);
 
         return {
           ok: true,
-          studentMessage:
-            '교사용 로그인이 완료되었습니다. 교사 권한 확인은 다음 단계에서 연결합니다.',
+          studentMessage: getTeacherAuthorizationMessage(
+            teacherAuthorizationStatus,
+          ),
+          developerMessage: authResult.developerMessage,
         };
       },
       clearSession: () => {

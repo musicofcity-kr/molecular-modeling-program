@@ -3,6 +3,12 @@
 작성일: 2026-07-01  
 상태: Firebase Auth 1단계 연결 완료, Firestore 저장은 계속 비활성
 
+2026-07-02 업데이트: Firebase Auth 로그인 결과에서 teacher custom claim을
+읽어 `authorized`, `pending_custom_claim`, `not_checked` 상태로 분리한다.
+학생 수업코드 입장은 `joinClassroom` trusted endpoint 연결 전까지
+브라우저-local 또는 deferred 상태로 표시하며, Firestore membership write는
+계속 비활성 상태로 둔다.
+
 ## 목적
 
 `다양한 분자의 분자구조 모델링` 앱을 GitHub + Vercel + Firebase 기반 배포로 확장하기 전에 학생용 화면과 교사용 화면을 구조적으로 분리한다.
@@ -56,15 +62,32 @@
     - `anonymousStudentId`
     - `startedAt`
   - `TeacherSession`
+  - `TeacherAuthorizationStatus`
+    - `authorized`
+    - `pending_custom_claim`
+    - `not_checked`
+  - `ClassroomJoinStatus`
+    - `local_session_only`
+    - `deferred_until_trusted_endpoint`
+    - `joined`
   - `UserSession`
   - 학생 입장 입력값 정규화/검증 함수
+  - teacher custom claim 판정 helper
 
 - `src/contexts/UserSessionContext.tsx`
   - 학생 임시 세션 생성
   - Firebase Anonymous Auth 성공 시 선택적으로 `firebaseUid` 보관
   - 교사용 Google/email 로그인 성공 시 교사 세션 생성
-  - 교사 권한은 `pending_custom_claim` 상태로만 표시
+  - 교사 권한은 Firebase ID token claim을 읽어 `authorized`,
+    `pending_custom_claim`, `not_checked`로 표시
+  - 학생 수업코드 입장은 trusted endpoint 구현 전까지
+    `classroomJoinStatus`로 deferred/local 상태를 기록
   - 서버 저장 없이 메모리 상태만 관리
+
+- `src/services/firebase/classroomJoinService.ts`
+  - 향후 trusted `joinClassroom` endpoint 연결 지점
+  - 현재는 서버 호출과 Firestore membership write를 하지 않고 deferred/local
+    상태만 반환
 
 - `src/components/auth/RoleGate.tsx`
   - 역할 기반 UI 게이트
@@ -95,6 +118,7 @@
   - 학생 Anonymous Auth
   - 교사 Google popup 로그인
   - 교사 email/password 로그인
+  - 교사 로그인 뒤 ID token custom claims 확인
   - Auth failure의 학생/개발자 메시지 분리
 
 - `src/services/firebase/classroomRepository.ts`
@@ -112,7 +136,9 @@
 - 공개 저장소에 service account, private token 저장 금지
 - Firebase config는 `.env.local` 또는 Vercel Environment Variables로 관리
 - Firestore Security Rules 설계 전까지 Firestore write 비활성
-- 실제 Firebase Auth 전까지 교사용 비공개 해설과 학생 제출 목록을 공개하지 않음
+- Firebase Auth 로그인만으로 교사용 비공개 해설과 학생 제출 목록을 공개하지 않음
+- `teacher: true` 또는 `role: "teacher"` custom claim이 확인된 경우에만
+  교사용 상세 패널을 활성화
 
 ## 현재 데이터 저장 상태
 
@@ -121,20 +147,17 @@
 | 수업코드 | 학생 세션 메모리 상태 | 저장 안 함 |
 | 수업용 닉네임/익명 ID | 학생 세션 메모리 상태 | 저장 안 함 |
 | 활동 결과 임시 저장 | 기존 localStorage | 서버 저장 안 함 |
-| 교사 로그인 | Firebase Auth Google/email 연결 | 세션만 메모리 저장 |
+| 교사 로그인 | Firebase Auth Google/email 연결, custom claim 상태 확인 | 세션만 메모리 저장 |
+| 수업코드 입장 | trusted joinClassroom endpoint 전까지 local/deferred 표시 | membership 저장 안 함 |
 | 제출 목록 | placeholder | 실제 데이터 없음 |
 
 ## 다음 단계
 
-1. Firebase console에서 Authentication providers 활성화
-   - Anonymous
-   - Google
-   - Email/Password
-2. teacher custom claim 발급 절차 수립
-3. trusted `joinClassroom` endpoint 설계/구현
-4. 학생 anonymous Auth UID와 수업 멤버십 연결
-5. Firestore 데이터 모델을 실제 서비스 계층에 연결
-6. 학생 제출 저장 기능을 beta 단계에서 제한적으로 활성화
+1. teacher custom claim 발급/회수 관리자 절차 수립
+2. trusted `joinClassroom` endpoint 설계/구현
+3. 학생 anonymous Auth UID와 수업 멤버십 문서 연결
+4. Firestore 데이터 모델을 실제 서비스 계층에 연결
+5. 학생 제출 저장 기능을 beta 단계에서 제한적으로 활성화
 
 ## Firestore 보안 설계 결정
 
@@ -151,7 +174,8 @@
 - `/student`에서 학생 입장 화면이 표시된다.
 - 학생 입장 후 `/student/workbench`에서 기존 분자구조 모델링 활동 흐름이 표시된다.
 - `/teacher`에서 교사용 Google/email 로그인 화면이 표시된다.
-- `/teacher/dashboard`는 교사 세션이 있을 때만 대시보드 placeholder를 표시한다.
+- `/teacher/dashboard`는 교사 세션이 있을 때 대시보드 placeholder를 표시한다.
+- teacher custom claim이 없으면 교사용 상세 패널과 고급 로그를 표시하지 않는다.
 - 인증 전 교사용 비공개 패널은 표시되지 않는다.
 - Firestore 저장 함수는 아직 활성화되지 않는다.
 - `npm run typecheck`, `npm test`, `npm run build`가 통과해야 한다.

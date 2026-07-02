@@ -148,7 +148,7 @@ export const legalDocuments: Record<LegalDocumentId, LegalDocument> = {
       {
         title: '제7조 교사 이용',
         paragraphs: [
-          '교사용 화면은 수업 안내, 활동 템플릿 확인, 향후 수업방 관리 기능을 준비하기 위한 영역입니다. 현재 단계에서는 실제 Firebase Auth 로그인과 Firestore 저장 기능을 production에 연결하지 않습니다.',
+          '교사용 화면은 Firebase Auth 로그인을 사용할 수 있으며, 교사용 비공개 기능은 teacher custom claim 확인 이후 단계적으로 활성화합니다. Firestore 서버 저장 기능은 보안 규칙과 수업 입장 절차가 확정되기 전까지 production에 연결하지 않습니다.',
         ],
       },
       {

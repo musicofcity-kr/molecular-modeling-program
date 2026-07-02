@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { App, resolveValidatedExampleForResult } from './App';
+import {
+  App,
+  resolveValidatedExampleForResult,
+  shouldAutoLoadPubChem3DForExample,
+} from './App';
 import { exampleMolecules } from '../data/exampleMolecules';
 import type { MoleculeValidationResult } from '../types/molecule';
 import type { StudentSession, TeacherSession } from '../types/session';
@@ -31,6 +35,7 @@ describe('App scaffold', () => {
     email: 'teacher@example.com',
     authProvider: 'firebase-google',
     signedInAt: '2026-07-01T00:00:00.000Z',
+    teacherAuthorizationStatus: 'authorized',
   };
 
   it('renders the ethics guide gate before entering the app', () => {
@@ -209,6 +214,26 @@ describe('App scaffold', () => {
     expect(markup).toContain('교사용 지도 패널');
   });
 
+  it('does not expose teacher-only panels when teacher custom claim is still pending', () => {
+    const markup = renderToStaticMarkup(
+      <App
+        initialRoute="teacher-dashboard"
+        initialSession={{
+          ...teacherSession,
+          teacherAuthorizationStatus: 'pending_custom_claim',
+        }}
+        initialEthicsGateAccepted
+      />,
+    );
+
+    expect(markup).toContain('교사 권한 승인 대기');
+    expect(markup).toContain('아직 teacher custom claim이 없습니다');
+    expect(markup).toContain('Firestore 저장 비활성');
+    expect(markup).not.toContain('교사용 지도 패널');
+    expect(markup).not.toContain('개발자 로그 보기');
+    expect(markup).not.toContain('외부 3D 자료 찾기');
+  });
+
   it('keeps the selected example handoff when a matching structure is confirmed again', () => {
     const water = exampleMolecules.find((example) => example.id === 'water');
     const result = {
@@ -257,5 +282,15 @@ describe('App scaffold', () => {
         result,
       }),
     ).toBeNull();
+  });
+
+  it('auto-loads curated PubChem 3D only for validated examples without static coordinates', () => {
+    const water = exampleMolecules.find((example) => example.id === 'water');
+    const ethanol = exampleMolecules.find((example) => example.id === 'ethanol');
+    const aspirin = exampleMolecules.find((example) => example.id === 'aspirin');
+
+    expect(shouldAutoLoadPubChem3DForExample(water)).toBe(false);
+    expect(shouldAutoLoadPubChem3DForExample(ethanol)).toBe(true);
+    expect(shouldAutoLoadPubChem3DForExample(aspirin)).toBe(false);
   });
 });

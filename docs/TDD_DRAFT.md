@@ -52,14 +52,15 @@ FastAPI Backend
    - Ketcher receives the example SMILES.
    - RDKit.js validates the extracted Ketcher structure and provides formula, average molecular weight, and canonical SMILES.
    - If RDKit validation succeeds and the selected example has `structure3D`, 3Dmol.js receives only that coordinate-bearing data.
-   - If the selected example has no `structure3D`, the viewer keeps the student message `3D 좌표 데이터가 아직 없습니다`.
+   - If RDKit validation succeeds and the selected example has no `structure3D` but has a curated `pubchemCid`, the app automatically requests CID-based external 3D SDF data.
+   - If the selected example has neither `structure3D` nor a curated `pubchemCid`, the viewer keeps the student message `3D 좌표 데이터가 아직 없습니다`.
 13. 3Dmol.js visualizes coordinate data only; it is not the source for formula, mass, or validation status.
 14. PubChem 3D prototype flow is limited to curated example molecules that already contain a `pubchemCid`.
 15. PubChem loading does not search by user-drawn SMILES and does not perform automatic compound matching:
    - selected example with `pubchemCid`
    - example is loaded into Ketcher
    - Ketcher output passes RDKit.js validation for the selected example
-   - user clicks `PubChem 3D 불러오기`
+   - the app requests PubChem 3D automatically for curated examples without static 3D coordinates, while keeping the button available for retry/manual reload
    - `src/services/pubchem3d.ts` requests CID-based 3D SDF
    - returned SDF is converted only into `Molecule3DInput`
    - 3Dmol.js displays the coordinate-bearing SDF
@@ -493,7 +494,8 @@ Selected example molecule
   -> has curated pubchemCid
   -> user loads example into Ketcher
   -> Ketcher output goes through RDKit.js validation
-  -> user clicks PubChem 3D 불러오기
+  -> if no static 3D coordinate payload exists, app requests PubChem 3D automatically
+  -> user may click 참고 3D 구조 불러오기 again for retry/manual reload
   -> GET /rest/pug/compound/cid/{cid}/record/SDF?record_type=3d
   -> success: SDF becomes Molecule3DInput with sourceType: 'pubchem'
   -> 3Dmol.js visualizes coordinates
@@ -1251,13 +1253,13 @@ teacher opens /teacher
   -> chooses Google popup or email/password sign-in
   -> Firebase Auth returns a UID
   -> TeacherSession is created with teacherAuthorizationStatus:
-     "pending_custom_claim"
+     "authorized" | "pending_custom_claim" | "not_checked"
   -> app enters /teacher/dashboard placeholder
 ```
 
-The logged-in teacher session is not yet a Firestore authorization model.
-`teacher: true` custom claims and assigned-classroom checks are deferred to the
-next phase.
+The client reads `teacher: true` or `role: "teacher"` from the Firebase ID token
+only to control teacher-facing UI. Firestore Security Rules remain the final
+authorization boundary.
 
 ### Auth and persistence invariants
 
@@ -1268,6 +1270,41 @@ next phase.
   keys, AI API keys, and private tokens remain out of the browser bundle.
 - `joinClassroom` is still deferred; class-code trust is not implemented with
   client-only logic.
+
+## 17.4 Teacher claim and joinClassroom preparation
+
+This phase still does not enable Firestore writes.
+
+### Teacher authorization UI boundary
+
+```text
+teacher signs in with Google/email
+  -> Firebase Auth returns a user
+  -> app reads ID token claims
+  -> teacher: true or role: "teacher" => TeacherSession.authorized
+  -> missing claim => pending_custom_claim
+  -> token check failure => not_checked
+```
+
+- `authorized` may show teacher-only panels and advanced controls.
+- `pending_custom_claim` and `not_checked` show only the dashboard placeholder
+  and a security note.
+- Client-side authorization state is UX only. Firestore Rules still require
+  the same custom claims and assigned-classroom checks.
+
+### Student classroom join boundary
+
+```text
+student enters class code
+  -> app validates local input
+  -> anonymous Firebase UID is attempted
+  -> joinClassroomWithTrustedEndpoint returns local/deferred state
+  -> no Firestore membership document is created from the browser
+```
+
+The future trusted endpoint must validate the class code and create
+`classrooms/{classroomId}/students/{uid}` from a privileged environment. Until
+then, student activity remains browser-local and localStorage-based.
 
 ## 18. Risk Register
 
