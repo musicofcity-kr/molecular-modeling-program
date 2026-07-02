@@ -2044,6 +2044,8 @@ function WorkbenchApp({
           statusMessage={teacherClassroomStatusMessage}
           statusTone={teacherClassroomStatusTone}
           developerLogs={teacherClassroomDeveloperLogs}
+          submissions={activitySubmissions}
+          selectedSubmissionId={selectedSubmissionId}
           onSignOut={handleTeacherSignOut}
           onCreateClassroom={
             isTeacherAuthorizedSession
@@ -2059,6 +2061,7 @@ function WorkbenchApp({
                 }
               : undefined
           }
+          onSelectSubmission={setSelectedSubmissionId}
         />
       ) : null}
 

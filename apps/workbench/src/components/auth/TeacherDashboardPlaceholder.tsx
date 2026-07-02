@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import type { ActivityTemplate } from '../../types/activity';
+import type { ActivitySubmission } from '../../types/feedback';
 import type { TeacherAuthorizationStatus } from '../../types/session';
 import type { ClassroomDraft } from '../../services/firebase/classroomRepository';
+import { formatKoreanDateTime } from '../../utils/formatKoreanDateTime';
 
 const TEACHER_DASHBOARD_ITEMS = [
   {
@@ -24,8 +26,11 @@ type TeacherDashboardPlaceholderProps = {
   statusMessage?: string;
   statusTone?: 'info' | 'success' | 'warning';
   developerLogs?: string[];
+  submissions?: ActivitySubmission[];
+  selectedSubmissionId?: string | null;
   onCreateClassroom?: (draft: ClassroomDraft) => void;
   onLoadSubmissions?: (classCode: string) => void;
+  onSelectSubmission?: (submissionId: string) => void;
   onSignOut?: () => void;
 };
 
@@ -63,8 +68,11 @@ export function TeacherDashboardPlaceholder({
   statusMessage,
   statusTone = 'info',
   developerLogs = [],
+  submissions = [],
+  selectedSubmissionId,
   onCreateClassroom,
   onLoadSubmissions,
+  onSelectSubmission,
   onSignOut,
 }: TeacherDashboardPlaceholderProps) {
   const [title, setTitle] = useState('고1 화학 분자구조 탐구');
@@ -77,6 +85,10 @@ export function TeacherDashboardPlaceholder({
     authorizationStatus === 'authorized' &&
     Boolean(onCreateClassroom) &&
     Boolean(onLoadSubmissions);
+  const selectedSubmission =
+    submissions.find((submission) => submission.id === selectedSubmissionId) ??
+    submissions[0] ??
+    null;
 
   const toggleTemplate = (templateId: string) => {
     setSelectedTemplateIds((currentIds) =>
@@ -257,6 +269,86 @@ export function TeacherDashboardPlaceholder({
             현재 브라우저 제출함도 계속 유지됩니다. 서버 조회가 실패해도 기존
             로컬 제출 자료는 삭제하지 않습니다.
           </p>
+          {submissions.length > 0 ? (
+            <div
+              className="teacher-server-submissions"
+              data-testid="teacher-server-submissions"
+            >
+              <div className="teacher-server-submissions-heading">
+                <p className="section-label">불러온 제출 자료</p>
+                <span className="status-pill">{submissions.length}건</span>
+              </div>
+              <nav className="activity-list" aria-label="서버 제출 자료 목록">
+                {submissions.map((submission) => (
+                  <button
+                    className={
+                      submission.id === selectedSubmission?.id
+                        ? 'activity-template-button active'
+                        : 'activity-template-button'
+                    }
+                    data-testid={`teacher-server-submission-${submission.id}`}
+                    key={submission.id}
+                    type="button"
+                    onClick={() => {
+                      onSelectSubmission?.(submission.id);
+                    }}
+                  >
+                    <span>
+                      {submission.snapshot.activityTitle ??
+                        submission.snapshot.moleculeName ??
+                        '제출 자료'}
+                    </span>
+                    <small>
+                      {submission.studentDisplayName ?? '익명 학생'} ·{' '}
+                      {formatKoreanDateTime(submission.submittedAt)}
+                    </small>
+                  </button>
+                ))}
+              </nav>
+              {selectedSubmission ? (
+                <dl
+                  className="teacher-info-grid teacher-server-submission-summary"
+                  data-testid="teacher-server-submission-summary"
+                >
+                  <div>
+                    <dt>학생</dt>
+                    <dd>{selectedSubmission.studentDisplayName ?? '익명 학생'}</dd>
+                  </div>
+                  <div>
+                    <dt>활동명</dt>
+                    <dd>{selectedSubmission.snapshot.activityTitle ?? '없음'}</dd>
+                  </div>
+                  <div>
+                    <dt>분자명</dt>
+                    <dd>{selectedSubmission.snapshot.moleculeName ?? '없음'}</dd>
+                  </div>
+                  <div>
+                    <dt>구조 확인</dt>
+                    <dd>
+                      {selectedSubmission.snapshot.rdkitValidation.isValid
+                        ? '확인 완료'
+                        : '확인 전 또는 실패'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>분자식</dt>
+                    <dd>
+                      {selectedSubmission.snapshot.rdkitValidation
+                        .molecularFormula ?? '없음'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>제출 상태</dt>
+                    <dd>{formatSubmissionStatus(selectedSubmission.status)}</dd>
+                  </div>
+                </dl>
+              ) : null}
+            </div>
+          ) : (
+            <p className="teacher-boundary-note">
+              제출 목록을 불러온 뒤 학생 제출 자료가 이 영역에 표시됩니다.
+            </p>
+          )}
         </form>
       </div>
 
@@ -270,4 +362,15 @@ export function TeacherDashboardPlaceholder({
       </div>
     </section>
   );
+}
+
+function formatSubmissionStatus(status: ActivitySubmission['status']): string {
+  switch (status) {
+    case 'submitted':
+      return '제출됨';
+    case 'feedback_draft':
+      return '피드백 초안 작성됨';
+    case 'feedback_returned':
+      return '피드백 전달 완료';
+  }
 }

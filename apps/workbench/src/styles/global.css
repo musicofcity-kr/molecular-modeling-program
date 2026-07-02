@@ -881,6 +881,27 @@ select {
   font-weight: 600;
 }
 
+.teacher-server-submissions {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #d7e0e2;
+  padding-top: 10px;
+}
+
+.teacher-server-submissions-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.teacher-server-submission-summary {
+  border: 1px solid #d7e0e2;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px;
+}
+
 .ketcher-host {
   min-height: 470px;
   overflow: hidden;
