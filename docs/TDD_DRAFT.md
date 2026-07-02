@@ -79,19 +79,20 @@ FastAPI Backend
 20. Activity mode compares student-entered predicted formula and predicted molecular weight against RDKit.js validation results only after `validationResult.ok === true`.
 21. Activity comparison is intentionally a simple string comparison. It does not score answers and does not try to normalize chemically equivalent formula notation.
 22. Activity templates store prompts, target SMILES, teacher notes, misconception checks, and expected VSEPR guidance for classroom use, but they do not store molecular weight or override RDKit-calculated formula/mass.
-23. Teacher-facing guidance is shown only in `UserMode: 'teacher'`; student-facing screens do not show teacher notes, misconception checklists, raw API response details, HTTP status details, or developer logs.
-24. This phase does not implement student login, persistence, teacher dashboards, PDF/image export, or automatic grading.
-25. VSEPR analysis is a separate educational prediction layer:
+23. Selecting a classroom activity also selects its `recommendedExampleId` when that example exists, clears the previous structure verification/3D state, and clears the editor so students do not see stale formula or 3D output from a different activity.
+24. Teacher-facing guidance is shown only in `UserMode: 'teacher'`; student-facing screens do not show teacher notes, misconception checklists, raw API response details, HTTP status details, or developer logs.
+25. This phase does not implement student login, persistence, teacher dashboards, PDF/image export, or automatic grading.
+26. VSEPR analysis is a separate educational prediction layer:
    - it runs only after RDKit.js validation succeeds;
    - it reads the validated Ketcher V2000 MOL block as a local atom/bond graph;
    - it does not compute formula, mass, canonical SMILES, energy, real bond lengths, or measured bond angles;
    - it returns center-atom-local AXE notation, electron-domain geometry, molecular shape, idealized angle labels, confidence, and warnings.
-26. If a molecule has multiple plausible centers, such as ethanol, the app does not assign one global VSEPR shape. It asks the user to select a center atom and then performs local VSEPR analysis for that atom.
-27. If a molecule has one clear center atom and all other heavy atoms are terminal ligands without inferred hydrogens, such as BF3, BeCl2, PCl5, SF4, ClF3, XeF2, SF6, BrF5, or XeF4, the app can auto-select the center atom.
-28. Activity mode includes VSEPR prediction prompts, but those student answers are not automatically scored in this phase.
-29. VSEPR is not a permanent core panel in default free-draw mode. In free-draw mode, the app shows only an optional VSEPR module gate until the user explicitly opens it.
-30. Guided activity mode can show VSEPR analysis and the VSEPR model by default because the activity prompts make the simplified model context explicit.
-31. VSEPR prediction model visualization is a separate teaching-model path:
+27. If a molecule has multiple plausible centers, such as ethanol, the app does not assign one global VSEPR shape. It asks the user to select a center atom and then performs local VSEPR analysis for that atom.
+28. If a molecule has one clear center atom and all other heavy atoms are terminal ligands without inferred hydrogens, such as BF3, BeCl2, PCl5, SF4, ClF3, XeF2, SF6, BrF5, or XeF4, the app can auto-select the center atom.
+29. Activity mode includes VSEPR prediction prompts, but those student answers are not automatically scored in this phase.
+30. VSEPR is not a permanent core panel in default free-draw mode. In free-draw mode, the app shows only an optional VSEPR module gate until the user explicitly opens it.
+31. Guided activity mode can show VSEPR analysis and the VSEPR model by default because the activity prompts make the simplified model context explicit.
+32. VSEPR prediction model visualization is a separate teaching-model path:
    - `src/services/vseprGeometryTemplates.ts` maps supported AXE notation to unit vectors;
    - vectors are marked as `bond` or `lonePair`;
    - `Vsepr3DModelViewer` renders a center atom, bond directions, bonded atoms, and lone-pair markers;
@@ -480,6 +481,8 @@ The canonical TypeScript sources for these contracts are `apps/workbench/src/typ
 - Load ethanol example → see formula/mass.
 - Draw or load benzene → export image.
 - Invalid structure → warning appears and no confident calculation is shown.
+- Activity mode: select an activity such as ethanol and confirm the molecule example selector moves to the matching recommended example before loading.
+- Activity mode: after switching from a previously verified activity to another activity, confirm the old formula, average molecular weight, and 3D availability cards return to the unverified state.
 - Activity mode: enter a predicted formula, validate a structure, and confirm the panel shows match/different without score output.
 - VSEPR mode: load water or methane and confirm AXE notation appears; load ethanol and confirm center-atom selection is required.
 - 3D viewer mode: load a coordinate-bearing example, change representation mode, toggle labels, reset/zoom the view, measure a two-atom distance, and measure a three-atom angle.

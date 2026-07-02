@@ -88,6 +88,7 @@ import type {
 } from '../types/molecule';
 import {
   shouldShowVseprModule,
+  type ActivityTemplate,
   type ActivityResponseState,
   type AppMode,
   type UserMode,
@@ -270,6 +271,25 @@ export function resolveValidatedExampleForResult(input: {
   }
 
   return candidate.smiles === input.result.canonicalSmiles ? candidate : null;
+}
+
+export function resolveRecommendedExampleIdForActivity(input: {
+  activityId: string;
+  templates: Pick<ActivityTemplate, 'id' | 'recommendedExampleId'>[];
+  examples: Pick<ExampleMolecule, 'id'>[];
+  fallbackExampleId: string;
+}): string {
+  const template = input.templates.find((item) => item.id === input.activityId);
+  const recommendedExampleId = template?.recommendedExampleId;
+
+  if (
+    recommendedExampleId &&
+    input.examples.some((example) => example.id === recommendedExampleId)
+  ) {
+    return recommendedExampleId;
+  }
+
+  return input.fallbackExampleId;
 }
 
 function getVseprModelStatusForAnalysis(
@@ -500,6 +520,19 @@ function WorkbenchApp({
     setSelectedVseprCentralAtomId('');
     setVseprAnalysis(INITIAL_VSEPR_ANALYSIS);
     setVseprModelStatus('not_requested');
+  };
+
+  const resetCurrentStructureState = () => {
+    validationKeyRef.current = null;
+    setMolecule3DInput(null);
+    setValidatedExampleId(null);
+    resetPubChem3DState();
+    resetPubChemCandidateState();
+    resetStructureComparison();
+    setExtractedStructure(null);
+    setValidationResult(null);
+    resetVseprAnalysis();
+    setMeasurementResults([]);
   };
 
   const resetStructureComparison = () => {
@@ -750,8 +783,36 @@ function WorkbenchApp({
 
   const handleSelectExample = (exampleId: string) => {
     setSelectedExampleId(exampleId);
-    resetPubChem3DState();
-    resetPubChemCandidateState();
+    resetCurrentStructureState();
+  };
+
+  const handleSelectActivity = (activityId: string) => {
+    const nextTemplate = activityTemplates.find((template) => template.id === activityId);
+    const nextExampleId = resolveRecommendedExampleIdForActivity({
+      activityId,
+      templates: activityTemplates,
+      examples: exampleMolecules,
+      fallbackExampleId: selectedExampleId,
+    });
+
+    setSelectedActivityId(activityId);
+    setSelectedExampleId(nextExampleId);
+    resetCurrentStructureState();
+
+    void editorRef.current?.clear().catch((error: unknown) => {
+      console.info('[Chemical editor]', [
+        'Ignored editor clear failure after activity change.',
+        error instanceof Error ? error.message : 'Unknown error',
+      ]);
+    });
+    appendLog(
+      createLog(
+        'info',
+        nextTemplate
+          ? `${nextTemplate.title} 활동을 선택했습니다. 권장 분자 예시를 함께 선택하고 이전 확인 결과를 초기화했습니다.`
+          : '활동을 선택했습니다. 이전 확인 결과를 초기화했습니다.',
+      ),
+    );
   };
 
   const loadPubChem3DByCid = async (input: {
@@ -1704,7 +1765,7 @@ function WorkbenchApp({
             structureComparisonState={structureComparisonState}
             pubChem3DStatus={pubChem3DState.status}
             pubChemCandidateStatus={pubChemCandidateState.status}
-            onSelectActivity={setSelectedActivityId}
+            onSelectActivity={handleSelectActivity}
           />
           </RoleGate>
         {legalPanel}
@@ -1768,7 +1829,7 @@ function WorkbenchApp({
           external3DSearchSlot={studentExternal3DSearchSection}
           comparisonSlot={comparisonSection}
           resultSlot={resultSection}
-          onSelectActivity={setSelectedActivityId}
+          onSelectActivity={handleSelectActivity}
           onResponseChange={handleActivityResponseChange}
           onSelectExample={handleSelectExample}
           onLoadExample={handleLoadExample}
@@ -1822,7 +1883,7 @@ function WorkbenchApp({
           selectedActivityId={selectedActivityId}
           responses={currentActivityResponses}
           validationResult={validationResult}
-          onSelectActivity={setSelectedActivityId}
+          onSelectActivity={handleSelectActivity}
           onResponseChange={handleActivityResponseChange}
         />
       ) : null}
@@ -1841,7 +1902,7 @@ function WorkbenchApp({
           structureComparisonState={structureComparisonState}
           pubChem3DStatus={pubChem3DState.status}
           pubChemCandidateStatus={pubChemCandidateState.status}
-          onSelectActivity={setSelectedActivityId}
+          onSelectActivity={handleSelectActivity}
         />
       ) : null}
 

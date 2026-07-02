@@ -2,9 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
   App,
+  resolveRecommendedExampleIdForActivity,
   resolveValidatedExampleForResult,
   shouldAutoLoadPubChem3DForExample,
 } from './App';
+import { activityTemplates } from '../data/activityTemplates';
 import { exampleMolecules } from '../data/exampleMolecules';
 import type { MoleculeValidationResult } from '../types/molecule';
 import type { StudentSession, TeacherSession } from '../types/session';
@@ -282,6 +284,26 @@ describe('App scaffold', () => {
         result,
       }),
     ).toBeNull();
+  });
+
+  it('selects the activity recommended example when a classroom activity changes', () => {
+    expect(
+      resolveRecommendedExampleIdForActivity({
+        activityId: 'draw-ethanol',
+        templates: activityTemplates,
+        examples: exampleMolecules,
+        fallbackExampleId: 'water',
+      }),
+    ).toBe('ethanol');
+
+    expect(
+      resolveRecommendedExampleIdForActivity({
+        activityId: 'unknown-activity',
+        templates: activityTemplates,
+        examples: exampleMolecules,
+        fallbackExampleId: 'water',
+      }),
+    ).toBe('water');
   });
 
   it('auto-loads curated PubChem 3D only for validated examples without static coordinates', () => {
