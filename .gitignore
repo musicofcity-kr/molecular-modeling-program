@@ -1,7 +1,10 @@
 .playwright-mcp/
 .codex_*.png
 .test_runs/
+.secrets/
 *.mp4
+*service-account*.json
+*serviceAccount*.json
 
 # External VSEPR reference artifacts kept out of app commits.
 vsepr-engine.js

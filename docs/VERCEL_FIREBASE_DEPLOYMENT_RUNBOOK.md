@@ -12,6 +12,7 @@
 - 실제 앱 루트는 `apps/workbench`
 - Vercel SPA rewrite 설정은 `apps/workbench/vercel.json`에 있음
 - Firebase 환경변수 이름은 `apps/workbench/.env.example`에 정리됨
+- Firebase Admin service account 변환 절차는 `docs/FIREBASE_ADMIN_ENV_SETUP.md`에 있음
 
 ## 2. Vercel 프로젝트 생성
 
@@ -58,6 +59,16 @@ VITE_FIREBASE_MESSAGING_SENDER_ID
 ```text
 FIREBASE_SERVICE_ACCOUNT_BASE64
 ```
+
+권장 방식은 `FIREBASE_SERVICE_ACCOUNT_BASE64` 단일 변수다. 로컬에서 Firebase
+service account JSON을 base64 값으로 변환할 때는 다음 명령을 사용한다.
+
+```powershell
+cd apps/workbench
+npm run firebase:admin-env -- .secrets\firebase-service-account.json
+```
+
+상세 절차는 `docs/FIREBASE_ADMIN_ENV_SETUP.md`를 따른다.
 
 또는 분리 입력 방식:
 
