@@ -64,10 +64,18 @@ export const FIRESTORE_NOT_CONFIGURED_MESSAGE =
 export const FIRESTORE_MEMBERSHIP_REQUIRED_MESSAGE =
   '서버 제출함은 수업방 입장 확인이 끝난 학생만 사용할 수 있습니다. 현재 활동 결과는 브라우저 제출함에 보관됩니다.';
 
+export const FIRESTORE_SUBMISSION_TIMEOUT_MESSAGE =
+  '서버 제출함 응답이 지연되고 있습니다. 현재 활동 결과는 브라우저 제출함에 보관했습니다. 네트워크 또는 수업방 입장 확인을 점검한 뒤 다시 제출해 주세요.';
+
+export const DEFAULT_FIRESTORE_WRITE_TIMEOUT_MS = 8000;
+
 type FirestoreRepositoryOptions = {
   db?: Firestore | null;
   now?: () => string;
+  writeTimeoutMs?: number;
 };
+
+const FIRESTORE_WRITE_TIMEOUT = Symbol('FIRESTORE_WRITE_TIMEOUT');
 
 export type ClassroomDocument = {
   ownerTeacherUid: string;
@@ -325,6 +333,8 @@ export async function saveSubmissionToFirestore(
   options: FirestoreRepositoryOptions = {},
 ): Promise<ClassroomRepositoryOutcome<ActivitySubmission>> {
   const db = options.db ?? getFirebaseFirestore();
+  const writeTimeoutMs =
+    options.writeTimeoutMs ?? DEFAULT_FIRESTORE_WRITE_TIMEOUT_MS;
 
   if (!db) {
     return failure(submission, FIRESTORE_NOT_CONFIGURED_MESSAGE, [
@@ -341,16 +351,27 @@ export async function saveSubmissionToFirestore(
   const document = buildFirestoreSubmissionDocument({ submission, firebaseUid });
 
   try {
-    await setDoc(
-      doc(
-        db,
-        'classrooms',
-        normalizeFirestoreClassCode(submission.classCode),
-        'submissions',
-        submission.id,
+    const writeResult = await resolveWithTimeout(
+      setDoc(
+        doc(
+          db,
+          'classrooms',
+          normalizeFirestoreClassCode(submission.classCode),
+          'submissions',
+          submission.id,
+        ),
+        document,
       ),
-      document,
+      writeTimeoutMs,
     );
+
+    if (writeResult === FIRESTORE_WRITE_TIMEOUT) {
+      return failure(submission, FIRESTORE_SUBMISSION_TIMEOUT_MESSAGE, [
+        `saveSubmission timed out after ${writeTimeoutMs}ms: classroom=${normalizeFirestoreClassCode(
+          submission.classCode,
+        )}, submission=${submission.id}`,
+      ]);
+    }
 
     return {
       ok: true,
@@ -530,6 +551,32 @@ function normalizeFirestoreClassCode(value: string): string {
     .replace(/\s+/g, '-')
     .toUpperCase()
     .slice(0, 24);
+}
+
+async function resolveWithTimeout<T>(
+  operation: Promise<T>,
+  timeoutMs: number,
+): Promise<T | typeof FIRESTORE_WRITE_TIMEOUT> {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return operation;
+  }
+
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<typeof FIRESTORE_WRITE_TIMEOUT>((resolve) => {
+        timeoutId = setTimeout(() => {
+          resolve(FIRESTORE_WRITE_TIMEOUT);
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 function removeUndefinedValues(value: unknown): unknown {

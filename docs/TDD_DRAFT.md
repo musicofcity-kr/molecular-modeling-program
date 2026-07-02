@@ -1338,12 +1338,17 @@ student creates activity result snapshot
   -> if Firebase config + anonymous UID exist, app tries Firestore submission write
   -> Firestore rules require classrooms/{classCode}/students/{uid}
   -> success: server submission is available to the teacher
-  -> failure: local submission remains and the student sees a safe fallback message
+  -> failure or timeout: local submission remains and the student sees a safe fallback message
 ```
 
 The browser still does not create membership documents. `joinClassroom` must be
 implemented as a trusted endpoint before normal students can reliably submit to
 Firestore.
+
+Firestore submission writes must not leave the student UI in an indefinite
+"checking server submission" state. If the write does not settle within the
+client timeout, the app keeps the browser-local submission and reports that the
+server submission response is delayed.
 
 ### Teacher submission review flow
 
@@ -1363,6 +1368,8 @@ Feedback updates only write `status`, `updatedAt`, `teacherFeedback`, and
 - Firestore document builders strip undefined fields.
 - Student submission documents do not include `teacherFeedback`, raw MOL/SDF,
   or developer logs.
+- Firestore submission write timeout returns a student-safe browser fallback
+  message instead of exposing Firestore internals.
 - Teacher dashboard exposes Firestore controls only for authorized teacher
   sessions.
 - Existing student UI still hides raw technical terms.

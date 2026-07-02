@@ -15,7 +15,8 @@
 localStorage 제출함에 먼저 저장하고, Firebase Anonymous UID와 Firestore
 멤버십 문서가 모두 준비된 경우에만 서버 제출함에도 저장을 시도한다. 멤버십이
 없거나 Firestore 권한이 맞지 않으면 학생 결과는 브라우저 제출함에 남고 서버
-동기화 실패 메시지만 표시한다.
+동기화 실패 메시지만 표시한다. 배포 환경에서 Firestore 응답이 지연되는 경우도
+무기한 대기하지 않고 제한 시간 뒤 브라우저 제출함 보관 메시지로 수렴시킨다.
 
 ## 목적
 
@@ -50,7 +51,7 @@ localStorage 제출함에 먼저 저장하고, Firebase Anonymous UID와 Firesto
 - 학생 제출 snapshot을 `classrooms/{classCode}/submissions/{submissionId}`에 저장 시도
 - 교사용 수업코드 기반 제출 목록 조회
 - 교사 피드백 초안/전달 상태를 Firestore 제출 문서에 update 시도
-- Firestore 실패 시 기존 브라우저 제출함/localStorage 흐름 유지
+- Firestore 실패 또는 응답 지연 시 기존 브라우저 제출함/localStorage 흐름 유지
 
 다음은 아직 구현하지 않았다.
 

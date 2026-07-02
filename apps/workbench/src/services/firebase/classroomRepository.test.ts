@@ -1,15 +1,30 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { setDoc, type Firestore } from 'firebase/firestore';
 import { activityTemplates } from '../../data/activityTemplates';
 import type { ActivityResultSnapshot } from '../../types/activityResult';
 import type { ActivitySubmission } from '../../types/feedback';
 import {
   FIRESTORE_DEFERRED_MESSAGE,
+  FIRESTORE_SUBMISSION_TIMEOUT_MESSAGE,
   buildClassroomDocument,
   buildClassroomPublicInfoDocument,
   buildFirestoreSubmissionDocument,
   buildPublishedActivityTemplateDocument,
   createDeferredClassroomRepository,
+  saveSubmissionToFirestore,
 } from './classroomRepository';
+
+vi.mock('firebase/firestore', () => ({
+  collection: vi.fn((...segments: unknown[]) => ({ segments })),
+  doc: vi.fn((...segments: unknown[]) => ({ segments })),
+  getDocs: vi.fn(),
+  setDoc: vi.fn(),
+  updateDoc: vi.fn(),
+}));
+
+beforeEach(() => {
+  vi.mocked(setDoc).mockReset();
+});
 
 describe('deferred classroom repository', () => {
   it('keeps Firestore writes disabled until Auth and rules are ready', async () => {
@@ -189,5 +204,84 @@ describe('Firestore classroom document builders', () => {
         firebaseUid: 'student-uid',
       }).classroomId,
     ).toBe('CHEM-101');
+  });
+});
+
+describe('Firestore submission persistence', () => {
+  const now = '2026-07-02T00:00:00.000Z';
+
+  function createTestSubmission(): ActivitySubmission {
+    const snapshot = {
+      id: 'result-1',
+      createdAt: now,
+      updatedAt: now,
+      appMode: 'activity',
+      userMode: 'student',
+      activityId: 'draw-ethanol',
+      activityTitle: '에탄올 분자 구조 그리기',
+      moleculeName: '에탄올',
+      studentPrediction: {},
+      rdkitValidation: {
+        isValid: true,
+        molecularFormula: 'C2H6O',
+        molecularWeight: 46.069,
+      },
+      threeDObservation: {
+        has3DStructure: true,
+      },
+      measurements: [],
+      activityAnswers: [],
+      exportNotice: '수업 활동 기록용입니다.',
+    } satisfies ActivityResultSnapshot;
+
+    return {
+      id: 'submission-1',
+      submittedAt: now,
+      updatedAt: now,
+      classCode: 'CHEM-101',
+      studentDisplayName: 'QA-학생',
+      anonymousStudentId: 'student-123',
+      snapshot,
+      status: 'submitted',
+    };
+  }
+
+  it('returns a classroom-safe timeout message when Firestore submission write does not settle', async () => {
+    vi.mocked(setDoc).mockImplementationOnce(
+      () => new Promise(() => undefined) as ReturnType<typeof setDoc>,
+    );
+
+    const result = await saveSubmissionToFirestore(
+      createTestSubmission(),
+      'student-uid',
+      {
+        db: {} as Firestore,
+        writeTimeoutMs: 5,
+      },
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.studentMessage).toBe(FIRESTORE_SUBMISSION_TIMEOUT_MESSAGE);
+    expect(result.studentMessage).toContain('브라우저 제출함');
+    expect(result.studentMessage).not.toContain('Firestore');
+    expect(result.developerLogs.join('\n')).toContain(
+      'saveSubmission timed out after 5ms',
+    );
+  });
+
+  it('keeps the server-submitted message when Firestore submission write succeeds', async () => {
+    vi.mocked(setDoc).mockResolvedValueOnce(undefined);
+
+    const result = await saveSubmissionToFirestore(
+      createTestSubmission(),
+      'student-uid',
+      {
+        db: {} as Firestore,
+        writeTimeoutMs: 5,
+      },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.studentMessage).toContain('서버 제출함에도 저장했습니다');
   });
 });
