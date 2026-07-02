@@ -1232,8 +1232,8 @@ Current automated coverage:
 
 ## 17.3 Firebase Auth 1단계 데이터 흐름
 
-This phase connects Firebase Auth only. Firestore writes remain disabled in
-`src/services/firebase/classroomRepository.ts`.
+This phase connected Firebase Auth first. Firestore write services were kept
+disabled until rules tests and teacher claim gating were in place.
 
 ### Student entry flow
 
@@ -1268,7 +1268,8 @@ authorization boundary.
 
 - Firebase Web App config is read from `VITE_FIREBASE_*` variables only.
 - Missing config must not break the app shell or student local activity flow.
-- Firestore write services remain disabled.
+- Firestore write services must return explicit student-facing and developer
+  messages when config, permission, or membership prerequisites are missing.
 - Student real names, student numbers, emails, phone numbers, service account
   keys, AI API keys, and private tokens remain out of the browser bundle.
 - `joinClassroom` is still deferred; class-code trust is not implemented with
@@ -1309,6 +1310,63 @@ The future trusted endpoint must validate the class code and create
 `classrooms/{classroomId}/students/{uid}` from a privileged environment. Until
 then, student activity remains browser-local and localStorage-based.
 
+## 17.5 Firestore classroom submission MVP
+
+This phase connects a limited Firestore client service without bypassing the
+security model.
+
+### Teacher classroom flow
+
+```text
+teacher signs in
+  -> ID token claim resolves to authorized
+  -> teacher dashboard shows classroom controls
+  -> teacher enters title + classCode + published activity templates
+  -> client writes classrooms/{classCode}
+  -> client writes classrooms/{classCode}/public/info
+  -> client writes classrooms/{classCode}/activityTemplates/{templateId}
+```
+
+The app does not create teacher claims. A privileged Firebase Admin workflow is
+still required before a real teacher can use production classroom writes.
+
+### Student submission flow
+
+```text
+student creates activity result snapshot
+  -> app saves to existing localStorage submission box first
+  -> if Firebase config + anonymous UID exist, app tries Firestore submission write
+  -> Firestore rules require classrooms/{classCode}/students/{uid}
+  -> success: server submission is available to the teacher
+  -> failure: local submission remains and the student sees a safe fallback message
+```
+
+The browser still does not create membership documents. `joinClassroom` must be
+implemented as a trusted endpoint before normal students can reliably submit to
+Firestore.
+
+### Teacher submission review flow
+
+```text
+teacher enters classCode
+  -> client reads classrooms/{classCode}/submissions
+  -> loaded submissions merge with browser-local submissions by id
+  -> teacher can create feedback draft locally or through AI draft service
+  -> app tries Firestore feedback update for remote submissions
+```
+
+Feedback updates only write `status`, `updatedAt`, `teacherFeedback`, and
+`feedbackReturnedAt`; student snapshot contents are not rewritten.
+
+### Test expectations
+
+- Firestore document builders strip undefined fields.
+- Student submission documents do not include `teacherFeedback`, raw MOL/SDF,
+  or developer logs.
+- Teacher dashboard exposes Firestore controls only for authorized teacher
+  sessions.
+- Existing student UI still hides raw technical terms.
+
 ## 18. Risk Register
 
 | Risk | Mitigation |
@@ -1322,6 +1380,6 @@ then, student activity remains browser-local and localStorage-based.
 | Students confuse VSEPR model vectors with external coordinates | Keep `참고 3D 구조 보기` and `예상 입체 모형` as separate panels with different labels and caveats. |
 | Teacher guidance leaks into the student screen | Keep `UserMode` gates explicit and test that student mode hides teacher notes and developer logs. |
 | Students treat viewer measurements as reference data | Display coordinate source notes and avoid calling values experimental or optimized geometry. |
-| Firestore writes are enabled before rules tests pass | Keep repository writes disabled and require Firebase Emulator rules tests before beta persistence. |
+| Firestore writes are enabled before rules tests pass | Keep writes limited to the tested document shapes and rerun Firebase Emulator rules tests before beta persistence. |
 | Class code validation is implemented only on the client | Use a trusted joinClassroom endpoint to validate class code and create membership documents. |
 | Firebase Auth login is mistaken for teacher authorization | Keep `teacherAuthorizationStatus: "pending_custom_claim"` until a server-issued teacher claim is checked. |

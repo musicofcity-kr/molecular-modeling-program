@@ -199,7 +199,7 @@ describe('App scaffold', () => {
     expect(markup).not.toContain('data-testid="molecular-weight-output"');
   });
 
-  it('renders the authenticated teacher dashboard placeholder without enabling server persistence', () => {
+  it('renders the authenticated teacher dashboard with Firestore classroom controls', () => {
     const markup = renderToStaticMarkup(
       <App
         initialRoute="teacher-dashboard"
@@ -209,7 +209,10 @@ describe('App scaffold', () => {
     );
 
     expect(markup).toContain('교사용 대시보드 준비');
-    expect(markup).toContain('Firestore 저장 비활성');
+    expect(markup).toContain('Firestore 연결 가능');
+    expect(markup).toContain('수업방 만들기');
+    expect(markup).toContain('서버 제출 목록 불러오기');
+    expect(markup).toContain('trusted join endpoint 연결 후 활성화');
     expect(markup).toContain('수업방 생성');
     expect(markup).toContain('활동 관리');
     expect(markup).toContain('제출 목록');
@@ -230,7 +233,7 @@ describe('App scaffold', () => {
 
     expect(markup).toContain('교사 권한 승인 대기');
     expect(markup).toContain('아직 teacher custom claim이 없습니다');
-    expect(markup).toContain('Firestore 저장 비활성');
+    expect(markup).toContain('Firestore 권한 필요');
     expect(markup).not.toContain('교사용 지도 패널');
     expect(markup).not.toContain('개발자 로그 보기');
     expect(markup).not.toContain('외부 3D 자료 찾기');

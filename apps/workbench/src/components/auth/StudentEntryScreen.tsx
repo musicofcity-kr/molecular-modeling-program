@@ -81,7 +81,7 @@ export function StudentEntryScreen({
         </button>
       </form>
       <ul className="entry-note-list">
-        <li>현재 단계에서는 서버에 학생 제출물을 저장하지 않습니다.</li>
+        <li>교사가 만든 수업방과 입장 확인이 연결된 경우 서버 제출함을 사용할 수 있습니다.</li>
         <li>활동 결과 임시 저장은 현재 브라우저에만 보관됩니다.</li>
         <li>분자식과 평균 분자량은 구조 확인을 통과한 경우에만 표시됩니다.</li>
       </ul>

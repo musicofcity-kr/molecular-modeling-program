@@ -73,6 +73,13 @@ import {
   saveActivitySubmission,
   updateActivitySubmissionFeedback,
 } from '../services/activitySubmissionStorage';
+import {
+  createClassroomInFirestore,
+  loadClassroomSubmissionsFromFirestore,
+  saveSubmissionToFirestore,
+  updateSubmissionFeedbackInFirestore,
+  type ClassroomDraft,
+} from '../services/firebase/classroomRepository';
 import { createTeacherFeedbackDraft } from '../services/aiFeedbackService';
 import {
   UserSessionProvider,
@@ -358,6 +365,21 @@ function getPathForRoute(route: AppRoute): string {
   }
 }
 
+function mergeActivitySubmissions(
+  current: ActivitySubmission[],
+  incoming: ActivitySubmission[],
+): ActivitySubmission[] {
+  const submissionsById = new Map<string, ActivitySubmission>();
+
+  [...incoming, ...current].forEach((submission) => {
+    submissionsById.set(submission.id, submission);
+  });
+
+  return Array.from(submissionsById.values()).sort((left, right) =>
+    right.submittedAt.localeCompare(left.submittedAt),
+  );
+}
+
 type AppProps = {
   initialRoute?: AppRoute;
   initialSession?: UserSession | null;
@@ -451,6 +473,8 @@ function WorkbenchApp({
   const [activitySubmissionStatusMessage, setActivitySubmissionStatusMessage] =
     useState<string>('');
   const [teacherFeedbackStatusMessage, setTeacherFeedbackStatusMessage] =
+    useState<string>('');
+  const [teacherClassroomStatusMessage, setTeacherClassroomStatusMessage] =
     useState<string>('');
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(
     null,
@@ -1297,7 +1321,7 @@ function WorkbenchApp({
       setPreviewActivityResultId(snapshot.id);
     }
   };
-  const handleSubmitActivityResult = () => {
+  const handleSubmitActivityResult = async () => {
     const snapshot = createActivityResultSnapshot({
       appMode,
       userMode,
@@ -1314,13 +1338,49 @@ function WorkbenchApp({
       studentSession: session?.role === 'student' ? session : undefined,
     });
     const result = saveActivitySubmission(submission);
-
-    setActivitySubmissionStatusMessage(result.studentMessage);
-    console.info('[Activity submission storage]', result.developerLogs);
+    const developerLogs = [...result.developerLogs];
+    const statusMessages = [result.studentMessage];
 
     if (result.ok) {
       setActivitySubmissions(result.data);
       setSelectedSubmissionId(submission.id);
+    }
+
+    if (session?.role === 'student') {
+      const remoteResult = await saveSubmissionToFirestore(
+        submission,
+        session.firebaseUid,
+      );
+
+      developerLogs.push(...remoteResult.developerLogs);
+      statusMessages.push(remoteResult.studentMessage);
+    }
+
+    setActivitySubmissionStatusMessage(statusMessages.join(' '));
+    console.info('[Activity submission storage]', developerLogs);
+  };
+  const handleCreateFirestoreClassroom = async (draft: ClassroomDraft) => {
+    const teacherUid = session?.role === 'teacher' ? session.uid : undefined;
+    const result = await createClassroomInFirestore(
+      draft,
+      teacherUid,
+      activityTemplates,
+    );
+
+    setTeacherClassroomStatusMessage(result.studentMessage);
+    console.info('[Firestore classroom]', result.developerLogs);
+  };
+  const handleLoadFirestoreSubmissions = async (classCode: string) => {
+    const result = await loadClassroomSubmissionsFromFirestore(classCode);
+
+    setTeacherClassroomStatusMessage(result.studentMessage);
+    console.info('[Firestore submissions]', result.developerLogs);
+
+    if (result.ok) {
+      setActivitySubmissions((currentSubmissions) =>
+        mergeActivitySubmissions(currentSubmissions, result.data),
+      );
+      setSelectedSubmissionId((currentId) => currentId ?? result.data[0]?.id ?? null);
     }
   };
   const handleCreateFeedbackDraft = async (submissionId: string) => {
@@ -1356,9 +1416,26 @@ function WorkbenchApp({
     if (saveResult.ok) {
       setActivitySubmissions(saveResult.data);
       setSelectedSubmissionId(submissionId);
+
+      const updatedSubmission = saveResult.data.find(
+        (item) => item.id === submissionId,
+      );
+
+      if (updatedSubmission) {
+        const remoteResult = await updateSubmissionFeedbackInFirestore(
+          updatedSubmission,
+          result.feedback,
+          'feedback_draft',
+        );
+
+        setTeacherFeedbackStatusMessage(
+          `${saveResult.studentMessage} ${remoteResult.studentMessage}`,
+        );
+        console.info('[Firestore feedback]', remoteResult.developerLogs);
+      }
     }
   };
-  const handleReturnFeedback = (
+  const handleReturnFeedback = async (
     submissionId: string,
     studentMessage: string,
   ) => {
@@ -1388,6 +1465,23 @@ function WorkbenchApp({
     if (result.ok) {
       setActivitySubmissions(result.data);
       setSelectedSubmissionId(submissionId);
+
+      const updatedSubmission = result.data.find(
+        (item) => item.id === submissionId,
+      );
+
+      if (updatedSubmission) {
+        const remoteResult = await updateSubmissionFeedbackInFirestore(
+          updatedSubmission,
+          feedback,
+          'feedback_returned',
+        );
+
+        setTeacherFeedbackStatusMessage(
+          `${result.studentMessage} ${remoteResult.studentMessage}`,
+        );
+        console.info('[Firestore feedback]', remoteResult.developerLogs);
+      }
     }
   };
   const handleExportActivityResult = (format: 'json' | 'md' | 'txt') => {
@@ -1804,6 +1898,22 @@ function WorkbenchApp({
           authorizationStatus={
             session?.role === 'teacher'
               ? session.teacherAuthorizationStatus
+              : undefined
+          }
+          templates={activityTemplates}
+          statusMessage={teacherClassroomStatusMessage}
+          onCreateClassroom={
+            isTeacherAuthorizedSession
+              ? (draft) => {
+                  void handleCreateFirestoreClassroom(draft);
+                }
+              : undefined
+          }
+          onLoadSubmissions={
+            isTeacherAuthorizedSession
+              ? (classCode) => {
+                  void handleLoadFirestoreSubmissions(classCode);
+                }
               : undefined
           }
         />

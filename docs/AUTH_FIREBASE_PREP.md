@@ -1,7 +1,7 @@
 # 학생/교사 진입 분리 및 Firebase 준비 기록
 
 작성일: 2026-07-01  
-상태: Firebase Auth 1단계 연결 완료, Firestore 저장은 계속 비활성
+상태: Firebase Auth 1단계 연결 완료, Firestore 수업방/제출 저장 MVP 연결
 
 2026-07-02 업데이트: Firebase Auth 로그인 결과에서 teacher custom claim을
 읽어 `authorized`, `pending_custom_claim`, `not_checked` 상태로 분리한다.
@@ -9,18 +9,27 @@
 브라우저-local 또는 deferred 상태로 표시하며, Firestore membership write는
 계속 비활성 상태로 둔다.
 
+2026-07-02 추가 업데이트: 교사 권한이 확인된 세션에서 Firestore 수업방
+문서 생성, 공개 수업 정보 생성, published 활동 템플릿 생성, 수업방 제출 목록
+조회가 가능하도록 클라이언트 서비스 계층을 연결했다. 학생 제출은 기존
+localStorage 제출함에 먼저 저장하고, Firebase Anonymous UID와 Firestore
+멤버십 문서가 모두 준비된 경우에만 서버 제출함에도 저장을 시도한다. 멤버십이
+없거나 Firestore 권한이 맞지 않으면 학생 결과는 브라우저 제출함에 남고 서버
+동기화 실패 메시지만 표시한다.
+
 ## 목적
 
 `다양한 분자의 분자구조 모델링` 앱을 GitHub + Vercel + Firebase 기반 배포로 확장하기 전에 학생용 화면과 교사용 화면을 구조적으로 분리한다.
 
-이번 단계의 목표는 실제 서버 저장이 아니라 다음을 준비하는 것이다.
+이번 단계의 목표는 실제 저장을 무조건 켜는 것이 아니라, Security Rules가
+허용하는 범위에서 수업방과 제출 동기화의 최소 흐름을 준비하는 것이다.
 
 - 학생은 회원가입 없이 수업코드와 수업용 닉네임 또는 익명 ID로 입장한다.
 - 교사는 Firebase Auth 기반 Google 로그인 또는 이메일 로그인을 사용할 수 있도록 UI와 권한 구조를 준비한다.
-- Firestore 저장은 Auth와 Security Rules 설계 전까지 비활성 상태로 둔다.
+- Firestore 저장은 Security Rules가 허용하는 문서 shape와 권한에서만 시도한다.
 - 기존 localStorage 기반 임시 저장은 유지한다.
 
-## Firebase Auth 1단계 연결 상태
+## Firebase Auth 및 Firestore 연결 상태
 
 2026-07-01 기준 다음 범위만 실제 SDK에 연결했다.
 
@@ -32,13 +41,26 @@
 - 교사용 이메일/비밀번호 로그인 연결
 - 로그인 실패 시 학생/교사용 메시지와 개발자 로그 분리
 
+추가로 연결한 범위:
+
+- `firebase/firestore` Web SDK lazy 초기화
+- 교사 권한 확인 세션에서 `classrooms/{classCode}` 생성
+- `classrooms/{classCode}/public/info` 생성
+- 선택한 활동 템플릿을 `classrooms/{classCode}/activityTemplates/{templateId}`에 published 문서로 생성
+- 학생 제출 snapshot을 `classrooms/{classCode}/submissions/{submissionId}`에 저장 시도
+- 교사용 수업코드 기반 제출 목록 조회
+- 교사 피드백 초안/전달 상태를 Firestore 제출 문서에 update 시도
+- Firestore 실패 시 기존 브라우저 제출함/localStorage 흐름 유지
+
 다음은 아직 구현하지 않았다.
 
 - teacher custom claim 검증
 - trusted `joinClassroom` endpoint
 - 학생 멤버십 문서 생성
-- Firestore 제출 저장
-- Firestore classroom write
+- trusted `joinClassroom` endpoint
+- 수업코드 검증 후 학생 멤버십 문서 자동 생성
+- production용 수업코드 secret/hash 발급
+- Firebase Admin SDK 기반 teacher custom claim 관리 UI
 - 교사용 제출 목록의 서버 동기화
 
 ## 구현된 구조
@@ -113,6 +135,7 @@
 - `src/config/firebaseConfig.ts`
   - Vite 환경변수 기반 Firebase Web App config 읽기
   - config가 있을 때만 Firebase App/Auth lazy 초기화
+  - config가 있을 때만 Firestore lazy 초기화
 
 - `src/services/firebase/firebaseAuthService.ts`
   - 학생 Anonymous Auth
@@ -122,8 +145,12 @@
   - Auth failure의 학생/개발자 메시지 분리
 
 - `src/services/firebase/classroomRepository.ts`
-  - Firestore 저장소 계층 초안
-  - 쓰기 작업은 `deferred_until_rules_ready` 상태로 차단
+  - Firestore 저장소 계층
+  - 교사용 수업방 생성
+  - 학생 제출 snapshot 저장 시도
+  - 교사용 제출 목록 조회
+  - 교사 피드백 상태 update 시도
+  - config/권한/멤버십이 맞지 않으면 학생용 메시지와 개발자 로그를 분리해 반환
 
 - `.env.example`
   - Firebase Web App 환경변수 이름만 제공
@@ -146,18 +173,20 @@
 |---|---|---|
 | 수업코드 | 학생 세션 메모리 상태 | 저장 안 함 |
 | 수업용 닉네임/익명 ID | 학생 세션 메모리 상태 | 저장 안 함 |
-| 활동 결과 임시 저장 | 기존 localStorage | 서버 저장 안 함 |
+| 활동 결과 임시 저장 | 기존 localStorage | 브라우저 저장 |
 | 교사 로그인 | Firebase Auth Google/email 연결, custom claim 상태 확인 | 세션만 메모리 저장 |
 | 수업코드 입장 | trusted joinClassroom endpoint 전까지 local/deferred 표시 | membership 저장 안 함 |
-| 제출 목록 | placeholder | 실제 데이터 없음 |
+| 수업방 생성 | teacher claim 확인 후 Firestore write 시도 | 권한 있을 때 저장 |
+| 활동 결과 제출 | localStorage 우선 저장 후 Firestore write 시도 | 멤버십 있을 때 저장 |
+| 제출 목록 | 수업코드 기준 Firestore 조회 + localStorage 제출함 유지 | 권한 있을 때 조회 |
 
 ## 다음 단계
 
 1. teacher custom claim 발급/회수 관리자 절차 수립
 2. trusted `joinClassroom` endpoint 설계/구현
 3. 학생 anonymous Auth UID와 수업 멤버십 문서 연결
-4. Firestore 데이터 모델을 실제 서비스 계층에 연결
-5. 학생 제출 저장 기능을 beta 단계에서 제한적으로 활성화
+4. trusted `joinClassroom` endpoint 구현
+5. 학생 제출 저장 기능을 beta 단계에서 제한적으로 운영 검증
 
 ## Firestore 보안 설계 결정
 

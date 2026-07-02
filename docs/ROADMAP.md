@@ -18,7 +18,7 @@
 - Completed: Firestore Security Rules design draft before enabling Firebase Auth/Firestore writes.
 - Completed: Firebase Emulator rules tests for the draft Firestore Security Rules.
 - Completed: Firebase Auth phase 1 with student Anonymous Auth, teacher Google/email login UI, and config-missing fallback.
-- Completed: teacher custom claim UI gating and deferred joinClassroom integration point while keeping Firestore writes disabled.
+- Completed: teacher custom claim UI gating, Firestore classroom creation/submission service MVP, and deferred joinClassroom integration point without client-side membership creation.
 - Completed: curated PubChem CID examples without static 3D coordinates now auto-request external 3D SDF after RDKit validation, while free-draw PubChem matching stays manual.
 - Next: trusted joinClassroom endpoint implementation, teacher custom claim admin procedure, classroom pilot QA, accessibility polish, and teacher template authoring/import/export after the release candidate is stable.
 
@@ -88,6 +88,7 @@
 - Teacher mode now shows activity template information, misconception checks, validation/VSEPR/3D/PubChem status, and collapsible logs.
 - Free-draw student mode now treats VSEPR as an optional education module rather than a permanent core panel.
 - Classroom MVP RC now supports local activity-result snapshots and JSON/Markdown/TXT/clipboard/print export without login or a database.
-- Firebase/Firestore server storage remains disabled even though draft rules now have emulator coverage.
+- Firebase/Firestore server storage now has a limited service MVP for teacher-created classrooms, published activities, student submissions, teacher submission reads, and feedback status updates.
+- Student membership creation remains server-only; trusted classroom join endpoint is still the next required backend step.
 - Next teacher-facing step: custom claim issuance/revocation workflow, trusted classroom join endpoint, then local template editing/import/export after the mode split is stable.
-- Keep server storage, login, dashboards, automatic grading, PDF export, and 3D viewer capture out of scope until the classroom flow is stable.
+- Keep automatic grading, PDF export, and 3D viewer capture out of scope until the classroom flow is stable.
