@@ -299,6 +299,61 @@ export function resolveRecommendedExampleIdForActivity(input: {
   return input.fallbackExampleId;
 }
 
+export function resolveActivityIdForExample(input: {
+  exampleId: string;
+  templates: Pick<ActivityTemplate, 'id' | 'recommendedExampleId'>[];
+  fallbackActivityId: string;
+}): string {
+  const matchingTemplate = input.templates.find(
+    (template) => template.recommendedExampleId === input.exampleId,
+  );
+
+  return matchingTemplate?.id ?? input.fallbackActivityId;
+}
+
+export function resolveActivityTemplateForResult(input: {
+  appMode: AppMode;
+  selectedActivity?: ActivityTemplate | null;
+  validatedExample?: Pick<ExampleMolecule, 'id' | 'nameKo'> | null;
+}): ActivityTemplate | null {
+  if (input.appMode !== 'activity' || !input.selectedActivity) {
+    return null;
+  }
+
+  if (!input.validatedExample) {
+    return input.selectedActivity;
+  }
+
+  if (input.selectedActivity.recommendedExampleId === input.validatedExample.id) {
+    return input.selectedActivity;
+  }
+
+  return {
+    ...input.selectedActivity,
+    id: `direct-example-${input.validatedExample.id}`,
+    title: `${input.validatedExample.nameKo} 분자 구조 확인`,
+    targetMoleculeName: input.validatedExample.nameKo,
+    targetSmiles: undefined,
+    coreConcepts: ['직접 선택한 분자 예시', '구조 확인 결과 해석'],
+    teacherNotes: [
+      '학생이 활동 템플릿과 다른 예제 분자를 직접 선택했습니다. 제출 결과는 선택한 분자 기준으로 확인하세요.',
+    ],
+    misconceptionChecks: [
+      '이전 활동명과 직접 선택한 예제 분자를 같은 활동으로 혼동하는 오류',
+    ],
+    comparisonMode: {
+      enabled: false,
+      recommended: false,
+      focusQuestion:
+        '직접 선택한 분자 예시는 구조 확인 결과와 참고 3D 자료 제공 여부를 구분해 기록하세요.',
+      teacherNote:
+        '직접 선택한 예제는 기존 활동 템플릿의 정답 구조로 자동 판정하지 않습니다.',
+    },
+    expectedVsepr: undefined,
+    recommendedExampleId: input.validatedExample.id,
+  };
+}
+
 function getVseprModelStatusForAnalysis(
   analysis: VseprAnalysis,
   options: { renderModel?: boolean } = {},
@@ -806,8 +861,28 @@ function WorkbenchApp({
   };
 
   const handleSelectExample = (exampleId: string) => {
+    const nextActivityId = resolveActivityIdForExample({
+      exampleId,
+      templates: activityTemplates,
+      fallbackActivityId: selectedActivityId,
+    });
+    const nextExample = exampleMolecules.find((example) => example.id === exampleId);
+
     setSelectedExampleId(exampleId);
+
+    if (nextActivityId !== selectedActivityId) {
+      setSelectedActivityId(nextActivityId);
+    }
+
     resetCurrentStructureState();
+    appendLog(
+      createLog(
+        'info',
+        nextActivityId !== selectedActivityId
+          ? `${nextExample?.nameKo ?? '선택한'} 분자 예시와 연결된 수업 활동을 함께 선택했습니다.`
+          : `${nextExample?.nameKo ?? '분자'} 예시를 선택했습니다. 이전 확인 결과를 초기화했습니다.`,
+      ),
+    );
   };
 
   const handleSelectActivity = (activityId: string) => {
@@ -1187,13 +1262,22 @@ function WorkbenchApp({
   const currentValidatedExample = validatedExampleId
     ? exampleMolecules.find((example) => example.id === validatedExampleId)
     : undefined;
+  const selectedActivityForResult = useMemo(
+    () =>
+      resolveActivityTemplateForResult({
+        appMode,
+        selectedActivity,
+        validatedExample: currentValidatedExample,
+      }),
+    [appMode, currentValidatedExample, selectedActivity],
+  );
   const currentActivityResponses = activityResponsesById[selectedActivityId] ?? {};
   const structureComparisonState = buildStructureComparisonState({
     validationResult,
     molecule3DInput,
     vseprAnalysis,
     selectedExample: currentValidatedExample,
-    selectedActivity: appMode === 'activity' ? selectedActivity : null,
+    selectedActivity: selectedActivityForResult,
   });
   const structureComparisonObservation: StructureComparisonObservation = {
     moleculeName:
@@ -1210,7 +1294,7 @@ function WorkbenchApp({
       createActivityResultSnapshot({
         appMode,
         userMode,
-        activityTemplate: appMode === 'activity' ? selectedActivity : null,
+        activityTemplate: selectedActivityForResult,
         responses: currentActivityResponses,
         validationResult,
         molecule3DInput,
@@ -1223,7 +1307,7 @@ function WorkbenchApp({
       currentActivityResponses,
       molecule3DInput,
       measurementResults,
-      selectedActivity,
+      selectedActivityForResult,
       structureComparisonObservation,
       userMode,
       validationResult,
@@ -1300,7 +1384,7 @@ function WorkbenchApp({
     const snapshot = createActivityResultSnapshot({
       appMode,
       userMode,
-      activityTemplate: appMode === 'activity' ? selectedActivity : null,
+      activityTemplate: selectedActivityForResult,
       responses: currentActivityResponses,
       validationResult,
       molecule3DInput,
@@ -1325,7 +1409,7 @@ function WorkbenchApp({
     const snapshot = createActivityResultSnapshot({
       appMode,
       userMode,
-      activityTemplate: appMode === 'activity' ? selectedActivity : null,
+      activityTemplate: selectedActivityForResult,
       responses: currentActivityResponses,
       validationResult,
       molecule3DInput,
@@ -1345,6 +1429,12 @@ function WorkbenchApp({
       setActivitySubmissions(result.data);
       setSelectedSubmissionId(submission.id);
     }
+
+    setActivitySubmissionStatusMessage(
+      session?.role === 'student'
+        ? `${result.studentMessage} 서버 제출 상태를 확인하는 중입니다.`
+        : result.studentMessage,
+    );
 
     if (session?.role === 'student') {
       const remoteResult = await saveSubmissionToFirestore(

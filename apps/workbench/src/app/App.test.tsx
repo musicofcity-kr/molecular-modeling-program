@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
   App,
+  resolveActivityIdForExample,
+  resolveActivityTemplateForResult,
   resolveRecommendedExampleIdForActivity,
   resolveValidatedExampleForResult,
   shouldAutoLoadPubChem3DForExample,
@@ -307,6 +309,45 @@ describe('App scaffold', () => {
         fallbackExampleId: 'water',
       }),
     ).toBe('water');
+  });
+
+  it('selects a matching classroom activity when an example molecule is selected', () => {
+    expect(
+      resolveActivityIdForExample({
+        exampleId: 'ethanol',
+        templates: activityTemplates,
+        fallbackActivityId: 'draw-water',
+      }),
+    ).toBe('draw-ethanol');
+
+    expect(
+      resolveActivityIdForExample({
+        exampleId: 'glucose',
+        templates: activityTemplates,
+        fallbackActivityId: 'draw-water',
+      }),
+    ).toBe('draw-water');
+  });
+
+  it('uses the validated example name in result summaries when no matching activity exists', () => {
+    const waterActivity = activityTemplates.find(
+      (template) => template.id === 'draw-water',
+    );
+    const glucose = exampleMolecules.find((example) => example.id === 'glucose');
+
+    expect(waterActivity).toBeDefined();
+    expect(glucose).toBeDefined();
+
+    const resultTemplate = resolveActivityTemplateForResult({
+      appMode: 'activity',
+      selectedActivity: waterActivity,
+      validatedExample: glucose,
+    });
+
+    expect(resultTemplate?.title).toBe('포도당 분자 구조 확인');
+    expect(resultTemplate?.targetMoleculeName).toBe('포도당');
+    expect(resultTemplate?.targetSmiles).toBeUndefined();
+    expect(resultTemplate?.comparisonMode?.enabled).toBe(false);
   });
 
   it('auto-loads curated PubChem 3D only for validated examples without static coordinates', () => {

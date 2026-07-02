@@ -136,7 +136,11 @@ export function ActivityResultPanel({
         <span>나의 예측, 확인과 비교, 성찰을 나누어 정리합니다.</span>
       </div>
       {statusMessage ? (
-        <p className="activity-result-status" data-testid="activity-result-status">
+        <p
+          className="activity-result-status"
+          data-testid="activity-result-status"
+          role="status"
+        >
           {statusMessage}
         </p>
       ) : null}
@@ -144,6 +148,7 @@ export function ActivityResultPanel({
         <p
           className="activity-result-status"
           data-testid="activity-submission-status"
+          role="status"
         >
           {submissionStatusMessage}
         </p>

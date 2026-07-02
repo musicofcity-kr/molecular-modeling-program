@@ -81,7 +81,9 @@ describe('ActivityResultPanel', () => {
         userMode="student"
         currentSnapshot={snapshot}
         savedResults={[snapshot]}
+        submissionStatusMessage="활동 결과를 교사용 제출함에 보냈습니다. 서버 제출 상태를 확인하는 중입니다."
         onSave={() => undefined}
+        onSubmitForTeacher={() => undefined}
         onPreviewSavedResult={() => undefined}
         onExportJson={() => undefined}
         onExportMarkdown={() => undefined}
@@ -102,6 +104,9 @@ describe('ActivityResultPanel', () => {
     expect(markup).toContain('임시 저장하기');
     expect(markup).toContain('보고서로 저장하기');
     expect(markup).toContain('활동지 인쇄하기');
+    expect(markup).toContain('교사에게 제출하기');
+    expect(markup).toContain('서버 제출 상태를 확인하는 중입니다.');
+    expect(markup).toContain('role="status"');
     expect(markup).toContain('구조 확인 결과');
     expect(markup).not.toContain('원자료 저장');
     expect(markup).not.toContain('텍스트로 저장');
