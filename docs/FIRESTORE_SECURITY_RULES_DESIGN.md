@@ -1,7 +1,7 @@
 # Firestore Security Rules Design
 
 작성일: 2026-07-01  
-상태: Firestore 수업방/제출 저장 MVP 연결, trusted join endpoint는 미구현
+상태: Firestore 수업방/제출 저장 MVP 연결, trusted join endpoint 초안 구현
 
 ## 1. 목적
 
@@ -16,14 +16,19 @@ snapshot 생성, 교사 제출 조회/피드백 update 범위에서만 제한적
 
 2026-07-02 단계에서는 교사용 로그인 뒤 ID token custom claims를 읽어
 `authorized`, `pending_custom_claim`, `not_checked` 상태를 구분한다. 또한
-학생 수업코드 입장에 `joinClassroom` 연결 지점을 추가했지만, trusted
-endpoint와 학생 멤버십 문서 생성은 아직 활성화하지 않았다.
+학생 수업코드 입장에 `joinClassroom` 연결 지점을 추가했다.
 
 2026-07-02 다음 단계에서는 Firestore client service를 연결했다. 단,
 학생 멤버십 문서 생성은 여전히 client write로 허용하지 않는다. 따라서 학생
 서버 제출은 `/classrooms/{classCode}/students/{uid}` 멤버십 문서가 trusted
 경로로 미리 생성된 경우에만 성공한다. 멤버십이 없으면 앱은 localStorage
 제출함을 유지하고 서버 제출 실패 메시지를 분리해 표시한다.
+
+2026-07-02 추가 단계에서는 Vercel Function `/api/join-classroom` 초안을
+추가했다. 이 함수는 Firebase Admin SDK로 학생 ID token을 검증한 뒤, 기존
+수업방이 있고 `joinEnabled`가 true일 때만
+`/classrooms/{classCode}/students/{uid}` 멤버십 문서를 생성한다. 브라우저는
+여전히 멤버십 문서를 직접 생성할 수 없다.
 
 ## 2. 현재 유지할 원칙
 
@@ -152,8 +157,8 @@ npm run test:firestore-rules
 - 학생은 `published == true`인 활동 템플릿만 읽는다.
 - 수업 입장 멤버십 생성은 Firestore client write가 아니라 trusted server endpoint가 담당한다.
 
-현재 클라이언트 구현은 이 원칙을 우회하지 않는다. `joinClassroom` trusted
-endpoint가 없을 때도 학생 멤버십 문서를 직접 만들지 않으며, 제출 write가
+현재 클라이언트 구현은 이 원칙을 우회하지 않는다. `joinClassroom` endpoint가
+설정되지 않았거나 실패해도 학생 멤버십 문서를 직접 만들지 않으며, 제출 write가
 권한 부족으로 실패하면 브라우저 제출함 fallback을 사용한다.
 
 ## 8. Rules 테스트 기준
@@ -236,14 +241,15 @@ custom claim 읽기와 UI 게이트 분리는 완료. custom claim 발급 관리
 1. 교사 계정에 `teacher: true` 또는 `role: "teacher"` custom claim이 있어야 한다.
 2. 교사가 앱에서 수업방을 생성해야 한다.
 3. 학생은 Firebase Anonymous Auth UID를 가져야 한다.
-4. trusted endpoint 또는 관리자 작업으로 `/classrooms/{classCode}/students/{uid}` 멤버십 문서가 있어야 한다.
+4. `/api/join-classroom` 또는 관리자 작업으로 `/classrooms/{classCode}/students/{uid}` 멤버십 문서가 있어야 한다.
 5. 위 조건을 만족하면 학생 제출 snapshot이 Firestore에 저장되고 교사는 수업코드로 제출 목록을 조회할 수 있다.
 
 ## 11. 남은 위험 요소
 
 - 수업코드를 클라이언트 규칙만으로 검증하려 하면 우회 가능성이 크다.
 - teacher custom claim 발급은 Admin SDK가 있는 privileged server에서만 해야 한다.
-- 현재 수업방 생성에서 `joinCodeHash`는 trusted endpoint 전 placeholder이며 production 입장 secret으로 사용하면 안 된다.
+- 현재 수업방 생성에서 `joinCodeHash`는 placeholder이며 production 입장 secret으로 사용하면 안 된다.
+- `/api/join-classroom` 1차 구현은 existing classroom + joinEnabled를 확인하지만, 별도 join secret/hash 검증은 다음 단계에서 추가해야 한다.
 - 학생 닉네임에도 개인정보가 들어올 수 있으므로 길이 제한과 안내 문구가 필요하다.
 - AI 피드백 payload에 개인정보나 원본 로그가 섞이지 않도록 서버 쪽 필터가 필요하다.
 - Firestore Rules 테스트 없이 production write를 켜면 교사용 자료 또는 학생 제출이 노출될 수 있다.

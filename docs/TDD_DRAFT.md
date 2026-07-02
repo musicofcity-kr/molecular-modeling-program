@@ -1302,13 +1302,15 @@ teacher signs in with Google/email
 student enters class code
   -> app validates local input
   -> anonymous Firebase UID is attempted
-  -> joinClassroomWithTrustedEndpoint returns local/deferred state
-  -> no Firestore membership document is created from the browser
+  -> joinClassroomWithTrustedEndpoint sends Firebase ID token to /api/join-classroom
+  -> Vercel Function verifies the ID token with Firebase Admin SDK
+  -> if classroom exists and joinEnabled is true, membership is created server-side
+  -> no Firestore membership document is created directly from the browser
 ```
 
-The future trusted endpoint must validate the class code and create
-`classrooms/{classroomId}/students/{uid}` from a privileged environment. Until
-then, student activity remains browser-local and localStorage-based.
+The trusted endpoint validates the Firebase ID token before using the UID. If
+the endpoint is not configured, the classroom is missing, or membership cannot
+be created, student activity remains browser-local and localStorage-based.
 
 ## 17.5 Firestore classroom submission MVP
 
@@ -1330,6 +1332,21 @@ teacher signs in
 The app does not create teacher claims. A privileged Firebase Admin workflow is
 still required before a real teacher can use production classroom writes.
 
+### Trusted classroom join endpoint
+
+```text
+student anonymous auth returns Firebase ID token
+  -> client POSTs idToken, classCode, displayName, anonymousStudentId to /api/join-classroom
+  -> Vercel Function verifies ID token with Firebase Admin SDK
+  -> Function checks classrooms/{classCode}.joinEnabled
+  -> Function writes classrooms/{classCode}/students/{uid}
+  -> later Firestore submission write can satisfy Security Rules
+```
+
+The endpoint must not accept a raw UID without verifying the Firebase ID token.
+The next hardening step is a separate join secret/hash so public class codes are
+not the only gate for membership creation.
+
 ### Student submission flow
 
 ```text
@@ -1341,8 +1358,8 @@ student creates activity result snapshot
   -> failure or timeout: local submission remains and the student sees a safe fallback message
 ```
 
-The browser still does not create membership documents. `joinClassroom` must be
-implemented as a trusted endpoint before normal students can reliably submit to
+The browser still does not create membership documents directly. `joinClassroom`
+must remain a trusted endpoint before normal students can reliably submit to
 Firestore.
 
 Firestore submission writes must not leave the student UI in an indefinite
@@ -1370,6 +1387,8 @@ Feedback updates only write `status`, `updatedAt`, `teacherFeedback`, and
   or developer logs.
 - Firestore submission write timeout returns a student-safe browser fallback
   message instead of exposing Firestore internals.
+- Trusted classroom join endpoint verifies Firebase ID token before creating
+  `students/{uid}` membership documents.
 - Teacher dashboard exposes Firestore controls only for authorized teacher
   sessions.
 - Existing student UI still hides raw technical terms.

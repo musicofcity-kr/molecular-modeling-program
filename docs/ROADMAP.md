@@ -89,6 +89,6 @@
 - Free-draw student mode now treats VSEPR as an optional education module rather than a permanent core panel.
 - Classroom MVP RC now supports local activity-result snapshots and JSON/Markdown/TXT/clipboard/print export without login or a database.
 - Firebase/Firestore server storage now has a limited service MVP for teacher-created classrooms, published activities, student submissions, teacher submission reads, and feedback status updates.
-- Student membership creation remains server-only; trusted classroom join endpoint is still the next required backend step.
-- Next teacher-facing step: custom claim issuance/revocation workflow, trusted classroom join endpoint, then local template editing/import/export after the mode split is stable.
+- Student membership creation remains server-only and is now routed through the `/api/join-classroom` Vercel Function when Firebase Admin environment variables are configured.
+- Next teacher-facing step: custom claim issuance/revocation workflow, join-code hardening, then local template editing/import/export after the mode split is stable.
 - Keep automatic grading, PDF export, and 3D viewer capture out of scope until the classroom flow is stable.

@@ -59,8 +59,8 @@
 
 - `npm run typecheck`: 통과
 - `npm test`: 통과
-  - 24 test files
-  - 137 tests
+  - 31 test files
+  - 182 tests
 - `npm run build`: 통과
 
 빌드 시 알려진 경고:
@@ -72,7 +72,9 @@
 추가 기록:
 
 - 학생/교사 진입 분리와 Firebase Auth/Firestore 준비 구조는 `docs/AUTH_FIREBASE_PREP.md`에 별도 기록한다.
-- 현재 Firestore 서버 저장은 의도적으로 비활성 상태이다.
+- 현재 Firestore 서버 저장은 제한된 수업방/제출/피드백 MVP와 `/api/join-classroom`
+  trusted endpoint로 단계 연결되어 있으며, 서버 환경변수 또는 권한이 준비되지
+  않은 경우 브라우저-local 활동 흐름으로 fallback한다.
 
 ## 5. 화학/교육 설계 원칙
 

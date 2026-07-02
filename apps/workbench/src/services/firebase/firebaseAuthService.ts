@@ -17,6 +17,7 @@ export type FirebaseAuthFailureStatus = 'not_configured' | 'auth_error';
 export type FirebaseAuthUserResult = {
   ok: true;
   uid: string;
+  idToken?: string;
   displayName?: string;
   email?: string;
   providerId?: string;
@@ -103,6 +104,16 @@ function userResult(user: User, providerId?: string): FirebaseAuthUserResult {
   };
 }
 
+async function studentUserResult(
+  user: User,
+  providerId?: string,
+): Promise<FirebaseAuthUserResult> {
+  return {
+    ...userResult(user, providerId),
+    idToken: await user.getIdToken(),
+  };
+}
+
 async function teacherUserResult(
   user: User,
   providerId?: string,
@@ -139,7 +150,7 @@ export async function signInStudentAnonymously(): Promise<FirebaseAuthResult> {
   try {
     const credential = await signInAnonymously(auth);
 
-    return userResult(credential.user, 'anonymous');
+    return studentUserResult(credential.user, 'anonymous');
   } catch (error) {
     return authErrorResult(
       error,

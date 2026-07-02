@@ -32,6 +32,7 @@ function userFixture(overrides: Partial<{
   displayName: string | null;
   email: string | null;
   isAnonymous: boolean;
+  idToken: string;
   claims: Record<string, unknown>;
   tokenError: Error;
 }> = {}) {
@@ -40,6 +41,7 @@ function userFixture(overrides: Partial<{
     displayName: overrides.displayName ?? null,
     email: overrides.email ?? null,
     isAnonymous: overrides.isAnonymous ?? false,
+    getIdToken: vi.fn().mockResolvedValue(overrides.idToken ?? 'id-token-test'),
     getIdTokenResult: vi.fn().mockImplementation(() => {
       if (overrides.tokenError) {
         return Promise.reject(overrides.tokenError);
@@ -85,6 +87,7 @@ describe('firebaseAuthService', () => {
     expect(result).toMatchObject({
       ok: true,
       uid: 'student-firebase-uid',
+      idToken: 'id-token-test',
       providerId: 'anonymous',
       isAnonymous: true,
     });

@@ -5,9 +5,9 @@
 
 2026-07-02 업데이트: Firebase Auth 로그인 결과에서 teacher custom claim을
 읽어 `authorized`, `pending_custom_claim`, `not_checked` 상태로 분리한다.
-학생 수업코드 입장은 `joinClassroom` trusted endpoint 연결 전까지
-브라우저-local 또는 deferred 상태로 표시하며, Firestore membership write는
-계속 비활성 상태로 둔다.
+학생 수업코드 입장은 브라우저-local 또는 deferred fallback을 유지하되,
+서버 환경변수가 준비된 배포 환경에서는 `/api/join-classroom` trusted endpoint가
+Firebase ID token을 검증한 뒤 Firestore membership write를 담당한다.
 
 2026-07-02 추가 업데이트: 교사 권한이 확인된 세션에서 Firestore 수업방
 문서 생성, 공개 수업 정보 생성, published 활동 템플릿 생성, 수업방 제출 목록
@@ -17,6 +17,13 @@ localStorage 제출함에 먼저 저장하고, Firebase Anonymous UID와 Firesto
 없거나 Firestore 권한이 맞지 않으면 학생 결과는 브라우저 제출함에 남고 서버
 동기화 실패 메시지만 표시한다. 배포 환경에서 Firestore 응답이 지연되는 경우도
 무기한 대기하지 않고 제한 시간 뒤 브라우저 제출함 보관 메시지로 수렴시킨다.
+
+2026-07-02 추가 업데이트: Vercel Function 기반 `/api/join-classroom`
+초안을 추가했다. 이 endpoint는 학생 Firebase ID token을 Admin SDK로 검증하고,
+기존 수업방의 `joinEnabled`가 true인 경우에만
+`classrooms/{classCode}/students/{uid}` 멤버십 문서를 생성한다. Firebase Admin
+서버 환경변수가 없거나 수업방이 없으면 학생은 기존 브라우저-local 활동 흐름으로
+fallback한다.
 
 ## 목적
 
@@ -48,6 +55,7 @@ localStorage 제출함에 먼저 저장하고, Firebase Anonymous UID와 Firesto
 - 교사 권한 확인 세션에서 `classrooms/{classCode}` 생성
 - `classrooms/{classCode}/public/info` 생성
 - 선택한 활동 템플릿을 `classrooms/{classCode}/activityTemplates/{templateId}`에 published 문서로 생성
+- Vercel Function `/api/join-classroom`에서 Firebase Admin ID token 검증 후 학생 멤버십 문서 생성
 - 학생 제출 snapshot을 `classrooms/{classCode}/submissions/{submissionId}`에 저장 시도
 - 교사용 수업코드 기반 제출 목록 조회
 - 교사 피드백 초안/전달 상태를 Firestore 제출 문서에 update 시도
@@ -55,11 +63,8 @@ localStorage 제출함에 먼저 저장하고, Firebase Anonymous UID와 Firesto
 
 다음은 아직 구현하지 않았다.
 
-- teacher custom claim 검증
-- trusted `joinClassroom` endpoint
-- 학생 멤버십 문서 생성
-- trusted `joinClassroom` endpoint
-- 수업코드 검증 후 학생 멤버십 문서 자동 생성
+- production용 join secret/hash 검증
+- 수업코드 외 별도 입장 코드 발급/검증
 - production용 수업코드 secret/hash 발급
 - Firebase Admin SDK 기반 teacher custom claim 관리 UI
 - 교사용 제출 목록의 서버 동기화

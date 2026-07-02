@@ -100,6 +100,7 @@ export function UserSessionProvider({
           displayName: validation.displayName,
           anonymousStudentId,
           firebaseUid: authResult.ok ? authResult.uid : undefined,
+          idToken: authResult.ok ? authResult.idToken : undefined,
         });
 
         const nextSession: StudentSession = {

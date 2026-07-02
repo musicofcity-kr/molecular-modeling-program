@@ -50,6 +50,22 @@ VITE_FIREBASE_STORAGE_BUCKET
 VITE_FIREBASE_MESSAGING_SENDER_ID
 ```
 
+학생 수업코드 서버 확인과 Firestore 멤버십 생성을 사용하려면 Vercel Function
+전용으로 다음 값 중 하나를 등록한다. 이 값들은 절대 `VITE_` 접두사를 붙이지
+않는다.
+
+```text
+FIREBASE_SERVICE_ACCOUNT_BASE64
+```
+
+또는 분리 입력 방식:
+
+```text
+FIREBASE_ADMIN_PROJECT_ID
+FIREBASE_ADMIN_CLIENT_EMAIL
+FIREBASE_ADMIN_PRIVATE_KEY
+```
+
 교사용 AI 피드백 서버를 연결할 때만 다음 값을 등록한다.
 
 ```text
@@ -61,6 +77,7 @@ VITE_AI_FEEDBACK_ENDPOINT
 - OpenAI, Claude, Gemini API key를 `VITE_*` 환경변수로 등록하지 않는다.
 - AI API key는 Vercel Function, Firebase Functions, Cloud Run 같은 서버 측 환경변수에만 저장한다.
 - service account JSON, private token, `.env.local`은 GitHub에 커밋하지 않는다.
+- Firebase Admin service account 값은 GitHub에 저장하지 않고 Vercel Environment Variables에만 등록한다.
 
 ## 4. 첫 배포 후 확인 항목
 
@@ -86,8 +103,11 @@ VITE_AI_FEEDBACK_ENDPOINT
 
 ## 5. Firebase 도입 순서
 
-Firebase는 배포 직후 바로 학생 제출 저장에 연결하지 않는다. 현재 앱은 Auth
-1단계만 연결되어 있으며 Firestore write는 비활성 상태다.
+Firebase는 단계적으로 연결한다. 현재 앱은 Firebase Auth, 제한된 Firestore
+서비스 MVP, Vercel Function 기반 학생 수업방 입장 endpoint를 갖고 있다.
+단, 서버 저장은 Vercel의 `VITE_FIREBASE_*` 및 Firebase Admin 서버 환경변수와
+Security Rules가 준비된 환경에서만 정상 동작하며, 실패 시 브라우저-local
+활동 흐름으로 fallback한다.
 
 권장 순서:
 
@@ -99,13 +119,13 @@ Firebase는 배포 직후 바로 학생 제출 저장에 연결하지 않는다.
    - 학생용 Anonymous Auth 활성화
 4. Vercel Environment Variables에 `VITE_FIREBASE_*` Web App config 등록
 5. teacher custom claim 발급 절차 수립
-6. trusted `joinClassroom` endpoint 설계
+6. trusted `joinClassroom` endpoint 환경변수 연결
 7. Firestore 데이터 모델 확정
 8. Firestore Security Rules 작성
    - 설계 문서: `docs/FIRESTORE_SECURITY_RULES_DESIGN.md`
    - 초안 파일: `firebase/firestore.rules`
 9. Rules 테스트
-10. trusted joinClassroom endpoint로 수업코드 검증과 학생 멤버십 생성
+10. trusted joinClassroom endpoint로 수업코드 검증과 학생 멤버십 생성 확인
 11. 제한된 beta 환경에서 학생 제출 저장 활성화
 
 현재 Auth 1단계 범위:
