@@ -1299,12 +1299,12 @@ teacher signs in with Google/email
 ### Student classroom join boundary
 
 ```text
-student enters class code
+student enters class code + join code
   -> app validates local input
   -> anonymous Firebase UID is attempted
-  -> joinClassroomWithTrustedEndpoint sends Firebase ID token to /api/join-classroom
+  -> joinClassroomWithTrustedEndpoint sends Firebase ID token and join code to /api/join-classroom
   -> Vercel Function verifies the ID token with Firebase Admin SDK
-  -> if classroom exists and joinEnabled is true, membership is created server-side
+  -> if classroom exists, joinEnabled is true, and joinCodeHash matches, membership is created server-side
   -> no Firestore membership document is created directly from the browser
 ```
 
@@ -1323,7 +1323,7 @@ security model.
 teacher signs in
   -> ID token claim resolves to authorized
   -> teacher dashboard shows classroom controls
-  -> teacher enters title + classCode + published activity templates
+  -> teacher enters title + classCode + joinCode + published activity templates
   -> client writes classrooms/{classCode}
   -> client writes classrooms/{classCode}/public/info
   -> client writes classrooms/{classCode}/activityTemplates/{templateId}
@@ -1336,16 +1336,18 @@ still required before a real teacher can use production classroom writes.
 
 ```text
 student anonymous auth returns Firebase ID token
-  -> client POSTs idToken, classCode, displayName, anonymousStudentId to /api/join-classroom
+  -> client POSTs idToken, classCode, joinCode, displayName, anonymousStudentId to /api/join-classroom
   -> Vercel Function verifies ID token with Firebase Admin SDK
-  -> Function checks classrooms/{classCode}.joinEnabled
+  -> Function checks classrooms/{classCode}.joinEnabled and joinCodeHash
   -> Function writes classrooms/{classCode}/students/{uid}
   -> later Firestore submission write can satisfy Security Rules
 ```
 
 The endpoint must not accept a raw UID without verifying the Firebase ID token.
-The next hardening step is a separate join secret/hash so public class codes are
-not the only gate for membership creation.
+Public class codes are not sufficient for membership creation. The current MVP
+uses a client-generated `joinCodeHash`; the production hardening step is moving
+join-code hash generation to a trusted teacher/server endpoint with a server-side
+salt or pepper.
 
 ### Student submission flow
 

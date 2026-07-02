@@ -12,6 +12,7 @@ describe('classroomJoinService', () => {
     await expect(
       joinClassroomWithTrustedEndpoint({
         classCode: 'CHEM-101',
+        joinCode: 'A1B2',
         displayName: '익명 학생',
         anonymousStudentId: 'student-local',
       }),
@@ -27,6 +28,7 @@ describe('classroomJoinService', () => {
     await expect(
       joinClassroomWithTrustedEndpoint({
         classCode: 'CHEM-101',
+        joinCode: 'A1B2',
         displayName: '익명 학생',
         anonymousStudentId: 'student-local',
         firebaseUid: 'firebase-student-uid',
@@ -59,6 +61,7 @@ describe('classroomJoinService', () => {
       joinClassroomWithTrustedEndpoint(
         {
           classCode: 'CHEM-101',
+          joinCode: 'A1B2',
           displayName: '익명 학생',
           anonymousStudentId: 'student-local',
           firebaseUid: 'firebase-student-uid',
@@ -83,6 +86,7 @@ describe('classroomJoinService', () => {
     expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({
       idToken: 'firebase-id-token',
       classCode: 'CHEM-101',
+      joinCode: 'A1B2',
       displayName: '익명 학생',
       anonymousStudentId: 'student-local',
     });
@@ -105,6 +109,7 @@ describe('classroomJoinService', () => {
       joinClassroomWithTrustedEndpoint(
         {
           classCode: 'CHEM-404',
+          joinCode: 'A1B2',
           displayName: '익명 학생',
           anonymousStudentId: 'student-local',
           firebaseUid: 'firebase-student-uid',
@@ -128,6 +133,7 @@ describe('classroomJoinService', () => {
       joinClassroomWithTrustedEndpoint(
         {
           classCode: 'CHEM-101',
+          joinCode: 'A1B2',
           displayName: '익명 학생',
           anonymousStudentId: 'student-local',
           firebaseUid: 'firebase-student-uid',

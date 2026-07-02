@@ -32,7 +32,7 @@ fallback한다.
 이번 단계의 목표는 실제 저장을 무조건 켜는 것이 아니라, Security Rules가
 허용하는 범위에서 수업방과 제출 동기화의 최소 흐름을 준비하는 것이다.
 
-- 학생은 회원가입 없이 수업코드와 수업용 닉네임 또는 익명 ID로 입장한다.
+- 학생은 회원가입 없이 수업코드, 입장 확인코드, 수업용 닉네임 또는 익명 ID로 입장한다.
 - 교사는 Firebase Auth 기반 Google 로그인 또는 이메일 로그인을 사용할 수 있도록 UI와 권한 구조를 준비한다.
 - Firestore 저장은 Security Rules가 허용하는 문서 shape와 권한에서만 시도한다.
 - 기존 localStorage 기반 임시 저장은 유지한다.
@@ -189,15 +189,15 @@ fallback한다.
 ## 다음 단계
 
 1. teacher custom claim 발급/회수 관리자 절차 수립
-2. trusted `joinClassroom` endpoint 설계/구현
-3. 학생 anonymous Auth UID와 수업 멤버십 문서 연결
-4. trusted `joinClassroom` endpoint 구현
+2. Vercel Firebase Admin 환경변수 연결
+3. 테스트 수업방 문서 생성 후 학생 anonymous Auth UID와 수업 멤버십 문서 연결 QA
+4. `joinCodeHash` 생성을 교사용 서버 endpoint 또는 server-side salt/pepper 방식으로 강화
 5. 학생 제출 저장 기능을 beta 단계에서 제한적으로 운영 검증
 
 ## Firestore 보안 설계 결정
 
 - 학생은 회원가입하지 않는 UX를 유지하되, Firestore 권한 판정에는 Firebase Anonymous Auth UID를 사용한다.
-- 수업코드 검증과 학생 멤버십 문서 생성은 Firestore client write가 아니라 trusted server endpoint에서 처리한다.
+- 수업코드와 입장 확인코드 검증, 학생 멤버십 문서 생성은 Firestore client write가 아니라 trusted server endpoint에서 처리한다.
 - 교사는 Firebase Auth 로그인 후 `teacher: true` 또는 `role: "teacher"` custom claim을 기준으로 접근한다.
 - custom claims에는 권한 판단 정보만 넣고, 교사 프로필이나 수업 목록은 넣지 않는다.
 - production Firestore write는 `firebase/firestore.rules` 초안이 emulator 기반 rules test를 통과한 뒤 활성화한다.

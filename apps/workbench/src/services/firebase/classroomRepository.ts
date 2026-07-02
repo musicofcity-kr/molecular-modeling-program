@@ -9,10 +9,15 @@ import {
 import { getFirebaseFirestore } from '../../config/firebaseConfig';
 import type { ActivityTemplate } from '../../types/activity';
 import type { ActivitySubmission, TeacherFeedbackDraft } from '../../types/feedback';
+import {
+  buildJoinCodeHash,
+  normalizeJoinClassCode,
+} from './classroomJoinCode';
 
 export type ClassroomDraft = {
   title: string;
   classCode: string;
+  joinCode: string;
   activityTemplateIds: string[];
 };
 
@@ -148,7 +153,10 @@ export function buildClassroomDocument(input: {
       [input.teacherUid]: true,
     },
     title: input.draft.title.trim().slice(0, 80),
-    joinCodeHash: buildClientSideJoinCodePlaceholder(input.draft.classCode),
+    joinCodeHash: buildJoinCodeHash({
+      classCode: input.draft.classCode,
+      joinCode: input.draft.joinCode,
+    }),
     joinEnabled: true,
     createdAt: input.now,
     updatedAt: input.now,
@@ -267,12 +275,12 @@ export async function createClassroomInFirestore(
     ]);
   }
 
-  if (!classCode || !title || selectedTemplates.length === 0) {
+  if (!classCode || !title || !draft.joinCode.trim() || selectedTemplates.length === 0) {
     return failure(
       { classCode },
       '수업명, 수업코드, 사용할 활동을 모두 확인해 주세요.',
       [
-        `createClassroom invalid input: classCode=${classCode}, titleLength=${title.length}, templates=${selectedTemplates.length}`,
+        `createClassroom invalid input: classCode=${classCode}, titleLength=${title.length}, joinCode=${draft.joinCode ? 'present' : 'missing'}, templates=${selectedTemplates.length}`,
       ],
     );
   }
@@ -314,7 +322,7 @@ export async function createClassroomInFirestore(
       ok: true,
       data: { classCode },
       studentMessage:
-        '수업방을 만들었습니다. 학생 입장 자동 등록은 trusted join endpoint 연결 후 활성화됩니다.',
+        '수업방을 만들었습니다. 학생에게 수업코드와 입장 확인코드를 함께 안내해 주세요.',
       developerLogs: [
         `Created classroom ${classCode}`,
         `Published activity templates: ${selectedTemplates.map((item) => item.id).join(', ')}`,
@@ -540,17 +548,8 @@ function mapFirestoreSubmissionDocument(
   }) as ActivitySubmission;
 }
 
-function buildClientSideJoinCodePlaceholder(classCode: string): string {
-  return `client-join-endpoint-pending-${normalizeFirestoreClassCode(classCode).slice(0, 64)}`;
-}
-
 function normalizeFirestoreClassCode(value: string): string {
-  return value
-    .trim()
-    .replace(/[\\/]+/g, '-')
-    .replace(/\s+/g, '-')
-    .toUpperCase()
-    .slice(0, 24);
+  return normalizeJoinClassCode(value);
 }
 
 async function resolveWithTimeout<T>(

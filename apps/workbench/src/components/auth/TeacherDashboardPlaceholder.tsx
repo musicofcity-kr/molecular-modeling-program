@@ -63,6 +63,7 @@ export function TeacherDashboardPlaceholder({
 }: TeacherDashboardPlaceholderProps) {
   const [title, setTitle] = useState('고1 화학 분자구조 탐구');
   const [classCode, setClassCode] = useState('CHEM-101');
+  const [joinCode, setJoinCode] = useState('1010');
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>(
     templates.slice(0, 3).map((template) => template.id),
   );
@@ -118,6 +119,7 @@ export function TeacherDashboardPlaceholder({
             onCreateClassroom?.({
               title,
               classCode,
+              joinCode,
               activityTemplateIds: selectedTemplateIds,
             });
           }}
@@ -142,6 +144,17 @@ export function TeacherDashboardPlaceholder({
               disabled={!canUseFirestoreTools}
               onChange={(event) => {
                 setClassCode(event.currentTarget.value.toUpperCase());
+              }}
+            />
+          </label>
+          <label>
+            <span>학생 입장 확인코드</span>
+            <input
+              aria-label="학생 입장 확인코드"
+              value={joinCode}
+              disabled={!canUseFirestoreTools}
+              onChange={(event) => {
+                setJoinCode(event.currentTarget.value.toUpperCase());
               }}
             />
           </label>
@@ -170,7 +183,8 @@ export function TeacherDashboardPlaceholder({
             수업방 만들기
           </button>
           <p className="teacher-boundary-note">
-            학생 멤버십 자동 생성은 trusted join endpoint 연결 후 활성화됩니다.
+            학생에게 수업코드와 입장 확인코드를 함께 안내합니다. 서버는 두 값이
+            일치할 때만 학생 멤버십을 만듭니다.
           </p>
         </form>
 

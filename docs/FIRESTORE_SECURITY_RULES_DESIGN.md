@@ -47,20 +47,20 @@ snapshot 생성, 교사 제출 조회/피드백 update 범위에서만 제한적
 | 브라우저 React 앱 | 낮음 | 클라이언트 값은 조작 가능하다고 본다. |
 | Firebase Auth ID token | 중간 | Auth가 발급한 UID와 custom claims만 권한 판정에 사용한다. |
 | Firestore Security Rules | 높음 | 모든 client-side read/write의 최종 차단선이다. |
-| joinClassroom 서버 엔드포인트 | 높음 | 수업코드 검증과 학생 멤버십 생성을 담당한다. |
+| joinClassroom 서버 엔드포인트 | 높음 | 수업코드와 입장 확인코드 검증, 학생 멤버십 생성을 담당한다. |
 | 교사용 AI 피드백 서버 | 높음 | API key 보관과 AI 호출을 서버에서만 처리한다. |
 
 ## 4. 권장 인증 흐름
 
 ### 학생 흐름
 
-1. 학생이 수업코드와 수업용 닉네임을 입력한다.
+1. 학생이 수업코드, 입장 확인코드, 수업용 닉네임을 입력한다.
 2. 앱은 Firebase Anonymous Auth로 익명 UID를 확보한다.
-3. 앱은 `joinClassroom(classCode, displayName)` 서버 엔드포인트를 호출한다.
-4. 서버는 수업코드를 검증하고 `/classrooms/{classroomId}/students/{uid}` 멤버십 문서를 생성한다.
+3. 앱은 `joinClassroom(classCode, joinCode, displayName)` 서버 엔드포인트를 호출한다.
+4. 서버는 수업코드와 입장 확인코드를 검증하고 `/classrooms/{classroomId}/students/{uid}` 멤버십 문서를 생성한다.
 5. 이후 학생은 자신의 UID와 멤버십 문서가 있을 때만 제출을 생성할 수 있다.
 
-중요: Firestore Rules만으로 공개 수업코드를 안전하게 검증하기 어렵다. 수업 입장은 서버 엔드포인트나 callable function에서 검증한다.
+중요: Firestore Rules만으로 공개 수업코드와 입장 확인코드를 안전하게 검증하기 어렵다. 수업 입장은 서버 엔드포인트나 callable function에서 검증한다.
 
 ### 교사 흐름
 
@@ -224,7 +224,7 @@ custom claim 읽기와 UI 게이트 분리는 완료. custom claim 발급 관리
 
 - Anonymous Auth 연결
 - joinClassroom 서버 엔드포인트 구현
-- 수업코드 검증 후 membership 문서 생성
+- 수업코드와 입장 확인코드 검증 후 membership 문서 생성
 
 상태: Anonymous Auth 시도와 config-missing fallback은 완료. `joinClassroom`
 연결 지점은 추가했으나 trusted endpoint와 membership 문서 생성은 다음 단계.
@@ -248,8 +248,8 @@ custom claim 읽기와 UI 게이트 분리는 완료. custom claim 발급 관리
 
 - 수업코드를 클라이언트 규칙만으로 검증하려 하면 우회 가능성이 크다.
 - teacher custom claim 발급은 Admin SDK가 있는 privileged server에서만 해야 한다.
-- 현재 수업방 생성에서 `joinCodeHash`는 placeholder이며 production 입장 secret으로 사용하면 안 된다.
-- `/api/join-classroom` 1차 구현은 existing classroom + joinEnabled를 확인하지만, 별도 join secret/hash 검증은 다음 단계에서 추가해야 한다.
+- 현재 수업방 생성에서 `joinCodeHash`는 클라이언트 생성 MVP 값이며 production 입장 secret의 최종 형태로 사용하면 안 된다.
+- `/api/join-classroom`은 existing classroom + joinEnabled + joinCodeHash를 확인한다. 현재 joinCodeHash는 교사용 클라이언트에서 생성되는 MVP 방식이므로, production 강화 단계에서는 서버 측 salt/pepper 기반 생성 또는 교사용 서버 endpoint로 이전해야 한다.
 - 학생 닉네임에도 개인정보가 들어올 수 있으므로 길이 제한과 안내 문구가 필요하다.
 - AI 피드백 payload에 개인정보나 원본 로그가 섞이지 않도록 서버 쪽 필터가 필요하다.
 - Firestore Rules 테스트 없이 production write를 켜면 교사용 자료 또는 학생 제출이 노출될 수 있다.

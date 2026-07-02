@@ -97,6 +97,7 @@ export function UserSessionProvider({
         const anonymousStudentId = createAnonymousId();
         const joinResult = await joinClassroomWithTrustedEndpoint({
           classCode: validation.classCode,
+          joinCode: validation.joinCode,
           displayName: validation.displayName,
           anonymousStudentId,
           firebaseUid: authResult.ok ? authResult.uid : undefined,

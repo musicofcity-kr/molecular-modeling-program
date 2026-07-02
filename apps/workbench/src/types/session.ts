@@ -53,6 +53,7 @@ export type UserSession = StudentSession | TeacherSession;
 
 export type StudentEntryInput = {
   classCode: string;
+  joinCode?: string;
   nickname?: string;
 };
 
@@ -60,6 +61,7 @@ export type StudentEntryValidationResult =
   | {
       ok: true;
       classCode: string;
+      joinCode: string;
       displayName: string;
     }
   | {
@@ -75,10 +77,15 @@ export function normalizeStudentDisplayName(value: string | undefined): string {
   return (value ?? '').trim().replace(/\s+/g, ' ').slice(0, 24);
 }
 
+export function normalizeStudentJoinCode(value: string | undefined): string {
+  return (value ?? '').trim().replace(/\s+/g, '').toUpperCase().slice(0, 32);
+}
+
 export function validateStudentEntryInput(
   input: StudentEntryInput,
 ): StudentEntryValidationResult {
   const classCode = normalizeClassCode(input.classCode);
+  const joinCode = normalizeStudentJoinCode(input.joinCode);
   const displayName = normalizeStudentDisplayName(input.nickname);
 
   if (!classCode) {
@@ -88,9 +95,17 @@ export function validateStudentEntryInput(
     };
   }
 
+  if (!joinCode) {
+    return {
+      ok: false,
+      studentMessage: '입장 확인코드를 입력해 주세요.',
+    };
+  }
+
   return {
     ok: true,
     classCode,
+    joinCode,
     displayName: displayName || '익명 학생',
   };
 }

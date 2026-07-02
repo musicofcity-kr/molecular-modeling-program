@@ -12,13 +12,14 @@ export function StudentEntryScreen({
 }: StudentEntryScreenProps) {
   const { enterStudentSession } = useUserSession();
   const [classCode, setClassCode] = useState('');
+  const [joinCode, setJoinCode] = useState('');
   const [nickname, setNickname] = useState('');
   const [message, setMessage] = useState('');
   const [isEntering, setIsEntering] = useState(false);
 
   const handleSubmit = async () => {
     setIsEntering(true);
-    const result = await enterStudentSession({ classCode, nickname });
+    const result = await enterStudentSession({ classCode, joinCode, nickname });
 
     if (!result.ok) {
       setMessage(result.studentMessage ?? '입장 정보를 확인해 주세요.');
@@ -43,8 +44,8 @@ export function StudentEntryScreen({
         </button>
       </div>
       <p className="entry-help">
-        회원가입 없이 수업코드와 수업용 이름만 사용합니다. 실명이나 학번은
-        입력하지 않아도 됩니다.
+        회원가입 없이 교사가 안내한 수업코드, 입장 확인코드, 수업용 이름만
+        사용합니다. 실명이나 학번은 입력하지 않아도 됩니다.
       </p>
       <form
         className="entry-form"
@@ -65,6 +66,17 @@ export function StudentEntryScreen({
           />
         </label>
         <label>
+          <span>입장 확인코드</span>
+          <input
+            aria-label="입장 확인코드"
+            value={joinCode}
+            placeholder="교사가 알려준 코드"
+            onChange={(event) => {
+              setJoinCode(event.currentTarget.value);
+            }}
+          />
+        </label>
+        <label>
           <span>수업용 닉네임 또는 익명 ID</span>
           <input
             aria-label="수업용 닉네임 또는 익명 ID"
@@ -81,7 +93,7 @@ export function StudentEntryScreen({
         </button>
       </form>
       <ul className="entry-note-list">
-        <li>교사가 만든 수업방과 입장 확인이 연결된 경우 서버 제출함을 사용할 수 있습니다.</li>
+        <li>교사가 만든 수업방과 입장 확인코드가 연결된 경우 서버 제출함을 사용할 수 있습니다.</li>
         <li>활동 결과 임시 저장은 현재 브라우저에만 보관됩니다.</li>
         <li>분자식과 평균 분자량은 구조 확인을 통과한 경우에만 표시됩니다.</li>
       </ul>

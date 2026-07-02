@@ -2,6 +2,7 @@ import type { ClassroomJoinStatus } from '../../types/session';
 
 export type JoinClassroomInput = {
   classCode: string;
+  joinCode?: string;
   displayName: string;
   anonymousStudentId: string;
   firebaseUid?: string;
@@ -83,6 +84,7 @@ export async function joinClassroomWithTrustedEndpoint(
       body: JSON.stringify({
         idToken: input.idToken,
         classCode: input.classCode,
+        joinCode: input.joinCode,
         displayName: input.displayName,
         anonymousStudentId: input.anonymousStudentId,
       }),

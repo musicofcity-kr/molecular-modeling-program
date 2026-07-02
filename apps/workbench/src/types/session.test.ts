@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   isTeacherAuthorized,
   normalizeClassCode,
+  normalizeStudentJoinCode,
   normalizeStudentDisplayName,
   resolveTeacherAuthorizationStatus,
   validateStudentEntryInput,
@@ -10,18 +11,21 @@ import {
 describe('student session input helpers', () => {
   it('normalizes class code without storing identifying student data', () => {
     expect(normalizeClassCode(' chem 101 ')).toBe('CHEM-101');
+    expect(normalizeStudentJoinCode(' a 1 b 2 ')).toBe('A1B2');
     expect(normalizeStudentDisplayName('  3조   학생A  ')).toBe('3조 학생A');
   });
 
-  it('requires only class code and falls back to an anonymous display name', () => {
+  it('requires class code and join code, then falls back to an anonymous display name', () => {
     expect(
       validateStudentEntryInput({
         classCode: 'chem-101',
+        joinCode: ' a1 b2 ',
         nickname: '',
       }),
     ).toEqual({
       ok: true,
       classCode: 'CHEM-101',
+      joinCode: 'A1B2',
       displayName: '익명 학생',
     });
   });
@@ -30,11 +34,25 @@ describe('student session input helpers', () => {
     expect(
       validateStudentEntryInput({
         classCode: '   ',
+        joinCode: 'A1B2',
         nickname: '테스트',
       }),
     ).toEqual({
       ok: false,
       studentMessage: '수업코드를 입력해 주세요.',
+    });
+  });
+
+  it('blocks entry when join code is missing', () => {
+    expect(
+      validateStudentEntryInput({
+        classCode: 'CHEM-101',
+        joinCode: '   ',
+        nickname: '테스트',
+      }),
+    ).toEqual({
+      ok: false,
+      studentMessage: '입장 확인코드를 입력해 주세요.',
     });
   });
 });

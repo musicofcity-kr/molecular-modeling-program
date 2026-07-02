@@ -19,3 +19,5 @@ firestore-debug.log
 .env
 .env.*
 !.env.example
+.env.local
+.vercel/

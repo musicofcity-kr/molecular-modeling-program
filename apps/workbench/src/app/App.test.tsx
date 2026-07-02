@@ -89,6 +89,7 @@ describe('App scaffold', () => {
     expect(markup).toContain('다양한 분자의 분자구조 모델링');
     expect(markup).toContain('학생 입장');
     expect(markup).toContain('수업코드');
+    expect(markup).toContain('입장 확인코드');
     expect(markup).toContain('수업용 닉네임 또는 익명 ID');
     expect(markup).toContain('분자구조 모델링 활동 시작하기');
     expect(markup).toContain('교사용 로그인으로 이동');
@@ -214,7 +215,7 @@ describe('App scaffold', () => {
     expect(markup).toContain('Firestore 연결 가능');
     expect(markup).toContain('수업방 만들기');
     expect(markup).toContain('서버 제출 목록 불러오기');
-    expect(markup).toContain('trusted join endpoint 연결 후 활성화');
+    expect(markup).toContain('수업코드와 입장 확인코드');
     expect(markup).toContain('수업방 생성');
     expect(markup).toContain('활동 관리');
     expect(markup).toContain('제출 목록');

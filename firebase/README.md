@@ -5,8 +5,9 @@
 현재 상태:
 
 - `firestore.rules`는 production 배포용 확정 파일이 아니라 검토/테스트용 초안이다.
-- Firestore client write는 아직 앱에서 비활성화되어 있다.
-- Firebase Emulator 기반 rules test가 추가되어 있으며, 통과하기 전까지 production Firestore에 연결하지 않는다.
+- Firestore client service와 trusted join endpoint 초안은 앱에 연결되어 있다.
+- 서버 환경변수, 교사 권한, 학생 멤버십, Security Rules 조건이 맞지 않으면 앱은 브라우저-local fallback으로 동작한다.
+- Firebase Emulator 기반 rules test가 추가되어 있으며, production 확대 전 계속 통과해야 한다.
 
 ## 테스트 실행
 
@@ -21,7 +22,7 @@ Firestore Emulator 실행에는 JDK 11 이상이 필요하다.
 
 다음 단계:
 
-1. 거부/허용 케이스 유지 보수
-2. 교사용 Firebase Auth 연결
-3. 학생 anonymous Auth + trusted join endpoint 연결
+1. Vercel Firebase Admin 환경변수 연결
+2. 테스트 수업방에서 수업코드 + 입장 확인코드 기반 멤버십 생성 QA
+3. `joinCodeHash` 생성을 교사용 서버 endpoint 또는 server-side salt/pepper 방식으로 강화
 4. 제한 beta 수업방에서 제출 저장 활성화

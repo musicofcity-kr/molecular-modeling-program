@@ -13,6 +13,7 @@ import {
   createDeferredClassroomRepository,
   saveSubmissionToFirestore,
 } from './classroomRepository';
+import { buildJoinCodeHash } from './classroomJoinCode';
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn((...segments: unknown[]) => ({ segments })),
@@ -35,6 +36,7 @@ describe('deferred classroom repository', () => {
       repository.createClassroomDraft({
         title: '테스트 수업',
         classCode: 'CHEM-101',
+        joinCode: 'A1B2',
         activityTemplateIds: ['water-structure'],
       }),
     ).resolves.toMatchObject({
@@ -67,6 +69,7 @@ describe('Firestore classroom document builders', () => {
   const draft = {
     title: '고1 결합 수업',
     classCode: 'CHEM-101',
+    joinCode: 'A1B2',
     activityTemplateIds: ['draw-water', 'draw-ethanol'],
   };
 
@@ -80,7 +83,9 @@ describe('Firestore classroom document builders', () => {
     expect(document.ownerTeacherUid).toBe('teacher-uid');
     expect(document.teacherUids['teacher-uid']).toBe(true);
     expect(document.joinEnabled).toBe(true);
-    expect(document.joinCodeHash).toContain('client-join-endpoint-pending');
+    expect(document.joinCodeHash).toBe(
+      buildJoinCodeHash({ classCode: 'CHEM-101', joinCode: 'A1B2' }),
+    );
     expect(Object.keys(document)).toEqual([
       'ownerTeacherUid',
       'teacherUids',

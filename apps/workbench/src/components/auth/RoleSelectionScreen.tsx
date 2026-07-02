@@ -24,7 +24,7 @@ export function RoleSelectionScreen({
           <p className="section-label">학생용</p>
           <h3>오늘의 탐구 활동</h3>
           <p>
-            수업코드와 수업용 닉네임으로 입장해 분자 구조를 그리고 확인합니다.
+            수업코드와 입장 확인코드로 입장해 분자 구조를 그리고 확인합니다.
             서버에는 학생 개인정보를 저장하지 않습니다.
           </p>
           <button

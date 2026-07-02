@@ -1,10 +1,16 @@
 import { cert, getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
+import {
+  buildJoinCodeHash,
+  normalizeJoinClassCode,
+  normalizeJoinCode,
+} from '../src/services/firebase/classroomJoinCode';
 
 type JoinClassroomRequest = {
   idToken: string;
   classCode: string;
+  joinCode: string;
   displayName: string;
   anonymousStudentId: string;
 };
@@ -33,6 +39,7 @@ type VerifiedIdToken = {
 type ClassroomRecord = {
   exists: boolean;
   joinEnabled?: unknown;
+  joinCodeHash?: unknown;
 };
 
 type JoinClassroomDependencies = {
@@ -206,6 +213,20 @@ export async function handleJoinClassroomBody(
       );
     }
 
+    if (!isJoinCodeAccepted(classroom, request)) {
+      return jsonResponse(
+        {
+          ok: false,
+          status: 'join_disabled',
+          classCode: request.classCode,
+          studentMessage:
+            '입장 확인코드가 맞지 않습니다. 교사가 안내한 코드를 다시 확인해 주세요.',
+          developerMessage: `joinClassroom rejected join code: classCode=${request.classCode}`,
+        },
+        403,
+      );
+    }
+
     const now = dependencies.now();
     const membership = buildStudentMembershipDocument({
       uid: decodedToken.uid,
@@ -258,6 +279,7 @@ export function parseJoinClassroomRequest(
   const candidate = body as Record<string, unknown>;
   const idToken = sanitizeString(candidate.idToken, 8192);
   const classCode = normalizeClassCode(candidate.classCode);
+  const joinCode = normalizeJoinCode(candidate.joinCode);
   const displayName = sanitizeStudentText(candidate.displayName, 24);
   const anonymousStudentId = sanitizeStudentText(
     candidate.anonymousStudentId,
@@ -272,6 +294,10 @@ export function parseJoinClassroomRequest(
     return invalidRequest('classCode is missing');
   }
 
+  if (!joinCode) {
+    return invalidRequest('joinCode is missing');
+  }
+
   if (!anonymousStudentId) {
     return invalidRequest('anonymousStudentId is missing');
   }
@@ -281,6 +307,7 @@ export function parseJoinClassroomRequest(
     data: {
       idToken,
       classCode,
+      joinCode,
       displayName: displayName || '익명 학생',
       anonymousStudentId,
     },
@@ -350,6 +377,7 @@ function createFirebaseAdminDependencies(): JoinClassroomDependencies {
       return {
         exists: snapshot.exists,
         joinEnabled: snapshot.get('joinEnabled'),
+        joinCodeHash: snapshot.get('joinCodeHash'),
       };
     },
     writeMembership: async (classCode, uid, document) => {
@@ -388,10 +416,21 @@ function getFirebaseAdminApp(): App {
 }
 
 function normalizeClassCode(value: unknown): string {
-  return sanitizeString(value, 24)
-    .replace(/[\\/]+/g, '-')
-    .replace(/\s+/g, '-')
-    .toUpperCase();
+  return normalizeJoinClassCode(sanitizeString(value, 24));
+}
+
+function isJoinCodeAccepted(
+  classroom: ClassroomRecord,
+  request: JoinClassroomRequest,
+): boolean {
+  return (
+    typeof classroom.joinCodeHash === 'string' &&
+    classroom.joinCodeHash ===
+      buildJoinCodeHash({
+        classCode: request.classCode,
+        joinCode: request.joinCode,
+      })
+  );
 }
 
 function sanitizeStudentText(value: unknown, maxLength: number): string {
