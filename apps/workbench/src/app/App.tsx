@@ -74,12 +74,12 @@ import {
   updateActivitySubmissionFeedback,
 } from '../services/activitySubmissionStorage';
 import {
-  loadClassroomSubmissionsFromFirestore,
   saveSubmissionToFirestore,
   updateSubmissionFeedbackInFirestore,
   type ClassroomDraft,
 } from '../services/firebase/classroomRepository';
 import { createClassroomWithTrustedEndpoint } from '../services/firebase/createClassroomService';
+import { loadClassroomSubmissionsWithTrustedEndpoint } from '../services/firebase/listSubmissionsService';
 import { createTeacherFeedbackDraft } from '../services/aiFeedbackService';
 import {
   UserSessionProvider,
@@ -1505,7 +1505,10 @@ function WorkbenchApp({
     console.info('[Firestore classroom]', result.developerLogs);
   };
   const handleLoadFirestoreSubmissions = async (classCode: string) => {
-    const result = await loadClassroomSubmissionsFromFirestore(classCode);
+    const result = await loadClassroomSubmissionsWithTrustedEndpoint({
+      classCode,
+      idToken: session?.role === 'teacher' ? session.idToken : undefined,
+    });
 
     setTeacherClassroomStatusMessage(result.studentMessage);
     setTeacherClassroomStatusTone(result.ok ? 'success' : 'warning');
