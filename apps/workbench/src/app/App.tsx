@@ -74,12 +74,12 @@ import {
   updateActivitySubmissionFeedback,
 } from '../services/activitySubmissionStorage';
 import {
-  createClassroomInFirestore,
   loadClassroomSubmissionsFromFirestore,
   saveSubmissionToFirestore,
   updateSubmissionFeedbackInFirestore,
   type ClassroomDraft,
 } from '../services/firebase/classroomRepository';
+import { createClassroomWithTrustedEndpoint } from '../services/firebase/createClassroomService';
 import { createTeacherFeedbackDraft } from '../services/aiFeedbackService';
 import {
   UserSessionProvider,
@@ -1450,12 +1450,10 @@ function WorkbenchApp({
     console.info('[Activity submission storage]', developerLogs);
   };
   const handleCreateFirestoreClassroom = async (draft: ClassroomDraft) => {
-    const teacherUid = session?.role === 'teacher' ? session.uid : undefined;
-    const result = await createClassroomInFirestore(
+    const result = await createClassroomWithTrustedEndpoint({
       draft,
-      teacherUid,
-      activityTemplates,
-    );
+      idToken: session?.role === 'teacher' ? session.idToken : undefined,
+    });
 
     setTeacherClassroomStatusMessage(result.studentMessage);
     console.info('[Firestore classroom]', result.developerLogs);

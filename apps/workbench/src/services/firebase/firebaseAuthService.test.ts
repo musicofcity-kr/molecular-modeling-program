@@ -130,6 +130,7 @@ describe('firebaseAuthService', () => {
     expect(result).toMatchObject({
       ok: true,
       uid: 'teacher-google-uid',
+      idToken: 'id-token-test',
       displayName: '테스트 교사',
       email: 'teacher@example.com',
       providerId: 'google.com',
@@ -214,6 +215,7 @@ describe('firebaseAuthService', () => {
     expect(result).toMatchObject({
       ok: true,
       uid: 'teacher-email-uid',
+      idToken: 'id-token-test',
       email: 'teacher@example.com',
       providerId: 'password',
       teacherAuthorizationStatus: 'authorized',

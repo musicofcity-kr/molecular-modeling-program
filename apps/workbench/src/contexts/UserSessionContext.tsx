@@ -148,6 +148,7 @@ export function UserSessionProvider({
         const nextSession: TeacherSession = {
           role: 'teacher',
           uid: authResult.uid,
+          idToken: authResult.idToken,
           displayName: authResult.displayName,
           email: authResult.email,
           authProvider: 'firebase-google',
@@ -181,6 +182,7 @@ export function UserSessionProvider({
         const nextSession: TeacherSession = {
           role: 'teacher',
           uid: authResult.uid,
+          idToken: authResult.idToken,
           displayName: authResult.displayName,
           email: authResult.email,
           authProvider: 'firebase-email',

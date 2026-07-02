@@ -125,6 +125,7 @@ async function teacherUserResult(
 
     return {
       ...baseResult,
+      idToken: await user.getIdToken(),
       teacherAuthorizationStatus: resolveTeacherAuthorizationStatus(
         tokenResult.claims,
       ),

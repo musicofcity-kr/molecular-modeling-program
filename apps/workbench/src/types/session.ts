@@ -42,6 +42,7 @@ export interface StudentSession {
 export interface TeacherSession {
   role: 'teacher';
   uid: string;
+  idToken?: string;
   displayName?: string;
   email?: string;
   authProvider: TeacherAuthProvider;

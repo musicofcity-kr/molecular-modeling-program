@@ -1324,13 +1324,17 @@ teacher signs in
   -> ID token claim resolves to authorized
   -> teacher dashboard shows classroom controls
   -> teacher enters title + classCode + joinCode + published activity templates
-  -> client writes classrooms/{classCode}
-  -> client writes classrooms/{classCode}/public/info
-  -> client writes classrooms/{classCode}/activityTemplates/{templateId}
+  -> client POSTs ID token and classroom draft to /api/create-classroom
+  -> Vercel Function verifies the ID token with Firebase Admin SDK
+  -> Function checks teacher: true or role: "teacher" custom claim
+  -> Function writes classrooms/{classCode}
+  -> Function writes classrooms/{classCode}/public/info
+  -> Function writes classrooms/{classCode}/activityTemplates/{templateId}
 ```
 
 The app does not create teacher claims. A privileged Firebase Admin workflow is
-still required before a real teacher can use production classroom writes.
+still required before a real teacher can use production classroom writes. The
+browser does not directly create classroom documents in the production path.
 
 ### Trusted classroom join endpoint
 

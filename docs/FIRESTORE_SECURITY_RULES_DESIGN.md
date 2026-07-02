@@ -24,11 +24,12 @@ snapshot 생성, 교사 제출 조회/피드백 update 범위에서만 제한적
 경로로 미리 생성된 경우에만 성공한다. 멤버십이 없으면 앱은 localStorage
 제출함을 유지하고 서버 제출 실패 메시지를 분리해 표시한다.
 
-2026-07-02 추가 단계에서는 Vercel Function `/api/join-classroom` 초안을
-추가했다. 이 함수는 Firebase Admin SDK로 학생 ID token을 검증한 뒤, 기존
-수업방이 있고 `joinEnabled`가 true일 때만
-`/classrooms/{classCode}/students/{uid}` 멤버십 문서를 생성한다. 브라우저는
-여전히 멤버십 문서를 직접 생성할 수 없다.
+2026-07-02 추가 단계에서는 Vercel Function `/api/create-classroom`과
+`/api/join-classroom`을 추가했다. `/api/create-classroom`은 Firebase Admin
+SDK로 교사 ID token과 teacher custom claim을 검증한 뒤 수업방 문서를 만든다.
+`/api/join-classroom`은 학생 ID token을 검증하고 기존 수업방의 `joinEnabled`,
+`joinCodeHash`를 확인한 뒤 `/classrooms/{classCode}/students/{uid}` 멤버십
+문서를 생성한다. 브라우저는 여전히 멤버십 문서를 직접 생성할 수 없다.
 
 ## 2. 현재 유지할 원칙
 
@@ -47,6 +48,7 @@ snapshot 생성, 교사 제출 조회/피드백 update 범위에서만 제한적
 | 브라우저 React 앱 | 낮음 | 클라이언트 값은 조작 가능하다고 본다. |
 | Firebase Auth ID token | 중간 | Auth가 발급한 UID와 custom claims만 권한 판정에 사용한다. |
 | Firestore Security Rules | 높음 | 모든 client-side read/write의 최종 차단선이다. |
+| createClassroom 서버 엔드포인트 | 높음 | 교사 ID token과 teacher claim 검증 후 수업방 생성을 담당한다. |
 | joinClassroom 서버 엔드포인트 | 높음 | 수업코드와 입장 확인코드 검증, 학생 멤버십 생성을 담당한다. |
 | 교사용 AI 피드백 서버 | 높음 | API key 보관과 AI 호출을 서버에서만 처리한다. |
 
@@ -66,8 +68,9 @@ snapshot 생성, 교사 제출 조회/피드백 update 범위에서만 제한적
 
 1. 교사는 Google 로그인 또는 이메일 로그인으로 Firebase Auth에 로그인한다.
 2. 서버 관리자 도구가 해당 UID에 `teacher: true` 또는 `role: "teacher"` custom claim을 부여한다.
-3. 교사는 자신이 소유하거나 배정된 수업방 문서만 읽고 수정한다.
-4. 교사용 AI 피드백은 서버 API를 통해서만 생성하고, 교사 검토 후 학생에게 반환한다.
+3. 교사는 `/api/create-classroom`을 통해 수업방을 생성한다.
+4. 교사는 자신이 소유하거나 배정된 수업방 문서만 읽고 수정한다.
+5. 교사용 AI 피드백은 서버 API를 통해서만 생성하고, 교사 검토 후 학생에게 반환한다.
 
 custom claims에는 권한 판단에 필요한 최소 정보만 둔다. 교사 이름, 학교, 수업 목록 같은 프로필 데이터는 claims에 넣지 않는다.
 
