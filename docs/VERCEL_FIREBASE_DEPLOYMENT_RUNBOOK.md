@@ -28,6 +28,7 @@ Install Command: npm install
 Build Command: npm run build
 Output Directory: dist
 Production Branch: main
+Node.js Version: 22.x
 ```
 
 4. 첫 배포를 실행
@@ -65,6 +66,13 @@ FIREBASE_ADMIN_PROJECT_ID
 FIREBASE_ADMIN_CLIENT_EMAIL
 FIREBASE_ADMIN_PRIVATE_KEY
 ```
+
+서버 함수 런타임 메모:
+
+- `/api/join-classroom`은 Firebase Admin SDK를 쓰는 Vercel Node.js Function이다.
+- Vercel Node 24 배포 로그에서 `firebase-admin@14.1.0`의 하위 의존성
+  `jwks-rsa@4.x -> jose@6.x` 조합이 `ERR_REQUIRE_ESM`으로 실패한 사례가
+  확인되어, 현재는 `firebase-admin@13.5.0`과 Node `22.x`로 고정한다.
 
 교사용 AI 피드백 서버를 연결할 때만 다음 값을 등록한다.
 

@@ -207,10 +207,10 @@ Superseded by the adoption decision below.
 
 ## 2026-07-02 — Firebase Admin SDK for trusted classroom join endpoint
 
-- Decision: Add `firebase-admin` as a server-only dependency for the Vercel `/api/join-classroom` Function.
+- Decision: Add `firebase-admin` as a server-only dependency for the Vercel `/api/join-classroom` Function. Pin the dependency to `13.5.0` and deploy the workbench with Node `22.x`.
 - Source checked: Firebase Admin SDK setup documentation, Firebase Admin ID token verification documentation, Cloud Firestore write documentation, and Vercel Node.js Functions documentation.
 - Evidence: Firebase documents the Admin SDK as server libraries for privileged environments and documents `verifyIdToken()` for validating client ID tokens. Firestore documentation uses server-side `set()` for document writes. Vercel documents TypeScript files inside `/api` as Node.js Functions with full Node.js support.
 - Scope boundary: The Admin SDK must only be imported by Vercel Function files under `apps/workbench/api`. It must not be imported into React components or browser services.
 - Security/privacy risk: High if service account credentials are exposed. Required environment variables are server-only and must not use the `VITE_` prefix. Public repository commits must never contain service account JSON, private keys, AI keys, or student records.
-- Runtime risk: Adds serverless cold-start and deployment dependency size. Client bundle should not grow because the dependency is not imported from `src`.
+- Runtime risk: Adds serverless cold-start and deployment dependency size. Client bundle should not grow because the dependency is not imported from `src`. Vercel production logs showed `firebase-admin@14.1.0 -> jwks-rsa@4.1.0 -> jose@6.2.3` could fail in the Node 24 serverless runtime with `ERR_REQUIRE_ESM`, so the server dependency is pinned to `firebase-admin@13.5.0` and `package.json` specifies `"node": "22.x"`.
 - Test/verification: `apps/workbench/api/join-classroom.test.ts` covers request validation, credential parsing, membership document shape, successful membership creation through injected dependencies, and missing classroom rejection. `npm run typecheck`, `npm test`, and `npm run build` remain required before deployment.
