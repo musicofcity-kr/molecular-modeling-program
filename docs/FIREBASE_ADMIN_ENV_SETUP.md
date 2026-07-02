@@ -100,9 +100,14 @@ Get-Content .secrets\FIREBASE_SERVICE_ACCOUNT_BASE64.txt | npx vercel env add FI
 4. Vercel 재배포 완료
 5. 교사용 화면에서 수업방 만들기 실행
 
+teacher custom claim 발급/회수 절차는 다음 문서를 따른다.
+
+```text
+docs/TEACHER_CUSTOM_CLAIM_SETUP.md
+```
+
 ## 7. 아직 남은 보안 작업
 
-- teacher custom claim 발급/회수 절차 확정
 - service account 권한 최소화 검토
 - `joinCodeHash`를 server-side salt/pepper 기반으로 강화
 - 실제 학생 제출 저장 beta 운영 전 Firestore rules 재검증

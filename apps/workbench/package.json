@@ -11,6 +11,7 @@
     "build": "tsc -b && vite build",
     "build:single-html": "node scripts/build-single-html-mvp.mjs",
     "firebase:admin-env": "node scripts/prepare-firebase-admin-env.mjs",
+    "firebase:teacher-claim": "node scripts/manage-teacher-claim.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc -b",
     "test": "vitest run --exclude \"**/*.emulator.test.ts\"",
