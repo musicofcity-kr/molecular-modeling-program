@@ -92,18 +92,18 @@ Output Directory: dist
 
 주의:
 
-- OpenAI, Claude, Gemini 같은 AI API key를 브라우저용 `VITE_*` 변수에 넣지 않습니다.
+- Gemini 같은 AI provider API key를 브라우저용 `VITE_*` 변수에 넣지 않습니다.
 - AI 피드백은 `/api/create-feedback-draft` Vercel Function에서 서버 측으로 처리합니다.
 - 별도 AI 프록시 서버를 쓰려면 `AI_FEEDBACK_ENDPOINT`를 등록합니다.
-- 내장 OpenAI 호환 호출을 쓰려면 Vercel Environment Variables에 `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_BASE_URL`을 등록합니다.
+- 내장 Gemini 호출을 쓰려면 Vercel Environment Variables에 `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_BASE_URL`을 등록합니다.
 - Firebase service account, private token은 공개 저장소에 커밋하지 않습니다.
 
 권장 AI 환경변수:
 
 ```text
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini
-OPENAI_BASE_URL=https://api.openai.com/v1
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-2.0-flash
+GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
 ```
 
 AI API 키가 없거나 호출이 실패하면 앱은 로컬 가드레일 기반 교사용 피드백 초안을 생성합니다.
@@ -187,7 +187,7 @@ AI 피드백은 자동 채점이 아닙니다. 학생에게 전달하기 전 교
 - 학생의 성취도, 인성, 태도를 단정하지 않습니다.
 - 학생 실명, 학번, 전화번호, 이메일 같은 민감정보를 피드백 요청 payload에 넣지 않습니다.
 - AI API key는 브라우저 코드나 `VITE_*` 환경변수에 넣지 않습니다.
-- `OPENAI_API_KEY` 또는 `AI_FEEDBACK_ENDPOINT`는 Vercel 서버 환경변수로만 관리합니다.
+- `GEMINI_API_KEY` 또는 `AI_FEEDBACK_ENDPOINT`는 Vercel 서버 환경변수로만 관리합니다.
 
 ### 8. 문제 해결
 
@@ -199,7 +199,7 @@ AI 피드백은 자동 채점이 아닙니다. 학생에게 전달하기 전 교
 | 3D 구조가 보이지 않음 | 해당 분자에 정적 좌표 또는 PubChem 3D 데이터가 없을 수 있습니다. |
 | 학생 화면에 활동이 너무 많이 보임 | 교사용 수업방에서 선택한 활동 템플릿이 제대로 저장되었는지 확인합니다. |
 | 서버 제출 목록이 보이지 않음 | 교사 custom claim, 수업코드, Firestore rules, Firebase Admin 환경변수를 확인합니다. |
-| AI 피드백이 로컬 초안으로 표시됨 | Vercel에 `OPENAI_API_KEY` 또는 `AI_FEEDBACK_ENDPOINT`가 등록되어 있는지 확인합니다. |
+| AI 피드백이 로컬 초안으로 표시됨 | Vercel에 `GEMINI_API_KEY` 또는 `AI_FEEDBACK_ENDPOINT`가 등록되어 있는지 확인합니다. |
 | 학생에게 피드백이 보이지 않음 | 교사가 `교사 확인 후 학생에게 전달`을 눌렀는지, 학생이 같은 수업방에 다시 입장했는지 확인합니다. |
 
 ### 9. 수업 전 체크리스트

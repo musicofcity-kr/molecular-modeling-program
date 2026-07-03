@@ -504,11 +504,11 @@ export async function createServerFeedbackDraft(
     return createExternalEndpointFeedbackDraft(endpoint, submission, now);
   }
 
-  const openAiApiKey = getOpenAiApiKey();
+  const geminiApiKey = getGeminiApiKey();
 
-  if (openAiApiKey) {
-    return createOpenAiCompatibleFeedbackDraft(
-      openAiApiKey,
+  if (geminiApiKey) {
+    return createGeminiFeedbackDraft(
+      geminiApiKey,
       submission,
       now,
     );
@@ -519,7 +519,7 @@ export async function createServerFeedbackDraft(
     studentMessage:
       'AI API 키가 아직 연결되지 않아 교사용 로컬 검토 초안을 만들었습니다.',
     developerMessage:
-      'OPENAI_API_KEY and AI_FEEDBACK_ENDPOINT are not configured. Generated local guardrail feedback preview.',
+      'GEMINI_API_KEY and AI_FEEDBACK_ENDPOINT are not configured. Generated local guardrail feedback preview.',
   };
 }
 
@@ -570,7 +570,7 @@ async function createExternalEndpointFeedbackDraft(
   }
 }
 
-async function createOpenAiCompatibleFeedbackDraft(
+async function createGeminiFeedbackDraft(
   apiKey: string,
   submission: ActivitySubmission,
   now: string,
@@ -579,25 +579,15 @@ async function createOpenAiCompatibleFeedbackDraft(
   studentMessage: string;
   developerMessage: string;
 }> {
-  const baseUrl = getOpenAiBaseUrl();
-  const model = getOpenAiModel();
-  const endpoint = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
+  const endpoint = buildGeminiGenerateContentEndpoint(apiKey);
 
   try {
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        authorization: `Bearer ${apiKey}`,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        response_format: {
-          type: 'json_object',
-        },
-        messages: buildOpenAiFeedbackMessages(submission),
-      }),
+      body: JSON.stringify(buildGeminiFeedbackRequestBody(submission)),
     });
 
     if (!response.ok) {
@@ -607,75 +597,97 @@ async function createOpenAiCompatibleFeedbackDraft(
         feedback: buildLocalGuardrailFeedback(submission, now),
         studentMessage:
           'AI 피드백 서버에서 초안을 만들지 못해 교사용 로컬 검토 초안을 만들었습니다.',
-        developerMessage: `OpenAI-compatible feedback returned HTTP ${response.status}: ${responseText.slice(0, 500)}`,
+        developerMessage: `Gemini feedback returned HTTP ${response.status}: ${responseText.slice(0, 500)}`,
       };
     }
 
     const data = (await response.json()) as Record<string, unknown>;
-    const parsed = parseOpenAiFeedbackResponse(data);
+    const parsed = parseGeminiFeedbackResponse(data);
 
     return {
       feedback: parseExternalFeedback(parsed, now),
       studentMessage:
         'AI 피드백 초안을 만들었습니다. 교사가 확인한 뒤 학생에게 전달할 수 있습니다.',
       developerMessage:
-        'OpenAI-compatible feedback completed successfully. Teacher review is still required.',
+        'Gemini feedback completed successfully. Teacher review is still required.',
     };
   } catch (error) {
     return {
       feedback: buildLocalGuardrailFeedback(submission, now),
       studentMessage:
         'AI 피드백 서버에 연결하지 못해 교사용 로컬 검토 초안을 만들었습니다.',
-      developerMessage: `OpenAI-compatible feedback fetch failed: ${getErrorMessage(error)}`,
+      developerMessage: `Gemini feedback fetch failed: ${redactSecret(getErrorMessage(error), apiKey)}`,
     };
   }
 }
 
-function buildOpenAiFeedbackMessages(
-  submission: ActivitySubmission,
-): Array<{ role: 'system' | 'user'; content: string }> {
-  return [
-    {
-      role: 'system',
-      content: [
-        '너는 고등학교 화학 수업용 형성 피드백 초안을 작성하는 보조 도구다.',
-        '자동 채점, 점수, 등급, 학생 인성/태도 단정은 금지한다.',
-        '학생 개인정보를 추론하거나 요청하지 않는다.',
-        '검증되지 않은 화학 사실을 확정적으로 말하지 않는다.',
-        'RDKit 구조 확인값, 참고 3D 구조, 입체 구조 예측의 출처와 한계를 구분해 설명한다.',
-        '학생에게 바로 정답만 주지 말고 다시 생각할 질문을 포함한다.',
-        '반드시 교사 검토가 필요하다는 안내를 teacherReviewNote에 포함한다.',
-        '응답은 JSON 객체 하나만 반환한다.',
-      ].join('\n'),
+function buildGeminiFeedbackRequestBody(submission: ActivitySubmission) {
+  return {
+    system_instruction: {
+      parts: [
+        {
+          text: [
+            '너는 고등학교 화학 수업용 형성 피드백 초안을 작성하는 보조 도구다.',
+            '자동 채점, 점수, 등급, 학생 인성/태도 단정은 금지한다.',
+            '학생 개인정보를 추론하거나 요청하지 않는다.',
+            '검증되지 않은 화학 사실을 확정적으로 말하지 않는다.',
+            'RDKit 구조 확인값, 참고 3D 구조, 입체 구조 예측의 출처와 한계를 구분해 설명한다.',
+            '학생에게 바로 정답만 주지 말고 다시 생각할 질문을 포함한다.',
+            '반드시 교사 검토가 필요하다는 안내를 teacherReviewNote에 포함한다.',
+            '응답은 JSON 객체 하나만 반환한다.',
+          ].join('\n'),
+        },
+      ],
     },
-    {
-      role: 'user',
-      content: JSON.stringify(buildFeedbackRequestPayload(submission)),
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          {
+            text: JSON.stringify(buildFeedbackRequestPayload(submission)),
+          },
+        ],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.2,
+      responseMimeType: 'application/json',
     },
-  ];
+  };
 }
 
-function parseOpenAiFeedbackResponse(
+function parseGeminiFeedbackResponse(
   data: Record<string, unknown>,
 ): ExternalFeedbackResponse {
-  const choices = Array.isArray(data.choices) ? data.choices : [];
-  const firstChoice =
-    choices[0] && typeof choices[0] === 'object'
-      ? (choices[0] as Record<string, unknown>)
+  const candidates = Array.isArray(data.candidates) ? data.candidates : [];
+  const firstCandidate =
+    candidates[0] && typeof candidates[0] === 'object'
+      ? (candidates[0] as Record<string, unknown>)
       : null;
-  const message =
-    firstChoice?.message &&
-    typeof firstChoice.message === 'object' &&
-    !Array.isArray(firstChoice.message)
-      ? (firstChoice.message as Record<string, unknown>)
+  const content =
+    firstCandidate?.content &&
+    typeof firstCandidate.content === 'object' &&
+    !Array.isArray(firstCandidate.content)
+      ? (firstCandidate.content as Record<string, unknown>)
       : null;
-  const content = sanitizeString(message?.content, 8000);
+  const parts = Array.isArray(content?.parts) ? content.parts : [];
+  const text = parts
+    .map((part) =>
+      part && typeof part === 'object'
+        ? sanitizeString((part as Record<string, unknown>).text, 8000)
+        : '',
+    )
+    .filter(Boolean)
+    .join('\n')
+    .trim();
 
-  if (!content) {
-    throw new Error('OpenAI-compatible response did not include message content.');
+  if (!text) {
+    throw new Error('Gemini response did not include candidate text.');
   }
 
-  const parsed = JSON.parse(content) as ExternalFeedbackResponse;
+  const parsed = JSON.parse(
+    extractJsonObjectText(text),
+  ) as ExternalFeedbackResponse;
 
   return parsed;
 }
@@ -842,16 +854,27 @@ function getServerFeedbackEndpoint(): string {
   );
 }
 
-function getOpenAiApiKey(): string {
-  return process.env.OPENAI_API_KEY?.trim() || '';
+function getGeminiApiKey(): string {
+  return process.env.GEMINI_API_KEY?.trim() || '';
 }
 
-function getOpenAiModel(): string {
-  return process.env.OPENAI_MODEL?.trim() || 'gpt-4o-mini';
+function getGeminiModel(): string {
+  return process.env.GEMINI_MODEL?.trim() || 'gemini-2.0-flash';
 }
 
-function getOpenAiBaseUrl(): string {
-  return process.env.OPENAI_BASE_URL?.trim() || 'https://api.openai.com/v1';
+function getGeminiBaseUrl(): string {
+  return (
+    process.env.GEMINI_BASE_URL?.trim() ||
+    'https://generativelanguage.googleapis.com/v1beta'
+  );
+}
+
+function buildGeminiGenerateContentEndpoint(apiKey: string): string {
+  const baseUrl = getGeminiBaseUrl().replace(/\/+$/, '');
+  const model = getGeminiModel();
+  const modelPath = model.startsWith('models/') ? model : `models/${model}`;
+
+  return `${baseUrl}/${modelPath}:generateContent?key=${encodeURIComponent(apiKey)}`;
 }
 
 async function safeReadResponseText(response: Response): Promise<string> {
@@ -872,6 +895,29 @@ function sanitizeFeedbackText(value: unknown, fallback: string): string {
   }
 
   return value.replace(/\s+/g, ' ').trim().slice(0, 1400) || fallback;
+}
+
+function extractJsonObjectText(value: string): string {
+  const trimmed = value.trim();
+  const withoutFence = trimmed
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+
+  if (withoutFence.startsWith('{') && withoutFence.endsWith('}')) {
+    return withoutFence;
+  }
+
+  const startIndex = withoutFence.indexOf('{');
+  const endIndex = withoutFence.lastIndexOf('}');
+
+  return startIndex >= 0 && endIndex > startIndex
+    ? withoutFence.slice(startIndex, endIndex + 1)
+    : withoutFence;
+}
+
+function redactSecret(value: string, secret: string): string {
+  return secret ? value.split(secret).join('[redacted]') : value;
 }
 
 function sanitizeFeedbackTextArray(value: unknown, fallback: string[]): string[] {

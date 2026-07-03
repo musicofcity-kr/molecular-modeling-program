@@ -168,7 +168,7 @@ describe('create-feedback-draft API helpers', () => {
   it('uses the local guardrail draft when no server AI provider is configured', async () => {
     vi.stubEnv('AI_FEEDBACK_ENDPOINT', '');
     vi.stubEnv('VITE_AI_FEEDBACK_ENDPOINT', '');
-    vi.stubEnv('OPENAI_API_KEY', '');
+    vi.stubEnv('GEMINI_API_KEY', '');
 
     const result = await createServerFeedbackDraft(
       serverSubmission,
@@ -177,33 +177,37 @@ describe('create-feedback-draft API helpers', () => {
 
     expect(result.feedback.source).toBe('local_guardrail_preview');
     expect(result.feedback.reviewRequired).toBe(true);
-    expect(result.developerMessage).toContain('OPENAI_API_KEY');
+    expect(result.developerMessage).toContain('GEMINI_API_KEY');
   });
 
-  it('creates an AI draft through the OpenAI-compatible provider without exposing the key in the body', async () => {
+  it('creates an AI draft through Gemini without exposing the key in the body', async () => {
     vi.stubEnv('AI_FEEDBACK_ENDPOINT', '');
     vi.stubEnv('VITE_AI_FEEDBACK_ENDPOINT', '');
-    vi.stubEnv('OPENAI_API_KEY', 'test-openai-key');
-    vi.stubEnv('OPENAI_MODEL', 'test-feedback-model');
-    vi.stubEnv('OPENAI_BASE_URL', 'https://ai.example.test/v1');
+    vi.stubEnv('GEMINI_API_KEY', 'test-gemini-key');
+    vi.stubEnv('GEMINI_MODEL', 'test-feedback-model');
+    vi.stubEnv('GEMINI_BASE_URL', 'https://gemini.example.test/v1beta');
 
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
-          choices: [
+          candidates: [
             {
-              message: {
-                content: JSON.stringify({
-                  summary: '물 분자 활동 피드백 초안입니다.',
-                  strengths: ['검증 결과를 바탕으로 예측을 다시 보았습니다.'],
-                  improvementQuestions: [
-                    '참고 3D 구조와 입체 구조 예측의 차이를 어떻게 설명할 수 있나요?',
-                  ],
-                  studentMessage:
-                    '구조 확인값을 기준으로 예측과 관찰을 다시 연결해 보세요.',
-                  teacherReviewNote:
-                    '교사가 과학 내용과 표현을 확인한 뒤 전달해야 합니다.',
-                }),
+              content: {
+                parts: [
+                  {
+                    text: JSON.stringify({
+                      summary: '물 분자 활동 피드백 초안입니다.',
+                      strengths: ['검증 결과를 바탕으로 예측을 다시 보았습니다.'],
+                      improvementQuestions: [
+                        '참고 3D 구조와 입체 구조 예측의 차이를 어떻게 설명할 수 있나요?',
+                      ],
+                      studentMessage:
+                        '구조 확인값을 기준으로 예측과 관찰을 다시 연결해 보세요.',
+                      teacherReviewNote:
+                        '교사가 과학 내용과 표현을 확인한 뒤 전달해야 합니다.',
+                    }),
+                  },
+                ],
               },
             },
           ],
@@ -229,34 +233,34 @@ describe('create-feedback-draft API helpers', () => {
     >;
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://ai.example.test/v1/chat/completions',
+      'https://gemini.example.test/v1beta/models/test-feedback-model:generateContent?key=test-gemini-key',
       expect.objectContaining({
         method: 'POST',
       }),
     );
     expect(requestInit.headers).toMatchObject({
-      authorization: 'Bearer test-openai-key',
       'content-type': 'application/json',
     });
-    expect(JSON.stringify(requestBody)).not.toContain('test-openai-key');
+    expect(JSON.stringify(requestBody)).not.toContain('test-gemini-key');
     expect(requestBody).toMatchObject({
-      model: 'test-feedback-model',
-      temperature: 0.2,
-      response_format: {
-        type: 'json_object',
+      generationConfig: {
+        temperature: 0.2,
+        responseMimeType: 'application/json',
       },
     });
+    expect(requestBody).toHaveProperty('system_instruction');
+    expect(requestBody).toHaveProperty('contents');
     expect(result.feedback.source).toBe('ai_api');
     expect(result.feedback.reviewRequired).toBe(true);
     expect(result.feedback.studentMessage).toContain('구조 확인값');
-    expect(result.developerMessage).toContain('OpenAI-compatible feedback');
+    expect(result.developerMessage).toContain('Gemini feedback');
   });
 
-  it('falls back to the local guardrail draft when the OpenAI-compatible provider fails', async () => {
+  it('falls back to the local guardrail draft when Gemini fails', async () => {
     vi.stubEnv('AI_FEEDBACK_ENDPOINT', '');
     vi.stubEnv('VITE_AI_FEEDBACK_ENDPOINT', '');
-    vi.stubEnv('OPENAI_API_KEY', 'test-openai-key');
-    vi.stubEnv('OPENAI_MODEL', 'test-feedback-model');
+    vi.stubEnv('GEMINI_API_KEY', 'test-gemini-key');
+    vi.stubEnv('GEMINI_MODEL', 'test-feedback-model');
 
     vi.stubGlobal(
       'fetch',
