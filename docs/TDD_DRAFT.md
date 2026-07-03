@@ -1377,14 +1377,30 @@ server submission response is delayed.
 
 ```text
 teacher enters classCode
-  -> client reads classrooms/{classCode}/submissions
+  -> client posts teacher idToken + classCode to /api/list-submissions
+  -> trusted endpoint verifies teacher custom claim and classroom assignment
   -> loaded submissions merge with browser-local submissions by id
   -> teacher can create feedback draft locally or through AI draft service
-  -> app tries Firestore feedback update for remote submissions
+  -> app posts teacher idToken + feedback draft to /api/update-feedback
+  -> trusted endpoint updates only feedback fields on the Firestore submission
 ```
 
 Feedback updates only write `status`, `updatedAt`, `teacherFeedback`, and
 `feedbackReturnedAt`; student snapshot contents are not rewritten.
+
+### Student returned feedback flow
+
+```text
+student joins classroom through /api/join-classroom
+  -> app posts student idToken + classCode to /api/list-student-feedback
+  -> trusted endpoint verifies classroom membership
+  -> endpoint returns only the student's feedback_returned submissions
+  -> student result panel shows returned teacher feedback
+```
+
+Server-returned feedback must win over an older browser-local copy with the
+same submission id. Browser-local submissions remain as a fallback when server
+reads or writes fail.
 
 ### Test expectations
 
@@ -1397,6 +1413,10 @@ Feedback updates only write `status`, `updatedAt`, `teacherFeedback`, and
   `students/{uid}` membership documents.
 - Teacher dashboard exposes Firestore controls only for authorized teacher
   sessions.
+- Trusted feedback update endpoint rejects unassigned teachers and missing
+  submissions before writing.
+- Student feedback endpoint rejects non-members and returns only
+  `feedback_returned` submissions for the authenticated student.
 - Existing student UI still hides raw technical terms.
 
 ## 18. Risk Register

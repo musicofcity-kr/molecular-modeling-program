@@ -80,6 +80,8 @@ import {
 import { createClassroomWithTrustedEndpoint } from '../services/firebase/createClassroomService';
 import { loadClassroomSubmissionsWithTrustedEndpoint } from '../services/firebase/listSubmissionsService';
 import { saveSubmissionWithTrustedEndpoint } from '../services/firebase/saveSubmissionService';
+import { loadStudentFeedbackWithTrustedEndpoint } from '../services/firebase/studentFeedbackService';
+import { updateFeedbackWithTrustedEndpoint } from '../services/firebase/updateFeedbackService';
 import { createTeacherFeedbackDraft } from '../services/aiFeedbackService';
 import {
   UserSessionProvider,
@@ -426,7 +428,7 @@ function mergeActivitySubmissions(
 ): ActivitySubmission[] {
   const submissionsById = new Map<string, ActivitySubmission>();
 
-  [...incoming, ...current].forEach((submission) => {
+  [...current, ...incoming].forEach((submission) => {
     submissionsById.set(submission.id, submission);
   });
 
@@ -710,6 +712,45 @@ function WorkbenchApp({
       console.info('[Activity submission storage]', result.developerLogs);
     }
   }, []);
+
+  useEffect(() => {
+    if (
+      session?.role !== 'student' ||
+      session.classroomJoinStatus !== 'joined' ||
+      !session.idToken
+    ) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    void loadStudentFeedbackWithTrustedEndpoint({
+      classCode: session.classCode,
+      idToken: session.idToken,
+    }).then((result) => {
+      if (cancelled) {
+        return;
+      }
+
+      console.info('[Student feedback]', result.developerLogs);
+
+      if (result.ok && result.data.length > 0) {
+        setActivitySubmissions((currentSubmissions) =>
+          mergeActivitySubmissions(currentSubmissions, result.data),
+        );
+        setActivitySubmissionStatusMessage(result.studentMessage);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    session?.role,
+    session?.role === 'student' ? session.classCode : undefined,
+    session?.role === 'student' ? session.classroomJoinStatus : undefined,
+    session?.role === 'student' ? session.idToken : undefined,
+  ]);
 
   useEffect(() => {
     setVseprModelStatus((currentStatus) => {
@@ -1561,16 +1602,35 @@ function WorkbenchApp({
       );
 
       if (updatedSubmission) {
-        const remoteResult = await updateSubmissionFeedbackInFirestore(
-          updatedSubmission,
-          result.feedback,
-          'feedback_draft',
-        );
+        const remoteResult = await updateFeedbackWithTrustedEndpoint({
+          submission: updatedSubmission,
+          feedback: result.feedback,
+          status: 'feedback_draft',
+          idToken: session?.role === 'teacher' ? session.idToken : undefined,
+        });
+        const finalRemoteResult = remoteResult.ok
+          ? remoteResult
+          : await updateSubmissionFeedbackInFirestore(
+              updatedSubmission,
+              result.feedback,
+              'feedback_draft',
+            );
 
         setTeacherFeedbackStatusMessage(
-          `${saveResult.studentMessage} ${remoteResult.studentMessage}`,
+          `${saveResult.studentMessage} ${finalRemoteResult.studentMessage}`,
         );
-        console.info('[Firestore feedback]', remoteResult.developerLogs);
+        console.info('[Firestore feedback]', [
+          ...remoteResult.developerLogs,
+          ...(finalRemoteResult === remoteResult
+            ? []
+            : finalRemoteResult.developerLogs),
+        ]);
+
+        if (finalRemoteResult.ok) {
+          setActivitySubmissions((currentSubmissions) =>
+            mergeActivitySubmissions(currentSubmissions, [finalRemoteResult.data]),
+          );
+        }
       }
     }
   };
@@ -1610,16 +1670,35 @@ function WorkbenchApp({
       );
 
       if (updatedSubmission) {
-        const remoteResult = await updateSubmissionFeedbackInFirestore(
-          updatedSubmission,
+        const remoteResult = await updateFeedbackWithTrustedEndpoint({
+          submission: updatedSubmission,
           feedback,
-          'feedback_returned',
-        );
+          status: 'feedback_returned',
+          idToken: session?.role === 'teacher' ? session.idToken : undefined,
+        });
+        const finalRemoteResult = remoteResult.ok
+          ? remoteResult
+          : await updateSubmissionFeedbackInFirestore(
+              updatedSubmission,
+              feedback,
+              'feedback_returned',
+            );
 
         setTeacherFeedbackStatusMessage(
-          `${result.studentMessage} ${remoteResult.studentMessage}`,
+          `${result.studentMessage} ${finalRemoteResult.studentMessage}`,
         );
-        console.info('[Firestore feedback]', remoteResult.developerLogs);
+        console.info('[Firestore feedback]', [
+          ...remoteResult.developerLogs,
+          ...(finalRemoteResult === remoteResult
+            ? []
+            : finalRemoteResult.developerLogs),
+        ]);
+
+        if (finalRemoteResult.ok) {
+          setActivitySubmissions((currentSubmissions) =>
+            mergeActivitySubmissions(currentSubmissions, [finalRemoteResult.data]),
+          );
+        }
       }
     }
   };

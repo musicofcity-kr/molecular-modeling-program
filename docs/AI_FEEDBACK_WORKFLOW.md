@@ -7,21 +7,24 @@
 ## 현재 MVP 동작
 
 1. 학생은 `활동 결과 정리`에서 `교사에게 제출하기`를 누른다.
-2. 제출 자료는 현재 브라우저의 교사용 제출함에 임시 저장된다.
+2. 제출 자료는 브라우저 제출함에 먼저 보관되고, Firebase Auth 수업방 입장이 확인된 경우 `/api/save-submission`을 통해 Firestore 서버 제출함에도 저장된다.
 3. 교사는 교사용 화면의 `학생 제출 자료와 AI 피드백` 패널에서 제출 자료를 확인한다.
 4. 교사는 `AI 피드백 초안 만들기`를 누른다.
 5. `VITE_AI_FEEDBACK_ENDPOINT`가 설정되어 있으면 해당 서버 엔드포인트에 제출 요약을 POST한다.
 6. 엔드포인트가 설정되어 있지 않으면 로컬 가드레일 기반 검토 초안을 만든다.
 7. 교사는 초안을 확인하고 필요한 경우 수정한 뒤 `교사 확인 후 학생에게 전달`을 누른다.
-8. 학생 화면에는 전달 완료된 피드백만 표시된다.
+8. 교사용 화면은 `/api/update-feedback`을 우선 사용해 Firestore 제출 문서의 `teacherFeedback`, `status`, `feedbackReturnedAt`만 갱신한다.
+9. 학생이 같은 수업방에 다시 입장하면 `/api/list-student-feedback`을 통해 본인 제출 중 `feedback_returned` 상태의 피드백만 불러와 학생 화면에 표시한다.
 
 ## 보안 원칙
 
 - 브라우저 코드에 AI API key를 넣지 않는다.
 - OpenAI, Claude, Gemini 등 실제 API key는 서버리스 함수 또는 백엔드에서만 사용한다.
 - 학생 실명, 학번, 전화번호, 이메일을 피드백 요청 payload에 넣지 않는다.
-- 현재 MVP는 서버 저장이 아니라 localStorage 기반 임시 제출함이다.
-- production 제출/피드백 기능은 Firebase Auth, Firestore Security Rules, 교사 권한 확인이 준비된 뒤 활성화한다.
+- 브라우저 localStorage 제출함은 오프라인/실패 fallback으로 유지한다.
+- production 서버 제출/피드백 기능은 Firebase Auth ID token, teacher custom claim, Firestore Security Rules 범위 안에서만 활성화한다.
+- 학생은 본인 수업방 멤버십과 본인 UID에 연결된 반환 피드백만 조회한다.
+- 교사용 AI 피드백은 자동 채점이 아니라 교사 검토 후 전달하는 형성 피드백이다.
 
 ## AI 응답 가드레일
 
@@ -82,8 +85,7 @@ AI 피드백은 다음 원칙을 따라야 한다.
 
 ## 다음 단계
 
-- Firebase Auth 기반 교사 인증 연결
-- Firestore 제출함 컬렉션 설계
-- 학생별 실명 없는 익명 제출 ID 정책 확정
 - Vercel Functions 또는 Firebase Functions 기반 AI 피드백 프록시 구현
 - 프롬프트/응답 로그에서 개인정보를 제거하는 서버 검증 추가
+- 교사가 전달한 피드백을 학생 화면에서 수동 새로고침하는 UX 검토
+- 수업방별 제출/피드백 운영 로그의 보관 기간 정책 확정
