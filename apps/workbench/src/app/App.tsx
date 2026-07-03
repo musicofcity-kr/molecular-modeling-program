@@ -78,6 +78,7 @@ import {
   type ClassroomDraft,
 } from '../services/firebase/classroomRepository';
 import { createClassroomWithTrustedEndpoint } from '../services/firebase/createClassroomService';
+import { createFeedbackDraftWithTrustedEndpoint } from '../services/firebase/feedbackDraftService';
 import { loadClassroomSubmissionsWithTrustedEndpoint } from '../services/firebase/listSubmissionsService';
 import { saveSubmissionWithTrustedEndpoint } from '../services/firebase/saveSubmissionService';
 import { loadStudentFeedbackWithTrustedEndpoint } from '../services/firebase/studentFeedbackService';
@@ -1574,10 +1575,19 @@ function WorkbenchApp({
     setAiFeedbackDraftStatus('loading');
     setTeacherFeedbackStatusMessage('피드백 초안을 만드는 중입니다.');
 
-    const result = await createTeacherFeedbackDraft(submission);
+    const serverDraftResult = await createFeedbackDraftWithTrustedEndpoint({
+      submission,
+      idToken: session?.role === 'teacher' ? session.idToken : undefined,
+    });
+    const result = serverDraftResult.ok
+      ? serverDraftResult
+      : await createTeacherFeedbackDraft(submission, { endpoint: '' });
     setAiFeedbackDraftStatus(result.status);
     setTeacherFeedbackStatusMessage(result.studentMessage);
-    console.info('[AI feedback draft]', result.developerLogs);
+    console.info('[AI feedback draft]', [
+      ...serverDraftResult.developerLogs,
+      ...(result === serverDraftResult ? [] : result.developerLogs),
+    ]);
 
     if (!result.ok) {
       return;

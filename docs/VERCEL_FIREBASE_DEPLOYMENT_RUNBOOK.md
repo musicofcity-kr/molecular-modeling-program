@@ -98,13 +98,14 @@ FIREBASE_ADMIN_PRIVATE_KEY
 교사용 AI 피드백 서버를 연결할 때만 다음 값을 등록한다.
 
 ```text
-VITE_AI_FEEDBACK_ENDPOINT
+AI_FEEDBACK_ENDPOINT
 ```
 
 주의:
 
 - OpenAI, Claude, Gemini API key를 `VITE_*` 환경변수로 등록하지 않는다.
-- AI API key는 Vercel Function, Firebase Functions, Cloud Run 같은 서버 측 환경변수에만 저장한다.
+- AI API key와 외부 AI endpoint는 Vercel Function, Firebase Functions, Cloud Run 같은 서버 측 환경변수에만 저장한다.
+- `VITE_AI_FEEDBACK_ENDPOINT`는 과거 로컬 실험용 변수이며 production에서는 사용하지 않는다.
 - service account JSON, private token, `.env.local`은 GitHub에 커밋하지 않는다.
 - Firebase Admin service account 값은 GitHub에 저장하지 않고 Vercel Environment Variables에만 등록한다.
 

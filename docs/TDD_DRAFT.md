@@ -1380,7 +1380,9 @@ teacher enters classCode
   -> client posts teacher idToken + classCode to /api/list-submissions
   -> trusted endpoint verifies teacher custom claim and classroom assignment
   -> loaded submissions merge with browser-local submissions by id
-  -> teacher can create feedback draft locally or through AI draft service
+  -> teacher requests /api/create-feedback-draft with idToken, classCode, submissionId
+  -> trusted endpoint loads the submission from Firestore and creates the draft
+  -> if AI_FEEDBACK_ENDPOINT is absent or fails, endpoint returns a local guardrail draft
   -> app posts teacher idToken + feedback draft to /api/update-feedback
   -> trusted endpoint updates only feedback fields on the Firestore submission
 ```
@@ -1413,6 +1415,8 @@ reads or writes fail.
   `students/{uid}` membership documents.
 - Teacher dashboard exposes Firestore controls only for authorized teacher
   sessions.
+- Trusted feedback draft endpoint rejects unassigned teachers, does not accept
+  browser-supplied submission snapshots, and keeps AI provider keys server-side.
 - Trusted feedback update endpoint rejects unassigned teachers and missing
   submissions before writing.
 - Student feedback endpoint rejects non-members and returns only
