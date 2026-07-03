@@ -101,10 +101,34 @@ FIREBASE_ADMIN_PRIVATE_KEY
 AI_FEEDBACK_ENDPOINT
 ```
 
+별도 AI 프록시 서버 없이 Vercel Function에서 OpenAI 호환 Chat Completions API를
+직접 호출하려면 다음 값을 등록한다.
+
+```text
+OPENAI_API_KEY
+OPENAI_MODEL
+OPENAI_BASE_URL
+```
+
+권장 최소 설정:
+
+```text
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_BASE_URL=https://api.openai.com/v1
+```
+
+동작 우선순위:
+
+1. `AI_FEEDBACK_ENDPOINT`가 있으면 외부 AI 피드백 프록시를 호출한다.
+2. `AI_FEEDBACK_ENDPOINT`가 없고 `OPENAI_API_KEY`가 있으면 내장 OpenAI 호환 호출을 사용한다.
+3. 둘 다 없거나 호출이 실패하면 로컬 가드레일 기반 피드백 초안을 만든다.
+
 주의:
 
 - OpenAI, Claude, Gemini API key를 `VITE_*` 환경변수로 등록하지 않는다.
 - AI API key와 외부 AI endpoint는 Vercel Function, Firebase Functions, Cloud Run 같은 서버 측 환경변수에만 저장한다.
+- AI 피드백은 자동 채점이 아니라 교사 검토용 초안이다. 학생에게 전달하기 전에 교사가 반드시 확인한다.
 - `VITE_AI_FEEDBACK_ENDPOINT`는 과거 로컬 실험용 변수이며 production에서는 사용하지 않는다.
 - service account JSON, private token, `.env.local`은 GitHub에 커밋하지 않는다.
 - Firebase Admin service account 값은 GitHub에 저장하지 않고 Vercel Environment Variables에만 등록한다.

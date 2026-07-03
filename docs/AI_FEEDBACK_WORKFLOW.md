@@ -13,10 +13,11 @@
 5. 교사용 화면은 제출 원문을 브라우저에서 AI 서버로 직접 보내지 않고 `/api/create-feedback-draft`에 `idToken`, `classCode`, `submissionId`만 보낸다.
 6. `/api/create-feedback-draft`는 교사 권한과 수업방 배정을 확인한 뒤 Firestore 제출 문서를 읽어 피드백 초안을 만든다.
 7. 서버 환경변수 `AI_FEEDBACK_ENDPOINT`가 설정되어 있으면 해당 서버 엔드포인트에 최소 제출 요약을 POST한다.
-8. 엔드포인트가 설정되어 있지 않거나 실패하면 로컬 가드레일 기반 검토 초안을 만든다.
-9. 교사는 초안을 확인하고 필요한 경우 수정한 뒤 `교사 확인 후 학생에게 전달`을 누른다.
-10. 교사용 화면은 `/api/update-feedback`을 우선 사용해 Firestore 제출 문서의 `teacherFeedback`, `status`, `feedbackReturnedAt`만 갱신한다.
-11. 학생이 같은 수업방에 다시 입장하면 `/api/list-student-feedback`을 통해 본인 제출 중 `feedback_returned` 상태의 피드백만 불러와 학생 화면에 표시한다.
+8. `AI_FEEDBACK_ENDPOINT`가 없고 `OPENAI_API_KEY`가 설정되어 있으면 `/api/create-feedback-draft` Vercel Function이 OpenAI 호환 Chat Completions API를 서버에서 직접 호출한다.
+9. AI endpoint/API key가 없거나 호출이 실패하면 로컬 가드레일 기반 검토 초안을 만든다.
+10. 교사는 초안을 확인하고 필요한 경우 수정한 뒤 `교사 확인 후 학생에게 전달`을 누른다.
+11. 교사용 화면은 `/api/update-feedback`을 우선 사용해 Firestore 제출 문서의 `teacherFeedback`, `status`, `feedbackReturnedAt`만 갱신한다.
+12. 학생이 같은 수업방에 다시 입장하면 `/api/list-student-feedback`을 통해 본인 제출 중 `feedback_returned` 상태의 피드백만 불러와 학생 화면에 표시한다.
 
 ## 보안 원칙
 
@@ -28,6 +29,8 @@
 - 학생은 본인 수업방 멤버십과 본인 UID에 연결된 반환 피드백만 조회한다.
 - 교사용 AI 피드백은 자동 채점이 아니라 교사 검토 후 전달하는 형성 피드백이다.
 - production에서는 `VITE_AI_FEEDBACK_ENDPOINT`를 사용하지 않는다. AI 연동 주소와 API key는 서버 환경변수에만 둔다.
+- `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_BASE_URL`은 Vercel Project Settings > Environment Variables에만 저장한다.
+- AI 응답이 성공해도 `reviewRequired: true`를 유지하고, 학생에게 바로 자동 전달하지 않는다.
 
 ## AI 응답 가드레일
 
@@ -43,6 +46,8 @@ AI 피드백은 다음 원칙을 따라야 한다.
 ## 서버 엔드포인트 요청 형태
 
 `/api/create-feedback-draft`는 서버에서 Firestore 제출 문서를 읽은 뒤 `AI_FEEDBACK_ENDPOINT`에 다음 형태의 JSON을 POST할 수 있다.
+
+내장 OpenAI 호환 모드를 사용할 때도 동일한 payload를 user message로 전달한다. 브라우저는 `idToken`, `classCode`, `submissionId`만 보내며, 실제 제출 문서 조회와 AI 호출은 서버에서 수행한다.
 
 ```json
 {
@@ -88,7 +93,8 @@ AI 피드백은 다음 원칙을 따라야 한다.
 
 ## 다음 단계
 
-- 실제 AI 제공자별 프록시 구현(OpenAI/Claude/Gemini 중 선택)
+- Vercel 환경변수에 `OPENAI_API_KEY`를 등록하고 배포본에서 실제 AI 초안 생성 확인
+- 필요 시 `OPENAI_MODEL` 변경 또는 `OPENAI_BASE_URL`로 사내/학교용 OpenAI 호환 endpoint 지정
 - 프롬프트/응답 로그에서 개인정보를 제거하는 서버 검증 추가
 - 교사가 전달한 피드백을 학생 화면에서 수동 새로고침하는 UX 검토
 - 수업방별 제출/피드백 운영 로그의 보관 기간 정책 확정

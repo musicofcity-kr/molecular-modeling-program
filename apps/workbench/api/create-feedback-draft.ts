@@ -490,7 +490,7 @@ function parseExternalFeedback(
   };
 }
 
-async function createServerFeedbackDraft(
+export async function createServerFeedbackDraft(
   submission: ActivitySubmission,
   now: string,
 ): Promise<{
@@ -500,16 +500,38 @@ async function createServerFeedbackDraft(
 }> {
   const endpoint = getServerFeedbackEndpoint();
 
-  if (!endpoint) {
-    return {
-      feedback: buildLocalGuardrailFeedback(submission, now),
-      studentMessage:
-        'AI API 엔드포인트가 아직 연결되지 않아 교사용 로컬 검토 초안을 만들었습니다.',
-      developerMessage:
-        'AI_FEEDBACK_ENDPOINT is not configured. Generated local guardrail feedback preview.',
-    };
+  if (endpoint) {
+    return createExternalEndpointFeedbackDraft(endpoint, submission, now);
   }
 
+  const openAiApiKey = getOpenAiApiKey();
+
+  if (openAiApiKey) {
+    return createOpenAiCompatibleFeedbackDraft(
+      openAiApiKey,
+      submission,
+      now,
+    );
+  }
+
+  return {
+    feedback: buildLocalGuardrailFeedback(submission, now),
+    studentMessage:
+      'AI API 키가 아직 연결되지 않아 교사용 로컬 검토 초안을 만들었습니다.',
+    developerMessage:
+      'OPENAI_API_KEY and AI_FEEDBACK_ENDPOINT are not configured. Generated local guardrail feedback preview.',
+  };
+}
+
+async function createExternalEndpointFeedbackDraft(
+  endpoint: string,
+  submission: ActivitySubmission,
+  now: string,
+): Promise<{
+  feedback: TeacherFeedbackDraft;
+  studentMessage: string;
+  developerMessage: string;
+}> {
   try {
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -546,6 +568,116 @@ async function createServerFeedbackDraft(
       developerMessage: `AI feedback endpoint fetch failed: ${getErrorMessage(error)}`,
     };
   }
+}
+
+async function createOpenAiCompatibleFeedbackDraft(
+  apiKey: string,
+  submission: ActivitySubmission,
+  now: string,
+): Promise<{
+  feedback: TeacherFeedbackDraft;
+  studentMessage: string;
+  developerMessage: string;
+}> {
+  const baseUrl = getOpenAiBaseUrl();
+  const model = getOpenAiModel();
+  const endpoint = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${apiKey}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.2,
+        response_format: {
+          type: 'json_object',
+        },
+        messages: buildOpenAiFeedbackMessages(submission),
+      }),
+    });
+
+    if (!response.ok) {
+      const responseText = await safeReadResponseText(response);
+
+      return {
+        feedback: buildLocalGuardrailFeedback(submission, now),
+        studentMessage:
+          'AI 피드백 서버에서 초안을 만들지 못해 교사용 로컬 검토 초안을 만들었습니다.',
+        developerMessage: `OpenAI-compatible feedback returned HTTP ${response.status}: ${responseText.slice(0, 500)}`,
+      };
+    }
+
+    const data = (await response.json()) as Record<string, unknown>;
+    const parsed = parseOpenAiFeedbackResponse(data);
+
+    return {
+      feedback: parseExternalFeedback(parsed, now),
+      studentMessage:
+        'AI 피드백 초안을 만들었습니다. 교사가 확인한 뒤 학생에게 전달할 수 있습니다.',
+      developerMessage:
+        'OpenAI-compatible feedback completed successfully. Teacher review is still required.',
+    };
+  } catch (error) {
+    return {
+      feedback: buildLocalGuardrailFeedback(submission, now),
+      studentMessage:
+        'AI 피드백 서버에 연결하지 못해 교사용 로컬 검토 초안을 만들었습니다.',
+      developerMessage: `OpenAI-compatible feedback fetch failed: ${getErrorMessage(error)}`,
+    };
+  }
+}
+
+function buildOpenAiFeedbackMessages(
+  submission: ActivitySubmission,
+): Array<{ role: 'system' | 'user'; content: string }> {
+  return [
+    {
+      role: 'system',
+      content: [
+        '너는 고등학교 화학 수업용 형성 피드백 초안을 작성하는 보조 도구다.',
+        '자동 채점, 점수, 등급, 학생 인성/태도 단정은 금지한다.',
+        '학생 개인정보를 추론하거나 요청하지 않는다.',
+        '검증되지 않은 화학 사실을 확정적으로 말하지 않는다.',
+        'RDKit 구조 확인값, 참고 3D 구조, 입체 구조 예측의 출처와 한계를 구분해 설명한다.',
+        '학생에게 바로 정답만 주지 말고 다시 생각할 질문을 포함한다.',
+        '반드시 교사 검토가 필요하다는 안내를 teacherReviewNote에 포함한다.',
+        '응답은 JSON 객체 하나만 반환한다.',
+      ].join('\n'),
+    },
+    {
+      role: 'user',
+      content: JSON.stringify(buildFeedbackRequestPayload(submission)),
+    },
+  ];
+}
+
+function parseOpenAiFeedbackResponse(
+  data: Record<string, unknown>,
+): ExternalFeedbackResponse {
+  const choices = Array.isArray(data.choices) ? data.choices : [];
+  const firstChoice =
+    choices[0] && typeof choices[0] === 'object'
+      ? (choices[0] as Record<string, unknown>)
+      : null;
+  const message =
+    firstChoice?.message &&
+    typeof firstChoice.message === 'object' &&
+    !Array.isArray(firstChoice.message)
+      ? (firstChoice.message as Record<string, unknown>)
+      : null;
+  const content = sanitizeString(message?.content, 8000);
+
+  if (!content) {
+    throw new Error('OpenAI-compatible response did not include message content.');
+  }
+
+  const parsed = JSON.parse(content) as ExternalFeedbackResponse;
+
+  return parsed;
 }
 
 function createFirebaseAdminDependencies(): CreateFeedbackDraftDependencies {
@@ -708,6 +840,18 @@ function getServerFeedbackEndpoint(): string {
     process.env.VITE_AI_FEEDBACK_ENDPOINT?.trim() ||
     ''
   );
+}
+
+function getOpenAiApiKey(): string {
+  return process.env.OPENAI_API_KEY?.trim() || '';
+}
+
+function getOpenAiModel(): string {
+  return process.env.OPENAI_MODEL?.trim() || 'gpt-4o-mini';
+}
+
+function getOpenAiBaseUrl(): string {
+  return process.env.OPENAI_BASE_URL?.trim() || 'https://api.openai.com/v1';
 }
 
 async function safeReadResponseText(response: Response): Promise<string> {
