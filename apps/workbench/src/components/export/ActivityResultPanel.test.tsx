@@ -122,6 +122,27 @@ describe('ActivityResultPanel', () => {
     expect(markup).not.toContain('raw SDF');
   });
 
+  it('shows a student action for checking returned teacher feedback when server refresh is available', () => {
+    const markup = renderToStaticMarkup(
+      <ActivityResultPanel
+        userMode="student"
+        currentSnapshot={snapshot}
+        savedResults={[]}
+        onSave={() => undefined}
+        onSubmitForTeacher={() => undefined}
+        onRefreshReturnedFeedback={() => undefined}
+        onPreviewSavedResult={() => undefined}
+        onExportJson={() => undefined}
+        onExportMarkdown={() => undefined}
+        onExportTxt={() => undefined}
+        onCopyMarkdown={() => undefined}
+        onPrint={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('교사 피드백 확인하기');
+  });
+
   it('summarizes external 3D coordinate source details in student mode', () => {
     const externalSnapshot: ActivityResultSnapshot = {
       ...snapshot,

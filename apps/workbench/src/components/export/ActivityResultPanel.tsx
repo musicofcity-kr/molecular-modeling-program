@@ -17,6 +17,7 @@ type ActivityResultPanelProps = {
   returnedFeedbacks?: ActivitySubmission[];
   onSave: () => void;
   onSubmitForTeacher?: () => void;
+  onRefreshReturnedFeedback?: () => void;
   onPreviewSavedResult: (snapshotId: string) => void;
   onExportJson: () => void;
   onExportMarkdown: () => void;
@@ -73,6 +74,7 @@ export function ActivityResultPanel({
   returnedFeedbacks = [],
   onSave,
   onSubmitForTeacher,
+  onRefreshReturnedFeedback,
   onPreviewSavedResult,
   onExportJson,
   onExportMarkdown,
@@ -166,6 +168,16 @@ export function ActivityResultPanel({
             onClick={onSubmitForTeacher}
           >
             교사에게 제출하기
+          </button>
+        ) : null}
+        {!isTeacherMode && onRefreshReturnedFeedback ? (
+          <button
+            className="secondary-action"
+            data-testid="refresh-returned-feedback-button"
+            type="button"
+            onClick={onRefreshReturnedFeedback}
+          >
+            교사 피드백 확인하기
           </button>
         ) : null}
         <button className="secondary-action" type="button" onClick={onExportMarkdown}>

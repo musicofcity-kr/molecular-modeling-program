@@ -1433,6 +1433,40 @@ function WorkbenchApp({
       session?.role === 'student' ? session : null,
     );
   }, [activitySubmissions, session]);
+  const handleRefreshReturnedFeedback = useCallback(async () => {
+    if (
+      session?.role !== 'student' ||
+      session.classroomJoinStatus !== 'joined' ||
+      !session.idToken
+    ) {
+      setActivitySubmissionStatusMessage(
+        '교사 피드백을 확인하려면 수업방 입장 확인이 필요합니다.',
+      );
+      return;
+    }
+
+    setActivitySubmissionStatusMessage('교사 피드백을 확인하는 중입니다.');
+
+    const result = await loadStudentFeedbackWithTrustedEndpoint({
+      classCode: session.classCode,
+      idToken: session.idToken,
+    });
+
+    console.info('[Student feedback]', result.developerLogs);
+
+    if (result.ok) {
+      setActivitySubmissions((currentSubmissions) =>
+        mergeActivitySubmissions(currentSubmissions, result.data),
+      );
+    }
+
+    setActivitySubmissionStatusMessage(result.studentMessage);
+  }, [
+    session?.role,
+    session?.role === 'student' ? session.classCode : undefined,
+    session?.role === 'student' ? session.classroomJoinStatus : undefined,
+    session?.role === 'student' ? session.idToken : undefined,
+  ]);
   const previewActivityResult =
     savedActivityResults.find((result) => result.id === previewActivityResultId) ??
     null;
@@ -1925,6 +1959,13 @@ function WorkbenchApp({
       onSave={handleSaveActivityResult}
       onSubmitForTeacher={
         userMode === 'student' ? handleSubmitActivityResult : undefined
+      }
+      onRefreshReturnedFeedback={
+        session?.role === 'student' &&
+        session.classroomJoinStatus === 'joined' &&
+        session.idToken
+          ? handleRefreshReturnedFeedback
+          : undefined
       }
       onPreviewSavedResult={setPreviewActivityResultId}
       onExportJson={() => {
