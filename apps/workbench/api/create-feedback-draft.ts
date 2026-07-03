@@ -8,10 +8,6 @@ import {
   parseExternalFeedback,
   type ExternalFeedbackResponse,
 } from '../src/services/feedbackDraftCore';
-import {
-  normalizeJoinClassCode,
-  resolveAdminCredentialConfig,
-} from './update-feedback';
 
 type CreateFeedbackDraftApiStatus =
   | 'created'
@@ -47,6 +43,12 @@ type ClassroomTeacherAccessRecord = {
   exists: boolean;
   ownerTeacherUid?: unknown;
   teacherUids?: unknown;
+};
+
+type AdminCredentialConfig = {
+  projectId: string;
+  clientEmail: string;
+  privateKey: string;
 };
 
 type CreateFeedbackDraftDependencies = {
@@ -424,6 +426,41 @@ function getFirebaseAdminApp(): App {
   });
 }
 
+export function resolveAdminCredentialConfig(
+  env: Record<string, string | undefined>,
+): AdminCredentialConfig | null {
+  const encodedServiceAccount =
+    env.FIREBASE_SERVICE_ACCOUNT_BASE64 ??
+    env.FIREBASE_ADMIN_SERVICE_ACCOUNT_BASE64;
+
+  if (encodedServiceAccount) {
+    const parsed = JSON.parse(
+      Buffer.from(encodedServiceAccount, 'base64').toString('utf8'),
+    ) as Record<string, unknown>;
+    const projectId = sanitizeString(parsed.project_id, 120);
+    const clientEmail = sanitizeString(parsed.client_email, 240);
+    const privateKey = sanitizePrivateKey(parsed.private_key, 4096);
+
+    return projectId && clientEmail && privateKey
+      ? { projectId, clientEmail, privateKey }
+      : null;
+  }
+
+  const projectId =
+    sanitizeString(env.FIREBASE_ADMIN_PROJECT_ID, 120) ||
+    sanitizeString(env.FIREBASE_PROJECT_ID, 120) ||
+    sanitizeString(env.VITE_FIREBASE_PROJECT_ID, 120);
+  const clientEmail = sanitizeString(env.FIREBASE_ADMIN_CLIENT_EMAIL, 240);
+  const privateKey = sanitizePrivateKey(
+    env.FIREBASE_ADMIN_PRIVATE_KEY,
+    4096,
+  ).replace(/\\n/g, '\n');
+
+  return projectId && clientEmail && privateKey
+    ? { projectId, clientEmail, privateKey }
+    : null;
+}
+
 function mapSubmissionDocument(
   id: string,
   data: Record<string, unknown>,
@@ -506,6 +543,21 @@ async function safeReadResponseText(response: Response): Promise<string> {
 
 function sanitizeString(value: unknown, maxLength: number): string {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
+}
+
+function sanitizePrivateKey(value: unknown, maxLength: number): string {
+  return sanitizeString(value, maxLength);
+}
+
+export function normalizeJoinClassCode(value: unknown): string {
+  return typeof value === 'string'
+    ? value
+        .trim()
+        .replace(/[\\/]+/g, '-')
+        .replace(/\s+/g, '-')
+        .toUpperCase()
+        .slice(0, 24)
+    : '';
 }
 
 function invalidRequest(developerMessage: string): {
