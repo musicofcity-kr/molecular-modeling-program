@@ -49,6 +49,7 @@ fallback한다.
 - 학생 입장 시 Firebase Anonymous Auth 시도
 - 교사용 Google popup 로그인 연결
 - 교사용 이메일/비밀번호 로그인 연결
+- Firebase 장애 또는 수업 중 계정 문제에 대비한 로컬 긴급 교사용 로그인 추가
 - 로그인 실패 시 학생/교사용 메시지와 개발자 로그 분리
 
 추가로 연결한 범위:
@@ -134,6 +135,10 @@ fallback한다.
 - `src/components/auth/TeacherEntryScreen.tsx`
   - Google 교사용 로그인 버튼
   - 이메일/비밀번호 교사용 로그인 폼
+  - `VITE_EMERGENCY_TEACHER_USERNAME`, `VITE_EMERGENCY_TEACHER_PASSWORD`가 설정된 배포본에서만 긴급 로그인 입력 폼 표시
+  - 긴급 로그인 값은 공개 저장소에 커밋하지 않으며 실제 계정 비밀번호를 재사용하지 않음
+  - 긴급 로그인은 교사용 화면 진입용 fallback이며 Firebase ID token을 발급하지 않음
+  - 서버 제출 조회, 수업방 생성, 피드백 반환 같은 Firestore 기능 권한으로 사용하지 않음
   - 수업방 생성 UI 초안
   - 활동 관리 UI 초안
   - 제출 목록 placeholder

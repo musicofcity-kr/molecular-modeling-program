@@ -1736,7 +1736,13 @@ function WorkbenchApp({
     window.print();
     setActivityResultStatusMessage('인쇄용 화면을 열었습니다.');
   };
+  const teacherSession = session?.role === 'teacher' ? session : null;
   const isTeacherAuthorizedSession = isTeacherAuthorized(session);
+  const isEmergencyTeacherSession = teacherSession?.isEmergencyAccess === true;
+  const hasTeacherServerAccess =
+    isTeacherAuthorizedSession &&
+    !isEmergencyTeacherSession &&
+    Boolean(teacherSession?.idToken);
   const isStudentActivityView = userMode === 'student' && appMode === 'activity';
   const isStudentFreeDrawView = userMode === 'student' && appMode === 'free_draw';
   const isTeacherOrAdvancedView =
@@ -2110,6 +2116,7 @@ function WorkbenchApp({
               ? session.teacherAuthorizationStatus
               : undefined
           }
+          isEmergencyAccess={isEmergencyTeacherSession}
           onSignOut={handleTeacherSignOut}
         />
         {legalPanel}
@@ -2129,6 +2136,7 @@ function WorkbenchApp({
               ? session.teacherAuthorizationStatus
               : undefined
           }
+          isEmergencyAccess={isEmergencyTeacherSession}
           templates={activityTemplates}
           statusMessage={teacherClassroomStatusMessage}
           statusTone={teacherClassroomStatusTone}
@@ -2137,14 +2145,14 @@ function WorkbenchApp({
           selectedSubmissionId={selectedSubmissionId}
           onSignOut={handleTeacherSignOut}
           onCreateClassroom={
-            isTeacherAuthorizedSession
+            hasTeacherServerAccess
               ? (draft) => {
                   void handleCreateFirestoreClassroom(draft);
                 }
               : undefined
           }
           onLoadSubmissions={
-            isTeacherAuthorizedSession
+            hasTeacherServerAccess
               ? (classCode) => {
                   void handleLoadFirestoreSubmissions(classCode);
                 }

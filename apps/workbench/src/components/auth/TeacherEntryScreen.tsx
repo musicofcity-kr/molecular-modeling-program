@@ -26,9 +26,16 @@ export function TeacherEntryScreen({
   onOpenStudent,
   onAuthenticated,
 }: TeacherEntryScreenProps) {
-  const { signInTeacherWithEmail, signInTeacherWithGoogle } = useUserSession();
+  const {
+    isEmergencyTeacherLoginConfigured,
+    signInTeacherEmergency,
+    signInTeacherWithEmail,
+    signInTeacherWithGoogle,
+  } = useUserSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emergencyUsername, setEmergencyUsername] = useState('');
+  const [emergencyPassword, setEmergencyPassword] = useState('');
   const [message, setMessage] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const firebaseStatus = getFirebaseConfigStatus();
@@ -60,6 +67,21 @@ export function TeacherEntryScreen({
   const handleEmailSignIn = async () => {
     setIsAuthenticating(true);
     const result = await signInTeacherWithEmail({ email, password });
+
+    handleAuthResult(result);
+    setIsAuthenticating(false);
+
+    if (result.ok) {
+      onAuthenticated?.();
+    }
+  };
+
+  const handleEmergencySignIn = async () => {
+    setIsAuthenticating(true);
+    const result = await signInTeacherEmergency({
+      username: emergencyUsername,
+      password: emergencyPassword,
+    });
 
     handleAuthResult(result);
     setIsAuthenticating(false);
@@ -138,6 +160,53 @@ export function TeacherEntryScreen({
             {isAuthenticating ? '이메일 로그인 중' : '이메일로 교사용 로그인'}
           </button>
         </form>
+        {isEmergencyTeacherLoginConfigured ? (
+          <form
+            className="teacher-email-form teacher-emergency-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleEmergencySignIn();
+            }}
+          >
+            <div>
+              <p className="section-label">긴급 교사용 로그인</p>
+              <p className="entry-help">
+                Firebase 로그인이 어려울 때 교사용 안내 화면만 여는 임시
+                방법입니다. 서버 제출/Firestore 기능은 열리지 않습니다.
+              </p>
+            </div>
+            <label>
+              <span>긴급 로그인 아이디</span>
+              <input
+                aria-label="긴급 교사용 아이디"
+                placeholder="환경변수에 설정한 아이디"
+                value={emergencyUsername}
+                onChange={(event) => {
+                  setEmergencyUsername(event.currentTarget.value);
+                }}
+              />
+            </label>
+            <label>
+              <span>긴급 비밀번호</span>
+              <input
+                aria-label="긴급 교사용 비밀번호"
+                placeholder="긴급 비밀번호"
+                type="password"
+                value={emergencyPassword}
+                onChange={(event) => {
+                  setEmergencyPassword(event.currentTarget.value);
+                }}
+              />
+            </label>
+            <button
+              className="secondary-action"
+              type="submit"
+              disabled={isAuthenticating}
+            >
+              {isAuthenticating ? '긴급 로그인 확인 중' : '긴급 로그인'}
+            </button>
+          </form>
+        ) : null}
       </div>
 
       {message ? <p className="entry-message">{message}</p> : null}

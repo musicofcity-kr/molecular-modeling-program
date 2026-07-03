@@ -35,11 +35,21 @@ describe('App scaffold', () => {
   const teacherSession: TeacherSession = {
     role: 'teacher',
     uid: 'teacher-test',
+    idToken: 'teacher-id-token',
     displayName: '테스트 교사',
     email: 'teacher@example.com',
     authProvider: 'firebase-google',
     signedInAt: '2026-07-01T00:00:00.000Z',
     teacherAuthorizationStatus: 'authorized',
+  };
+  const emergencyTeacherSession: TeacherSession = {
+    role: 'teacher',
+    uid: 'emergency-teacher-local',
+    displayName: '긴급 교사',
+    authProvider: 'emergency-local',
+    signedInAt: '2026-07-01T00:00:00.000Z',
+    teacherAuthorizationStatus: 'authorized',
+    isEmergencyAccess: true,
   };
 
   it('renders the ethics guide gate before entering the app', () => {
@@ -108,6 +118,7 @@ describe('App scaffold', () => {
     expect(markup).toContain('활동 관리');
     expect(markup).toContain('제출 목록');
     expect(markup).toContain('학생 입장으로 이동');
+    expect(markup).not.toContain('긴급 교사용 로그인');
     expect(markup).not.toContain('교사용 지도 패널');
     expect(markup).not.toContain('개발자 로그 보기');
   });
@@ -244,6 +255,22 @@ describe('App scaffold', () => {
     expect(markup).toContain('활동 관리');
     expect(markup).toContain('제출 목록');
     expect(markup).toContain('교사용 지도 패널');
+  });
+
+  it('renders emergency teacher access without enabling Firestore controls', () => {
+    const markup = renderToStaticMarkup(
+      <App
+        initialRoute="teacher-dashboard"
+        initialSession={emergencyTeacherSession}
+        initialEthicsGateAccepted
+      />,
+    );
+
+    expect(markup).toContain('긴급 교사용 보기');
+    expect(markup).toContain('Firestore 권한 필요');
+    expect(markup).toContain('Firebase ID token이 없으므로');
+    expect(markup).toContain('교사용 지도 패널');
+    expect(markup).not.toContain('Firestore 연결 가능');
   });
 
   it('does not expose teacher-only panels when teacher custom claim is still pending', () => {

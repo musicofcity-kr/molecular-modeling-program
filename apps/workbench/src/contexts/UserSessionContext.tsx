@@ -29,10 +29,15 @@ type SessionActionResult = {
 
 type UserSessionContextValue = {
   session: UserSession | null;
+  isEmergencyTeacherLoginConfigured: boolean;
   enterStudentSession: (input: StudentEntryInput) => Promise<SessionActionResult>;
   signInTeacherWithGoogle: () => Promise<SessionActionResult>;
   signInTeacherWithEmail: (input: {
     email: string;
+    password: string;
+  }) => Promise<SessionActionResult>;
+  signInTeacherEmergency: (input: {
+    username: string;
     password: string;
   }) => Promise<SessionActionResult>;
   clearSession: () => void;
@@ -44,6 +49,22 @@ type UserSessionProviderProps = {
 };
 
 const UserSessionContext = createContext<UserSessionContextValue | null>(null);
+
+function getEmergencyTeacherCredentials(): {
+  username: string;
+  password: string;
+  isConfigured: boolean;
+} {
+  const username =
+    import.meta.env.VITE_EMERGENCY_TEACHER_USERNAME?.trim() ?? '';
+  const password = import.meta.env.VITE_EMERGENCY_TEACHER_PASSWORD ?? '';
+
+  return {
+    username,
+    password,
+    isConfigured: Boolean(username && password),
+  };
+}
 
 function createAnonymousId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -74,6 +95,8 @@ export function UserSessionProvider({
   const value = useMemo<UserSessionContextValue>(
     () => ({
       session,
+      isEmergencyTeacherLoginConfigured:
+        getEmergencyTeacherCredentials().isConfigured,
       enterStudentSession: async (input) => {
         const validation = validateStudentEntryInput(input);
 
@@ -203,6 +226,51 @@ export function UserSessionProvider({
             teacherAuthorizationStatus,
           ),
           developerMessage: authResult.developerMessage,
+        };
+      },
+      signInTeacherEmergency: async (input) => {
+        const credentials = getEmergencyTeacherCredentials();
+        const username = input.username.trim();
+
+        if (!credentials.isConfigured) {
+          return {
+            ok: false,
+            studentMessage: '긴급 교사용 로그인이 설정되어 있지 않습니다.',
+            developerMessage:
+              'Emergency teacher login is not configured in Vite environment variables.',
+          };
+        }
+
+        if (
+          username !== credentials.username ||
+          input.password !== credentials.password
+        ) {
+          return {
+            ok: false,
+            studentMessage: '긴급 교사용 로그인 정보를 다시 확인해 주세요.',
+            developerMessage:
+              'Emergency teacher login rejected: invalid local credentials.',
+          };
+        }
+
+        const nextSession: TeacherSession = {
+          role: 'teacher',
+          uid: 'emergency-teacher-local',
+          displayName: '긴급 교사',
+          authProvider: 'emergency-local',
+          signedInAt: new Date().toISOString(),
+          teacherAuthorizationStatus: 'authorized',
+          isEmergencyAccess: true,
+        };
+
+        setSession(nextSession);
+
+        return {
+          ok: true,
+          studentMessage:
+            '긴급 교사용 보기로 입장했습니다. 서버 제출/Firestore 기능은 Firebase 교사 로그인 때만 사용할 수 있습니다.',
+          developerMessage:
+            'Emergency local teacher session created without Firebase ID token.',
         };
       },
       clearSession: () => {

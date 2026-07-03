@@ -90,6 +90,16 @@ describe('teacher authorization helpers', () => {
         teacherAuthorizationStatus: 'pending_custom_claim',
       }),
     ).toBe(false);
+    expect(
+      isTeacherAuthorized({
+        role: 'teacher',
+        uid: 'emergency-teacher-local',
+        authProvider: 'emergency-local',
+        signedInAt: '2026-07-02T00:00:00.000Z',
+        teacherAuthorizationStatus: 'authorized',
+        isEmergencyAccess: true,
+      }),
+    ).toBe(true);
     expect(isTeacherAuthorized(null)).toBe(false);
   });
 });

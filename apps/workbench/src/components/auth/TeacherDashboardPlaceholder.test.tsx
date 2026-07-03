@@ -68,6 +68,22 @@ describe('TeacherDashboardPlaceholder', () => {
     expect(markup).not.toContain('교사용 서버 진단 정보 보기');
   });
 
+  it('marks emergency access as a local teacher view without Firestore permission', () => {
+    const markup = renderToStaticMarkup(
+      <TeacherDashboardPlaceholder
+        authorizationStatus="authorized"
+        isEmergencyAccess
+        onCreateClassroom={() => {}}
+        onLoadSubmissions={() => {}}
+      />,
+    );
+
+    expect(markup).toContain('긴급 교사용 보기');
+    expect(markup).toContain('Firestore 권한 필요');
+    expect(markup).toContain('Firebase ID token이 없으므로');
+    expect(markup).not.toContain('Firestore 연결 가능');
+  });
+
   it('renders loaded server submissions inside the classroom dashboard', () => {
     const markup = renderToStaticMarkup(
       <TeacherDashboardPlaceholder

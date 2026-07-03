@@ -7,7 +7,10 @@ export type AppRoute =
   | 'teacher'
   | 'teacher-dashboard';
 
-export type TeacherAuthProvider = 'firebase-google' | 'firebase-email';
+export type TeacherAuthProvider =
+  | 'firebase-google'
+  | 'firebase-email'
+  | 'emergency-local';
 
 export type StudentAuthProvider = 'local-only' | 'firebase-anonymous';
 
@@ -50,6 +53,7 @@ export interface TeacherSession {
   authProvider: TeacherAuthProvider;
   signedInAt: string;
   teacherAuthorizationStatus?: TeacherAuthorizationStatus;
+  isEmergencyAccess?: boolean;
 }
 
 export type UserSession = StudentSession | TeacherSession;

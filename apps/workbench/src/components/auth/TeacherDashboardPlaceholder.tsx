@@ -28,6 +28,7 @@ type TeacherDashboardPlaceholderProps = {
   developerLogs?: string[];
   submissions?: ActivitySubmission[];
   selectedSubmissionId?: string | null;
+  isEmergencyAccess?: boolean;
   onCreateClassroom?: (draft: ClassroomDraft) => void;
   onLoadSubmissions?: (classCode: string) => void;
   onSelectSubmission?: (submissionId: string) => void;
@@ -36,7 +37,12 @@ type TeacherDashboardPlaceholderProps = {
 
 function formatAuthorizationLabel(
   status: TeacherAuthorizationStatus | undefined,
+  isEmergencyAccess = false,
 ): string {
+  if (isEmergencyAccess) {
+    return '긴급 교사용 보기';
+  }
+
   if (status === 'authorized') {
     return '교사 권한 확인 완료';
   }
@@ -50,7 +56,12 @@ function formatAuthorizationLabel(
 
 function formatAuthorizationHelp(
   status: TeacherAuthorizationStatus | undefined,
+  isEmergencyAccess = false,
 ): string {
+  if (isEmergencyAccess) {
+    return '긴급 로그인으로 교사용 안내 화면에 진입했습니다. Firebase ID token이 없으므로 서버 제출 조회, 수업방 생성, 피드백 반환은 Firebase 교사 로그인으로만 사용할 수 있습니다.';
+  }
+
   if (status === 'authorized') {
     return '교사 custom claim이 확인되었습니다. 수업방 생성과 제출 목록 조회를 Firestore 규칙 범위에서 사용할 수 있습니다.';
   }
@@ -70,6 +81,7 @@ export function TeacherDashboardPlaceholder({
   developerLogs = [],
   submissions = [],
   selectedSubmissionId,
+  isEmergencyAccess = false,
   onCreateClassroom,
   onLoadSubmissions,
   onSelectSubmission,
@@ -83,6 +95,7 @@ export function TeacherDashboardPlaceholder({
   );
   const canUseFirestoreTools =
     authorizationStatus === 'authorized' &&
+    !isEmergencyAccess &&
     Boolean(onCreateClassroom) &&
     Boolean(onLoadSubmissions);
   const selectedSubmission =
@@ -110,7 +123,7 @@ export function TeacherDashboardPlaceholder({
         </div>
         <div className="teacher-dashboard-actions">
           <span className="status-pill">
-            {formatAuthorizationLabel(authorizationStatus)}
+            {formatAuthorizationLabel(authorizationStatus, isEmergencyAccess)}
           </span>
           <span className="status-pill">
             {canUseFirestoreTools ? 'Firestore 연결 가능' : 'Firestore 권한 필요'}
@@ -133,7 +146,7 @@ export function TeacherDashboardPlaceholder({
         교사용 안내를 검토하는 placeholder입니다.
       </p>
       <p className="entry-security-note">
-        {formatAuthorizationHelp(authorizationStatus)}
+        {formatAuthorizationHelp(authorizationStatus, isEmergencyAccess)}
       </p>
       {statusMessage ? (
         <p

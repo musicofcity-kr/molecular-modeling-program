@@ -114,8 +114,10 @@ GEMINI_BASE_URL
 
 ```text
 GEMINI_API_KEY=...
-GEMINI_MODEL=gemini-2.0-flash
+GEMINI_MODEL=gemini-3.1-flash-lite
 GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
+VITE_EMERGENCY_TEACHER_USERNAME=
+VITE_EMERGENCY_TEACHER_PASSWORD=
 ```
 
 동작 우선순위:
@@ -147,6 +149,9 @@ GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
 - 활동 결과 정리
 - 임시 저장/보고서 저장/활동지 인쇄
 - 교사용 안내 진입
+  - `VITE_EMERGENCY_TEACHER_USERNAME`, `VITE_EMERGENCY_TEACHER_PASSWORD`가 설정된 배포본에서만 긴급 로그인 폼을 표시한다.
+  - 긴급 로그인 값은 공개 저장소에 커밋하지 않고 실제 계정 비밀번호를 재사용하지 않는다.
+  - 긴급 로그인은 Firebase ID token이 없으므로 서버 제출 조회, 수업방 생성, 피드백 반환 권한으로 사용하지 않는다.
 
 개발자 관점 확인:
 
