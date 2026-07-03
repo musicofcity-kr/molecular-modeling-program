@@ -108,6 +108,7 @@ import type { ActivityResultSnapshot } from '../types/activityResult';
 import {
   isTeacherAuthorized,
   type AppRoute,
+  type StudentSession,
   type UserSession,
 } from '../types/session';
 import type { VseprAnalysis, VseprModelViewStatus } from '../types/vsepr';
@@ -436,6 +437,32 @@ function mergeActivitySubmissions(
   return Array.from(submissionsById.values()).sort((left, right) =>
     right.submittedAt.localeCompare(left.submittedAt),
   );
+}
+
+export function getReturnedStudentFeedbacksForSession(
+  submissions: ActivitySubmission[],
+  session: StudentSession | null | undefined,
+): ActivitySubmission[] {
+  if (!session) {
+    return [];
+  }
+
+  return submissions.filter((submission) => {
+    if (submission.status !== 'feedback_returned') {
+      return false;
+    }
+
+    const isSameClass =
+      !submission.classCode || submission.classCode === session.classCode;
+    const isSameAnonymousStudent =
+      Boolean(submission.anonymousStudentId) &&
+      submission.anonymousStudentId === session.anonymousStudentId;
+    const isSameFirebaseStudent =
+      Boolean(submission.studentUid && session.firebaseUid) &&
+      submission.studentUid === session.firebaseUid;
+
+    return isSameClass && (isSameAnonymousStudent || isSameFirebaseStudent);
+  });
 }
 
 type AppProps = {
@@ -1401,14 +1428,9 @@ function WorkbenchApp({
     ],
   );
   const returnedStudentFeedbacks = useMemo(() => {
-    if (session?.role !== 'student') {
-      return [];
-    }
-
-    return activitySubmissions.filter(
-      (submission) =>
-        submission.status === 'feedback_returned' &&
-        submission.anonymousStudentId === session.anonymousStudentId,
+    return getReturnedStudentFeedbacksForSession(
+      activitySubmissions,
+      session?.role === 'student' ? session : null,
     );
   }, [activitySubmissions, session]);
   const previewActivityResult =

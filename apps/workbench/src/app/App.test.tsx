@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
   App,
+  getReturnedStudentFeedbacksForSession,
   resolveActivityIdForExample,
   resolveActivityTemplateForResult,
   resolveRecommendedExampleIdForActivity,
@@ -10,6 +11,7 @@ import {
 } from './App';
 import { activityTemplates } from '../data/activityTemplates';
 import { exampleMolecules } from '../data/exampleMolecules';
+import type { ActivitySubmission } from '../types/feedback';
 import type { MoleculeValidationResult } from '../types/molecule';
 import type { StudentSession, TeacherSession } from '../types/session';
 
@@ -233,6 +235,81 @@ describe('App scaffold', () => {
     hiddenTemplates.forEach((template) => {
       expect(markup).not.toContain(template.title);
     });
+  });
+
+  it('keeps returned teacher feedback visible when a student re-enters with a different anonymous id but the same Firebase uid', () => {
+    const returningSession: StudentSession = {
+      ...studentSession,
+      anonymousStudentId: 'new-browser-anonymous-id',
+      firebaseUid: 'student-firebase-uid',
+      classroomJoinStatus: 'joined',
+    };
+    const snapshot = {
+      id: 'snapshot-1',
+      createdAt: '2026-07-01T00:00:00.000Z',
+      updatedAt: '2026-07-01T00:00:00.000Z',
+      appMode: 'activity',
+      userMode: 'student',
+      studentPrediction: {},
+      rdkitValidation: { isValid: true },
+      threeDObservation: { has3DStructure: false },
+      measurements: [],
+      activityAnswers: [],
+      exportNotice: '수업 활동 기록입니다.',
+    } satisfies ActivitySubmission['snapshot'];
+    const feedback = {
+      id: 'feedback-1',
+      createdAt: '2026-07-01T00:10:00.000Z',
+      updatedAt: '2026-07-01T00:10:00.000Z',
+      source: 'local_guardrail_preview',
+      summary: '구조 표현을 확인했습니다.',
+      strengths: ['분자식 확인을 시도했습니다.'],
+      improvementQuestions: ['3D 구조 관찰 내용을 더 적어 보세요.'],
+      studentMessage: '교사가 전달한 피드백입니다.',
+      teacherReviewNote: '교사 확인 완료',
+      reviewRequired: false,
+    } satisfies ActivitySubmission['teacherFeedback'];
+    const returnedForSameFirebaseUser: ActivitySubmission = {
+      id: 'submission-1',
+      submittedAt: '2026-07-01T00:00:00.000Z',
+      updatedAt: '2026-07-01T00:10:00.000Z',
+      classCode: 'CHEM-101',
+      studentDisplayName: '익명 학생',
+      anonymousStudentId: 'old-browser-anonymous-id',
+      studentUid: 'student-firebase-uid',
+      snapshot,
+      status: 'feedback_returned',
+      teacherFeedback: feedback,
+      feedbackReturnedAt: '2026-07-01T00:10:00.000Z',
+    };
+    const returnedForOtherStudent: ActivitySubmission = {
+      ...returnedForSameFirebaseUser,
+      id: 'submission-2',
+      anonymousStudentId: 'other-anonymous-id',
+      studentUid: 'other-firebase-uid',
+    };
+    const returnedFromOtherClass: ActivitySubmission = {
+      ...returnedForSameFirebaseUser,
+      id: 'submission-3',
+      classCode: 'CHEM-999',
+    };
+    const draftOnly: ActivitySubmission = {
+      ...returnedForSameFirebaseUser,
+      id: 'submission-4',
+      status: 'feedback_draft',
+    };
+
+    expect(
+      getReturnedStudentFeedbacksForSession(
+        [
+          returnedForSameFirebaseUser,
+          returnedForOtherStudent,
+          returnedFromOtherClass,
+          draftOnly,
+        ],
+        returningSession,
+      ).map((submission) => submission.id),
+    ).toEqual(['submission-1']);
   });
 
   it('renders the authenticated teacher dashboard with Firestore classroom controls', () => {

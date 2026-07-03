@@ -11,6 +11,7 @@ const returnedSubmission = {
   classCode: 'CHEM-101',
   studentDisplayName: '익명 학생',
   anonymousStudentId: 'student-1',
+  studentUid: 'student-uid',
   snapshot: {
     id: 'result-1',
     activityTitle: '물 분자 구조 그리기',

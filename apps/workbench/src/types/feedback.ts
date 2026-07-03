@@ -34,6 +34,7 @@ export interface ActivitySubmission {
   classCode?: string;
   studentDisplayName?: string;
   anonymousStudentId?: string;
+  studentUid?: string;
   snapshot: ActivityResultSnapshot;
   status: ActivitySubmissionStatus;
   teacherFeedback?: TeacherFeedbackDraft;

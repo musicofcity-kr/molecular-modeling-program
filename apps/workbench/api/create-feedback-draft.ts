@@ -45,6 +45,7 @@ type ActivitySubmission = {
   classCode?: string;
   studentDisplayName?: string;
   anonymousStudentId?: string;
+  studentUid?: string;
   snapshot: Record<string, unknown>;
   status: 'submitted' | 'feedback_draft' | 'feedback_returned';
   teacherFeedback?: Record<string, unknown>;
@@ -815,6 +816,7 @@ function mapSubmissionDocument(
     classCode: sanitizeString(data.classroomId, 24),
     studentDisplayName: sanitizeString(data.studentDisplayName, 24),
     anonymousStudentId: sanitizeString(data.anonymousStudentId, 64),
+    studentUid: sanitizeString(data.studentUid, 128),
     snapshot,
     status,
     teacherFeedback:

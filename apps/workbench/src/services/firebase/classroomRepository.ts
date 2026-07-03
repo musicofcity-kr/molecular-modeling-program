@@ -535,6 +535,8 @@ function mapFirestoreSubmissionDocument(
       typeof data.anonymousStudentId === 'string'
         ? data.anonymousStudentId
         : undefined,
+    studentUid:
+      typeof data.studentUid === 'string' ? data.studentUid : undefined,
     snapshot,
     status: data.status,
     teacherFeedback:
