@@ -94,3 +94,23 @@
 - mock 경계 목록: 해당 없음
 - 미해결/보류: 브라우저 클릭형 1→7 반복 QA는 Phase 10 Playwright E2E에서 정식 자동화 예정
 - 다음 단계 착수 가능: 가능
+
+## [Phase 5] R3 불꽃 레일 — 2026-07-06
+- 변경 파일:
+  - `apps/workbench/src/app/App.tsx`
+  - `apps/workbench/src/app/App.test.tsx`
+  - `apps/workbench/src/components/student/LearningProgressRail.tsx`
+  - `apps/workbench/src/components/student/LearningProgressRail.test.tsx`
+  - `apps/workbench/src/styles/global.css`
+  - `WORK_STATE.md`
+  - `CODEX_FEEDBACK.md`
+- 검증: typecheck ✅ | test 247/247 ✅ | build ✅ | scroll anchor 제거 grep ✅
+- 실행 로그 요약:
+  - `npm run typecheck`: `tsc -b` 통과
+  - `npm test`: 46 files / 247 tests passed
+  - `npm run build`: Vite production build 성공, 기존 3Dmol eval 및 대용량 chunk 경고 유지
+  - `rg "scrollIntoView|targetId"`: 레일에서 결과 없음
+- 신규 테스트: `src/components/student/LearningProgressRail.test.tsx` 3개 케이스
+- mock 경계 목록: 해당 없음
+- 미해결/보류: 실제 키보드 포커스 순환은 Phase 10 Playwright E2E에서 브라우저 이벤트로 보강 예정
+- 다음 단계 착수 가능: 가능

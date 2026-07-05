@@ -1247,6 +1247,10 @@ select {
   color: var(--phase-reflect);
 }
 
+.learning-progress-mobile {
+  display: none;
+}
+
 .learning-step-list {
   margin: 0;
   padding: 0;
@@ -1279,28 +1283,45 @@ select {
   --step-color: var(--phase-reflect);
 }
 
-.learning-step.active {
+.learning-step.current {
   border-color: var(--step-color);
   background: color-mix(in srgb, var(--step-color) 9%, white);
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px color-mix(in srgb, var(--step-color) 48%, transparent);
 }
 
 .learning-step.completed {
   border-color: color-mix(in srgb, var(--step-color) 42%, var(--line));
+  background: color-mix(in srgb, var(--step-color) 10%, white);
+}
+
+.learning-step.future {
+  border-color: var(--line);
+  background: var(--surface);
+}
+
+.learning-step.just-ignited {
+  animation: learning-node-ignite 420ms ease-out 1;
 }
 
 .learning-step-button {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 6px;
   width: 100%;
-  min-height: 36px;
+  min-height: 44px;
   border: 0;
   background: transparent;
   color: inherit;
   cursor: pointer;
   padding: 8px 10px;
   text-align: left;
+}
+
+.learning-step-button[aria-disabled="true"] {
+  cursor: not-allowed;
 }
 
 .learning-step-button:hover,
@@ -1316,19 +1337,98 @@ select {
 .learning-step-index {
   display: inline-grid;
   place-items: center;
+  grid-template-areas: "stack";
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  background: var(--step-color);
-  color: #ffffff;
+  border: 1px solid var(--step-color);
+  background: var(--surface);
+  color: var(--step-color);
   font-size: 0.78rem;
   font-weight: 900;
   font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
+.learning-step.completed .learning-step-index {
+  background: var(--step-color);
+  color: #ffffff;
+}
+
+.learning-step.current .learning-step-index {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--step-color);
+}
+
+.learning-step-symbol,
+.learning-step-check {
+  grid-area: stack;
+}
+
+.learning-step.completed .learning-step-symbol {
+  opacity: 0.18;
+}
+
+.learning-step-check {
+  font-size: 1rem;
+  line-height: 1;
+}
+
 .learning-step-label {
   font-size: 0.84rem;
   font-weight: 800;
+}
+
+.learning-step.current .learning-step-label {
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.learning-step-state {
+  border: 1px solid currentColor;
+  border-radius: var(--radius-chip);
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
+.learning-step.completed .learning-step-state {
+  color: var(--step-color);
+}
+
+.learning-step.current .learning-step-state {
+  background: var(--step-color);
+  color: #ffffff;
+}
+
+.learning-step.future .learning-step-state {
+  color: var(--ink-soft);
+}
+
+@keyframes learning-node-ignite {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--step-color) 42%, transparent);
+  }
+
+  55% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--step-color) 22%, transparent);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .learning-step.just-ignited {
+    animation: none;
+  }
+
+  .learning-step,
+  .learning-step-button {
+    transition: none;
+  }
 }
 
 #student-step-1,
@@ -2696,6 +2796,63 @@ select {
   border-color: #e2b7b7;
   background: #fff5f5;
   color: #8a2f2f;
+}
+
+@media (max-width: 768px) {
+  .learning-progress-summary > p,
+  .learning-phase-legend,
+  .learning-step-list {
+    display: none;
+  }
+
+  .learning-progress-mobile {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+  }
+
+  .learning-mobile-node {
+    display: inline-grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-chip);
+    background: var(--phase-build);
+    color: #ffffff;
+    font-weight: 900;
+  }
+
+  .learning-mobile-node.predict {
+    background: var(--phase-predict);
+  }
+
+  .learning-mobile-node.build {
+    background: var(--phase-build);
+  }
+
+  .learning-mobile-node.verify {
+    background: var(--phase-verify);
+  }
+
+  .learning-mobile-node.reflect {
+    background: var(--phase-reflect);
+  }
+
+  .learning-mobile-progress {
+    grid-column: 1 / -1;
+    height: 6px;
+    overflow: hidden;
+    border-radius: var(--radius-chip);
+    background: var(--line);
+  }
+
+  .learning-mobile-progress span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: currentColor;
+  }
 }
 
 @media (max-width: 820px) {

@@ -2214,7 +2214,10 @@ function WorkbenchApp({
       ) : null}
 
       {isStudentActivityView ? (
-        <LearningProgressRail currentStep={currentLearningStep} />
+        <LearningProgressRail
+          currentStep={currentLearningStep}
+          onStepSelect={setCurrentLearningStep}
+        />
       ) : null}
 
       {isStudentActivityView ? (
