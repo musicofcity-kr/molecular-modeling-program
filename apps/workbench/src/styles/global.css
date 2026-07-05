@@ -1617,6 +1617,86 @@ select {
   gap: 10px;
 }
 
+.student-validation-comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.student-comparison-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  padding: 14px;
+}
+
+.student-comparison-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.student-comparison-columns > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.student-comparison-value {
+  color: var(--ink);
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 18px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.student-comparison-badge,
+.student-system-status-badge {
+  justify-self: start;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-chip);
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1.4;
+  padding: 5px 10px;
+}
+
+.student-comparison-badge.ok {
+  background: color-mix(in srgb, var(--ok) 10%, white);
+  color: var(--ok);
+}
+
+.student-comparison-badge.retry {
+  background: color-mix(in srgb, var(--retry) 12%, white);
+  color: var(--retry);
+}
+
+.student-comparison-badge.neutral {
+  background: var(--surface-dim);
+  color: var(--ink-soft);
+}
+
+.student-system-status-badge {
+  margin: 0;
+}
+
+.student-system-status-badge.error {
+  background: color-mix(in srgb, var(--error) 10%, white);
+  color: var(--error);
+}
+
+.student-system-status-badge.warning {
+  background: color-mix(in srgb, var(--retry) 12%, white);
+  color: var(--retry);
+}
+
+.student-system-status-badge.neutral {
+  background: var(--surface-dim);
+  color: var(--ink-soft);
+}
+
 .student-result-card {
   display: grid;
   align-content: start;

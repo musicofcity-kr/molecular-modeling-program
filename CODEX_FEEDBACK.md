@@ -114,3 +114,22 @@
 - mock 경계 목록: 해당 없음
 - 미해결/보류: 실제 키보드 포커스 순환은 Phase 10 Playwright E2E에서 브라우저 이벤트로 보강 예정
 - 다음 단계 착수 가능: 가능
+
+## [Phase 6] R4 검증 비교 카드 — 2026-07-06
+- 변경 파일:
+  - `apps/workbench/src/components/student/StudentActivityShell.tsx`
+  - `apps/workbench/src/components/student/ValidationResultCards.tsx`
+  - `apps/workbench/src/components/student/ValidationResultCards.test.tsx`
+  - `apps/workbench/src/styles/global.css`
+  - `WORK_STATE.md`
+  - `CODEX_FEEDBACK.md`
+- 검증: typecheck ✅ | test 250/250 ✅ | build ✅ | 금지 어휘 grep ✅
+- 실행 로그 요약:
+  - `npm run typecheck`: `tsc -b` 통과
+  - `npm test`: 47 files / 250 tests passed
+  - `npm run build`: Vite production build 성공, 기존 3Dmol eval 및 대용량 chunk 경고 유지
+  - `rg "오답|틀림"`: 구현 코드에는 없음, 테스트의 부정 assertion에만 존재
+- 신규 테스트: `src/components/student/ValidationResultCards.test.tsx` 3개 케이스
+- mock 경계 목록: 해당 없음
+- 미해결/보류: 없음
+- 다음 단계 착수 가능: 가능

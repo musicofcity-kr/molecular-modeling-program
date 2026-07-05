@@ -150,6 +150,7 @@ export function StudentActivityShell({
       case 4:
         return (
           <ValidationResultCards
+            responses={responses}
             validationResult={validationResult}
             vseprAnalysis={vseprAnalysis}
             molecule3DInput={molecule3DInput}
