@@ -1,5 +1,7 @@
 # 다양한 분자의 분자구조 모델링
 
+[![CI](https://github.com/musicofcity-kr/molecular-modeling-program/actions/workflows/ci.yml/badge.svg)](https://github.com/musicofcity-kr/molecular-modeling-program/actions/workflows/ci.yml)
+
 고등학교 화학 수업에서 분자 구조를 그리고 확인하는 교육용 웹앱입니다.
 
 이 프로젝트는 수업 활동에 필요한 분자 구조 입력, 검증, 3D 관찰, 활동 결과 정리를 안정적으로 제공하는 것을 목표로 합니다.

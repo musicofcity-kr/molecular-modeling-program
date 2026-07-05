@@ -30,3 +30,19 @@
 - mock 경계 목록: 해당 없음
 - 미해결/보류: 라이브 데모 URL은 실제 확정 전까지 README에 TODO placeholder 유지
 - 다음 단계 착수 가능: 가능
+
+## [Phase 2] GitHub Actions CI — 2026-07-06
+- 변경 파일:
+  - `.github/workflows/ci.yml`
+  - `README.md`
+  - `WORK_STATE.md`
+  - `CODEX_FEEDBACK.md`
+- 검증: typecheck ✅ | test 237/237 ✅ | build ✅
+- 실행 로그 요약:
+  - `npm run typecheck`: `tsc -b` 통과
+  - `npm test`: 44 files / 237 tests passed
+  - `npm run build`: Vite production build 성공, 기존 3Dmol eval 및 대용량 chunk 경고 유지
+- 신규 테스트: 없음
+- mock 경계 목록: 해당 없음
+- 미해결/보류: GitHub Actions 녹색 URL은 브랜치 push 후 확인 가능
+- 다음 단계 착수 가능: 가능
