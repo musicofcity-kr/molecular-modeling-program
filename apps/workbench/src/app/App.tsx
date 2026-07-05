@@ -504,6 +504,7 @@ function WorkbenchApp({
     initialRoute ?? getInitialAppRoute(),
   );
   const [appMode, setAppMode] = useState<AppMode>('activity');
+  const [currentLearningStep, setCurrentLearningStep] = useState<LearningStepId>(1);
   const [userMode, setUserMode] = useState<UserMode>(
     getUserModeForRoute(initialRoute ?? getInitialAppRoute()),
   );
@@ -613,6 +614,7 @@ function WorkbenchApp({
       )
     ) {
       setSelectedActivityId(currentActivityTemplates[0].id);
+      setCurrentLearningStep(1);
     }
   }, [currentActivityTemplates, selectedActivityId]);
 
@@ -644,6 +646,7 @@ function WorkbenchApp({
 
   const handleStudentEntered = useCallback(() => {
     setAppMode('activity');
+    setCurrentLearningStep(1);
     navigateToRoute('student-workbench');
   }, [navigateToRoute]);
 
@@ -802,7 +805,9 @@ function WorkbenchApp({
     });
   }, [isVseprModuleOpen, selectedActivityUsesVsepr, vseprAnalysis]);
 
-  const extractAndValidateCurrentStructure = async (example?: ExampleMolecule) => {
+  const extractAndValidateCurrentStructure = async (
+    example?: ExampleMolecule,
+  ): Promise<boolean> => {
     const structure = await editorRef.current?.extractStructure();
 
     if (!structure) {
@@ -906,18 +911,20 @@ function WorkbenchApp({
           ? buildExample3DInput(validatedExampleForHandoff)
           : retained3DInput,
       );
+      return true;
     } else {
       console.info('[RDKit validation]', result.developerLogs);
       appendLog(createLog('error', result.studentMessage));
       setValidatedExampleId(null);
       setMolecule3DInput(null);
       resetVseprAnalysis();
+      return false;
     }
   };
 
-  const handleExtractAndValidate = async () => {
+  const handleExtractAndValidate = async (): Promise<boolean> => {
     try {
-      await extractAndValidateCurrentStructure();
+      return await extractAndValidateCurrentStructure();
     } catch (error) {
       setMolecule3DInput(null);
       setValidatedExampleId(null);
@@ -933,6 +940,7 @@ function WorkbenchApp({
           normalizeKetcherError(error, '구조 데이터 추출 중 오류가 발생했습니다.'),
         ),
       );
+      return false;
     }
   };
 
@@ -983,6 +991,7 @@ function WorkbenchApp({
 
     if (nextActivityId !== selectedActivityId) {
       setSelectedActivityId(nextActivityId);
+      setCurrentLearningStep(1);
     }
 
     resetCurrentStructureState();
@@ -1008,6 +1017,7 @@ function WorkbenchApp({
     });
 
     setSelectedActivityId(activityId);
+    setCurrentLearningStep(1);
     setSelectedExampleId(nextExampleId);
     resetCurrentStructureState();
 
@@ -1996,28 +2006,6 @@ function WorkbenchApp({
         onSelectCandidate={handleSelectPubChemCandidate}
       />
     ) : null;
-  const hasPredictionResponse =
-    selectedActivity?.predictionQuestions.some((question) =>
-      Boolean(currentActivityResponses[question.id]?.trim()),
-    ) ?? false;
-  const hasReflectionResponse =
-    selectedActivity?.reflectionQuestions.some((question) =>
-      Boolean(currentActivityResponses[question.id]?.trim()),
-    ) ?? false;
-  const hasComparisonObservation = Object.values(
-    structureComparisonObservationText,
-  ).some((value) => Boolean(value.trim()));
-  const currentLearningStep: LearningStepId = hasReflectionResponse
-    ? 7
-    : hasComparisonObservation
-      ? 6
-      : molecule3DInput || vseprModelStatus === 'rendered'
-        ? 5
-        : validationResult
-          ? 4
-          : appMode === 'free_draw' || hasPredictionResponse
-            ? 3
-            : 1;
   const studentFreeDrawView = (
     <div className="student-activity-shell" data-testid="student-free-draw-shell">
       <MoleculeDrawingStep
@@ -2225,7 +2213,7 @@ function WorkbenchApp({
         />
       ) : null}
 
-      {userMode === 'student' ? (
+      {isStudentActivityView ? (
         <LearningProgressRail currentStep={currentLearningStep} />
       ) : null}
 
@@ -2245,11 +2233,13 @@ function WorkbenchApp({
           external3DSearchSlot={studentExternal3DSearchSection}
           comparisonSlot={comparisonSection}
           resultSlot={resultSection}
+          currentStep={currentLearningStep}
           onSelectActivity={handleSelectActivity}
           onResponseChange={handleActivityResponseChange}
           onSelectExample={handleSelectExample}
           onLoadExample={handleLoadExample}
           onConfirmStructure={handleExtractAndValidate}
+          onStepChange={setCurrentLearningStep}
         />
       ) : isStudentFreeDrawView ? (
         studentFreeDrawView

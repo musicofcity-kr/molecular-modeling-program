@@ -1,6 +1,6 @@
 export type LearningStepId = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
-type LearningStep = {
+export type LearningStep = {
   id: LearningStepId;
   label: string;
   phase: 'predict' | 'build' | 'verify' | 'reflect';
@@ -12,7 +12,7 @@ type LearningProgressRailProps = {
   currentStep: LearningStepId;
 };
 
-const STEPS: LearningStep[] = [
+export const LEARNING_STEPS: LearningStep[] = [
   { id: 1, label: '활동 선택', phase: 'predict', phaseLabel: '예측', targetId: 'student-step-1' },
   { id: 2, label: '예측 입력', phase: 'predict', phaseLabel: '예측', targetId: 'student-step-2' },
   { id: 3, label: '구조 그리기', phase: 'build', phaseLabel: '구축', targetId: 'student-step-3' },
@@ -30,7 +30,8 @@ const PHASES = [
 ] as const;
 
 export function LearningProgressRail({ currentStep }: LearningProgressRailProps) {
-  const current = STEPS.find((step) => step.id === currentStep) ?? STEPS[2];
+  const current =
+    LEARNING_STEPS.find((step) => step.id === currentStep) ?? LEARNING_STEPS[2];
   const handleMoveToStep = (targetId: string) => {
     const target = document.getElementById(targetId);
 
@@ -63,7 +64,7 @@ export function LearningProgressRail({ currentStep }: LearningProgressRailProps)
       </div>
 
       <ol className="learning-step-list">
-        {STEPS.map((step) => (
+        {LEARNING_STEPS.map((step) => (
           <li
             className={[
               'learning-step',

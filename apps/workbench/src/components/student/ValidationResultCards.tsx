@@ -6,6 +6,7 @@ type ValidationResultCardsProps = {
   validationResult: MoleculeValidationResult | null;
   vseprAnalysis: VseprAnalysis;
   molecule3DInput: Molecule3DInput | null;
+  collapsible?: boolean;
 };
 
 function getStructureStatus(validationResult: MoleculeValidationResult | null): {
@@ -75,6 +76,7 @@ export function ValidationResultCards({
   validationResult,
   vseprAnalysis,
   molecule3DInput,
+  collapsible,
 }: ValidationResultCardsProps) {
   const status = getStructureStatus(validationResult);
   const isValid = validationResult?.ok === true;
@@ -87,6 +89,7 @@ export function ValidationResultCards({
       stepNumber={4}
       sectionLabel="내 구조 확인하기"
       title="확인된 값만 결과로 봅니다"
+      collapsible={collapsible}
     >
       <div className="student-result-grid">
         <article className={`student-result-card ${status.tone}`}>

@@ -8,6 +8,7 @@ type CollapsibleStudentStepProps = {
   sectionLabel: string;
   title: string;
   defaultOpen?: boolean;
+  collapsible?: boolean;
   children: ReactNode;
 };
 
@@ -19,15 +20,42 @@ export function CollapsibleStudentStep({
   sectionLabel,
   title,
   defaultOpen = true,
+  collapsible = true,
   children,
 }: CollapsibleStudentStepProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const contentId = useId();
+  const isContentVisible = !collapsible || isOpen;
+
+  if (!collapsible) {
+    return (
+      <section
+        id={id}
+        className={`${className} is-open`}
+        data-testid={testId}
+        tabIndex={-1}
+      >
+        <div className="student-step-heading">
+          <span className="student-step-number" aria-hidden="true">
+            {stepNumber}
+          </span>
+          <span className="student-step-title-group">
+            <span className="section-label">{sectionLabel}</span>
+            <span className="student-step-title">{title}</span>
+          </span>
+        </div>
+
+        <div className="student-step-content" id={contentId}>
+          {children}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section
       id={id}
-      className={`${className} ${isOpen ? 'is-open' : 'is-collapsed'}`}
+      className={`${className} ${isContentVisible ? 'is-open' : 'is-collapsed'}`}
       data-testid={testId}
       tabIndex={-1}
     >
@@ -52,7 +80,7 @@ export function CollapsibleStudentStep({
         </button>
       </div>
 
-      <div className="student-step-content" id={contentId} hidden={!isOpen}>
+      <div className="student-step-content" id={contentId} hidden={!isContentVisible}>
         {children}
       </div>
     </section>

@@ -1082,6 +1082,100 @@ select {
   gap: 16px;
 }
 
+.student-activity-shell.is-wizard {
+  justify-items: center;
+  padding-bottom: 88px;
+}
+
+.student-wizard-stage {
+  --stage-color: var(--phase-build);
+  display: grid;
+  width: 100%;
+  max-width: 880px;
+  border-top: 4px solid var(--stage-color);
+  border-radius: var(--radius-card);
+}
+
+.student-wizard-stage.phase-predict {
+  --stage-color: var(--phase-predict);
+}
+
+.student-wizard-stage.phase-build {
+  --stage-color: var(--phase-build);
+}
+
+.student-wizard-stage.phase-verify {
+  --stage-color: var(--phase-verify);
+}
+
+.student-wizard-stage.phase-reflect {
+  --stage-color: var(--phase-reflect);
+}
+
+.student-wizard-stage.wide {
+  max-width: 1280px;
+}
+
+.student-wizard-stage > .student-step,
+.student-wizard-stage > .structure-comparison-panel,
+.student-wizard-stage > .activity-result-panel {
+  width: 100%;
+  border-top: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.student-wizard-stage.wide .ketcher-host {
+  min-height: 560px;
+}
+
+.student-wizard-action-bar {
+  position: sticky;
+  bottom: 16px;
+  z-index: 18;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: min(100%, 880px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: 0 12px 30px rgba(27, 36, 48, 0.12);
+  padding: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.student-wizard-action-bar .primary-action {
+  min-height: 44px;
+  min-width: 190px;
+}
+
+.student-wizard-action-bar .secondary-action {
+  min-height: 44px;
+}
+
+.primary-action.phase-predict {
+  border-color: var(--phase-predict);
+  background: var(--phase-predict);
+}
+
+.primary-action.phase-build {
+  border-color: var(--phase-build);
+  background: var(--phase-build);
+}
+
+.primary-action.phase-verify {
+  border-color: var(--phase-verify);
+  background: var(--phase-verify);
+}
+
+.primary-action.phase-reflect {
+  border-color: var(--phase-reflect);
+  background: var(--phase-reflect);
+}
+
 .learning-progress-rail {
   position: sticky;
   top: 0;
