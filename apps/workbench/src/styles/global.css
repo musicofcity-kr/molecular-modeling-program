@@ -960,7 +960,7 @@ select {
 }
 
 .ketcher-host {
-  min-height: 470px;
+  min-height: 560px;
   overflow: hidden;
   border: 1px solid #9cb4ba;
   border-radius: 8px;
@@ -968,12 +968,12 @@ select {
 }
 
 .ketcher-host > div {
-  min-height: 470px;
+  min-height: 560px;
   height: 100%;
 }
 
 .ketcher-host [data-ketcher-editor] {
-  min-height: 470px;
+  min-height: 560px;
 }
 
 .editor-loading-state {
@@ -1121,7 +1121,7 @@ select {
   --stage-color: var(--phase-build);
   display: grid;
   width: 100%;
-  max-width: 880px;
+  max-width: min(1500px, calc(100vw - 40px));
   border-top: 4px solid var(--stage-color);
   border-radius: var(--radius-card);
 }
@@ -1143,7 +1143,7 @@ select {
 }
 
 .student-wizard-stage.wide {
-  max-width: 1280px;
+  max-width: min(1680px, calc(100vw - 40px));
 }
 
 .student-wizard-stage > .student-step,
@@ -1157,7 +1157,7 @@ select {
 }
 
 .student-wizard-stage.wide .ketcher-host {
-  min-height: 560px;
+  min-height: clamp(640px, 70vh, 860px);
 }
 
 .student-wizard-action-bar {
@@ -1168,7 +1168,7 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  width: min(100%, 880px);
+  width: min(100%, 1500px);
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--surface) 94%, transparent);
@@ -1619,8 +1619,8 @@ select {
 
 .activity-picker-layout {
   display: grid;
-  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: minmax(240px, 340px) minmax(0, 1fr);
+  gap: 18px;
 }
 
 .student-target-card {
@@ -1630,7 +1630,7 @@ select {
 .student-question-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 18px;
 }
 
 .student-drawing-actions {
@@ -1647,8 +1647,8 @@ select {
 
 .student-result-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
 }
 
 .student-validation-comparison {
@@ -1735,7 +1735,7 @@ select {
   display: grid;
   align-content: start;
   gap: 6px;
-  min-height: 104px;
+  min-height: 128px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
@@ -1760,8 +1760,8 @@ select {
 
 .shape-viewer-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(520px, 1fr));
+  gap: 18px;
   align-items: start;
 }
 
@@ -2781,14 +2781,14 @@ select {
 
 .viewer-content {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
-  gap: 14px;
-  min-height: 240px;
+  grid-template-columns: minmax(420px, 1fr) minmax(260px, 360px);
+  gap: 18px;
+  min-height: 420px;
 }
 
 .viewer-3d-host {
   position: relative;
-  min-height: 240px;
+  min-height: 420px;
   overflow: hidden;
   border: 1px solid #9cb4ba;
   border-radius: 8px;
@@ -2796,7 +2796,7 @@ select {
 }
 
 /* Student activity grids can make the viewer panel narrow while the viewport is still wide. */
-@container molecule-viewer (max-width: 560px) {
+@container molecule-viewer (max-width: 760px) {
   .viewer-content {
     grid-template-columns: 1fr;
   }

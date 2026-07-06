@@ -193,7 +193,7 @@ M  END`,
       /\.viewer-panel\s*{[^}]*container:\s*molecule-viewer \/ inline-size;/,
     );
     expect(globalCss).toMatch(
-      /@container molecule-viewer \(max-width: 560px\)\s*{\s*\.viewer-content\s*{\s*grid-template-columns:\s*1fr;/,
+      /@container molecule-viewer \(max-width: 760px\)\s*{\s*\.viewer-content\s*{\s*grid-template-columns:\s*1fr;/,
     );
   });
 });
