@@ -976,6 +976,30 @@ select {
   min-height: 470px;
 }
 
+.editor-loading-state {
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  color: var(--ink-soft);
+  font-weight: 700;
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--surface-dim);
+  border-top-color: var(--phase-build);
+  border-radius: 50%;
+  animation: loading-spin 0.8s linear infinite;
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .ketcher-host button[title="3D Viewer"],
 .ketcher-host button[data-testid="3D Viewer button"] {
   display: none !important;
@@ -1434,6 +1458,10 @@ select {
   .learning-step,
   .learning-step-button {
     transition: none;
+  }
+
+  .loading-spinner {
+    animation: none;
   }
 }
 

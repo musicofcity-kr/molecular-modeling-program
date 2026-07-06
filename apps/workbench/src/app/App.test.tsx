@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
   App,
+  EditorLoadingFallback,
   getReturnedStudentFeedbacksForSession,
   resolveActivityIdForExample,
   resolveActivityTemplateForResult,
@@ -53,6 +54,17 @@ describe('App scaffold', () => {
     teacherAuthorizationStatus: 'authorized',
     isEmergencyAccess: true,
   };
+
+  it('renders the Ketcher loading fallback with the classroom-friendly delay message', () => {
+    const markup = renderToStaticMarkup(<EditorLoadingFallback />);
+
+    expect(markup).toContain('data-testid="chemical-editor"');
+    expect(markup).toContain('그리기 도구 준비 중');
+    expect(markup).toContain('분자 편집기를 불러오는 중입니다');
+    expect(markup).toContain('최초 1회');
+    expect(markup).toContain('네트워크에 따라 수십 초');
+    expect(markup).not.toContain('Ketcher');
+  });
 
   it('renders the ethics guide gate before entering the app', () => {
     const markup = renderToStaticMarkup(<App />);

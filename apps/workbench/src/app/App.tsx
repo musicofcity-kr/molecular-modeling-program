@@ -168,7 +168,7 @@ const INITIAL_STRUCTURE_COMPARISON_OBSERVATION = {
   studentReflection: '',
 };
 
-function EditorLoadingFallback() {
+export function EditorLoadingFallback() {
   return (
     <section className="workspace-panel editor-panel" data-testid="chemical-editor">
       <div className="panel-heading editor-heading">
@@ -179,7 +179,11 @@ function EditorLoadingFallback() {
         <span className="status-pill">그리기 도구 준비 중</span>
       </div>
       <div className="ketcher-host editor-loading-state">
-        분자 그리기 도구를 불러오는 중입니다.
+        <span className="loading-spinner" aria-hidden="true" />
+        <span>
+          분자 편집기를 불러오는 중입니다 (최초 1회, 네트워크에 따라 수십 초
+          소요될 수 있습니다)
+        </span>
       </div>
     </section>
   );

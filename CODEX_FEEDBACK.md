@@ -158,3 +158,26 @@
   - Vite dev 서버에서 5단계 최초 진입 시 `3dmol` 의존성 최적화로 1회 reload가 발생했다. production build 자체는 정상이며, 1→7 전체 브라우저 자동 반복은 Phase 10 Playwright E2E에서 정식 자동화한다.
   - Playwright가 루트에 생성한 임시 스크린샷 파일은 Windows 권한 문제로 즉시 삭제되지 않아 `.gitignore`에 루트 임시 패턴을 추가했고, 커밋 대상 증거 파일은 `docs/qa/phase7/`에 복사했다.
 - 다음 단계 착수 가능: 가능
+
+## [Phase 8] P5 Ketcher 로딩 개선 — 2026-07-06
+- 변경 파일:
+  - `apps/workbench/src/app/App.tsx`
+  - `apps/workbench/src/app/App.test.tsx`
+  - `apps/workbench/src/styles/global.css`
+  - `apps/workbench/vercel.json`
+  - `WORK_STATE.md`
+  - `CODEX_FEEDBACK.md`
+- 검증: typecheck ✅ | test 251/251 ✅ | build ✅ | vercel.json parse ✅
+- 실행 로그 요약:
+  - `App.tsx`: Ketcher는 기존 `React.lazy` + `Suspense` 구조 유지, wrapper API 변경 없음
+  - 로딩 UI: "분자 편집기를 불러오는 중입니다 (최초 1회, 네트워크에 따라 수십 초 소요될 수 있습니다)" 안내와 reduced-motion 대응 스피너 추가
+  - `vercel.json`: `/assets/(.*)`에 `Cache-Control: public, max-age=31536000, immutable` 추가
+  - dist 청크 비교: Phase 7 `KetcherEditor-5nUMKVts.js` 23,892.02kB(gzip 6,963.15kB) → Phase 8 `KetcherEditor-BhiV3Y7M.js` 23,892.02kB(gzip 6,963.15kB)
+  - `npm run typecheck`: `tsc -b` 통과
+  - `npm test`: 47 files / 251 tests passed
+  - `npm run build`: Vite production build 성공, 기존 3Dmol eval 및 대용량 chunk 경고 유지
+  - `node -e "JSON.parse(...vercel.json...)"`: `vercel.json OK`
+- 신규 테스트: `src/app/App.test.tsx` 1개 케이스 — Ketcher loading fallback 문구 검증
+- mock 경계 목록: 해당 없음
+- 미해결/보류: Ketcher 번들 크기 자체는 변경하지 않았다. 지침상 교체/fork/수동 트리셰이킹은 금지되어 있고, 근본 번들 개선은 별도 연구 과제다.
+- 다음 단계 착수 가능: 가능
