@@ -181,3 +181,39 @@
 - mock 경계 목록: 해당 없음
 - 미해결/보류: Ketcher 번들 크기 자체는 변경하지 않았다. 지침상 교체/fork/수동 트리셰이킹은 금지되어 있고, 근본 번들 개선은 별도 연구 과제다.
 - 다음 단계 착수 가능: 가능
+
+## [Phase 9] P4 입장코드 보안 강화 — 2026-07-06
+- 변경 파일:
+  - `AGENTS.md`
+  - `REVIEWER_FEEDBACK.md`
+  - `apps/workbench/api/create-classroom.ts`
+  - `apps/workbench/api/join-classroom.ts`
+  - `apps/workbench/api/join-code-security.ts`
+  - `apps/workbench/src/services/firebase/classroomJoinCode.ts`
+  - `apps/workbench/src/services/firebase/classroomRepository.ts`
+  - `apps/workbench/src/services/firebase/classroomRepository.test.ts`
+  - `apps/workbench/src/services/firebase/createClassroomApi.test.ts`
+  - `apps/workbench/src/services/firebase/joinClassroomApi.test.ts`
+  - `apps/workbench/src/services/firebase/firestoreRules.emulator.test.ts`
+  - `firebase/firestore.rules`
+  - `WORK_STATE.md`
+  - `CODEX_FEEDBACK.md`
+- 검증: typecheck ✅ | test 255/255 ✅ | Firestore rules 17/17 ✅ | build ✅
+- 실행 로그 요약:
+  - `create-classroom`: 기존 수업방을 덮어쓰던 `.set()` 경로를 `.create()`로 교체했고, 중복 수업코드는 `409 classroom_exists`로 거절한다.
+  - `join-code-security`: 신규 서버 수업방은 `server-join-code-v2-*` SHA-256 해시와 `timingSafeEqual` 비교를 사용한다. 기존 v1 FNV 해시는 레거시 수업방 호환 전용으로 유지한다.
+  - `join-classroom`: `joinAttempts/{classCode}` 카운터를 사용해 10분 윈도우에서 30회 초과 실패 시 `429 rate_limited`로 차단하고, 성공 시 카운터를 리셋한다.
+  - `firebase/firestore.rules`: `joinCodeVersion` 필드를 허용하고, 클라이언트 신규 수업방 생성은 v2 문서만 허용하도록 갱신했다. `joinAttempts`는 rules에서 열지 않아 Admin SDK 전용 경로로 둔다.
+  - `npm run typecheck`: `tsc -b` 통과
+  - `npm test`: 47 files / 255 tests passed
+  - `npm run test:firestore-rules`: 1 file / 17 tests passed
+  - `npm run build`: Vite production build 성공, 기존 3Dmol eval 및 대용량 chunk 경고 유지
+- 신규 테스트:
+  - `createClassroomApi.test.ts`: 중복 수업코드가 기존 수업방을 덮어쓰지 않고 409로 거절되는 회귀 케이스 추가
+  - `joinClassroomApi.test.ts`: v2 SHA 검증, 레거시 v1 호환, 실패 카운터, rate limit, 윈도우 리셋 케이스 추가/갱신
+  - `classroomRepository.test.ts` 및 `firestoreRules.emulator.test.ts`: `joinCodeVersion` 계약 반영
+- mock 경계 목록: API 단위 테스트는 Firebase Admin 의존성을 mock으로 주입했다. Firestore rules는 emulator로 검증했다.
+- 미해결/보류:
+  - 교실별 salt는 이번 FINAL Phase 9 명시 범위에 없어서 도입하지 않았다. 신규 경로는 SHA-256 v2, 기존 경로는 v1 호환으로 분리했다.
+  - 수업방 생성 endpoint의 별도 IP 기반 rate limit은 teacher custom claim과 중복 수업코드 차단으로 1차 완화했고, 운영형 edge/IP rate limit은 후속 보안 단계에서 다룬다.
+- 다음 단계 착수 가능: 가능

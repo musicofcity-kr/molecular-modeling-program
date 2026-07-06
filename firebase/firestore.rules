@@ -59,6 +59,7 @@ service cloud.firestore {
           'teacherUids',
           'title',
           'joinCodeHash',
+          'joinCodeVersion',
           'joinEnabled',
           'createdAt',
           'updatedAt'
@@ -66,7 +67,8 @@ service cloud.firestore {
         && request.resource.data.ownerTeacherUid == request.auth.uid
         && request.resource.data.teacherUids[request.auth.uid] == true
         && isShortString(request.resource.data.title, 80)
-        && isShortString(request.resource.data.joinCodeHash, 128);
+        && isShortString(request.resource.data.joinCodeHash, 128)
+        && request.resource.data.joinCodeVersion == 2;
     }
 
     function isValidStudentSubmissionCreate(classroomId) {
@@ -119,6 +121,7 @@ service cloud.firestore {
           'teacherUids',
           'title',
           'joinCodeHash',
+          'joinCodeVersion',
           'joinEnabled',
           'updatedAt'
         ]);

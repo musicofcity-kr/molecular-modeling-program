@@ -59,6 +59,7 @@ function classroomData(ownerUid = teacherUid) {
     },
     title: '고1 화학 수업',
     joinCodeHash: 'sha256-class-code-hash',
+    joinCodeVersion: 2,
     joinEnabled: true,
     createdAt: nowIso(),
     updatedAt: nowIso(),

@@ -5,7 +5,6 @@ import {
   handleCreateClassroomBody,
   parseCreateClassroomRequest,
 } from '../../../api/create-classroom';
-import { buildJoinCodeHash as buildClientJoinCodeHash } from './classroomJoinCode';
 
 describe('create-classroom API helpers', () => {
   it('normalizes and validates a trusted classroom creation request', () => {
@@ -33,10 +32,13 @@ describe('create-classroom API helpers', () => {
     });
   });
 
-  it('keeps server and client join-code hashing consistent', () => {
+  it('builds a versioned SHA-256 join-code hash for new server classrooms', () => {
     const input = { classCode: ' chem/101 ', joinCode: ' a1 b2 ' };
 
-    expect(buildApiJoinCodeHash(input)).toBe(buildClientJoinCodeHash(input));
+    expect(buildApiJoinCodeHash(input)).toMatch(/^server-join-code-v2-[a-f0-9]{64}$/);
+    expect(buildApiJoinCodeHash(input)).toBe(
+      buildApiJoinCodeHash({ classCode: 'CHEM-101', joinCode: 'A1B2' }),
+    );
   });
 
   it('builds classroom documents without exposing the raw join code', () => {
@@ -54,8 +56,9 @@ describe('create-classroom API helpers', () => {
     expect(documents.classroom.ownerTeacherUid).toBe('teacher-uid');
     expect(documents.classroom.teacherUids['teacher-uid']).toBe(true);
     expect(documents.classroom.joinCodeHash).toBe(
-      buildClientJoinCodeHash({ classCode: 'CHEM-101', joinCode: 'A1B2' }),
+      buildApiJoinCodeHash({ classCode: 'CHEM-101', joinCode: 'A1B2' }),
     );
+    expect(documents.classroom.joinCodeVersion).toBe(2);
     expect(documents.classroom).not.toHaveProperty('joinCode');
     expect(documents.publicInfo.activityTemplateIds).toEqual([
       'draw-water',
@@ -105,6 +108,43 @@ describe('create-classroom API helpers', () => {
         }),
       }),
     );
+  });
+
+  it('rejects duplicate classroom codes instead of overwriting an existing classroom', async () => {
+    const duplicateError = Object.assign(new Error('Document already exists'), {
+      code: 6,
+    });
+    const writeClassroom = vi.fn().mockRejectedValue(duplicateError);
+
+    const response = await handleCreateClassroomBody(
+      {
+        idToken: 'teacher-token',
+        draft: {
+          title: '고1 결합 수업',
+          classCode: 'CHEM-101',
+          joinCode: 'A1B2',
+          activityTemplateIds: ['draw-water'],
+        },
+      },
+      {
+        verifyIdToken: vi.fn().mockResolvedValue({
+          uid: 'teacher-uid',
+          teacher: true,
+        }),
+        writeClassroom,
+        now: () => '2026-07-02T00:00:00.000Z',
+      },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body).toMatchObject({
+      ok: false,
+      status: 'classroom_exists',
+      classCode: 'CHEM-101',
+    });
+    expect(body.studentMessage).toContain('이미 같은 수업코드');
+    expect(writeClassroom).toHaveBeenCalledOnce();
   });
 
   it('rejects classroom creation when the teacher claim is missing', async () => {

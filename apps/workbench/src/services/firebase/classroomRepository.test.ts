@@ -73,7 +73,7 @@ describe('Firestore classroom document builders', () => {
     activityTemplateIds: ['draw-water', 'draw-ethanol'],
   };
 
-  it('builds a teacher-owned classroom document that matches security rules', () => {
+  it('builds a legacy client classroom document without exposing the raw join code', () => {
     const document = buildClassroomDocument({
       draft,
       teacherUid: 'teacher-uid',
@@ -86,11 +86,13 @@ describe('Firestore classroom document builders', () => {
     expect(document.joinCodeHash).toBe(
       buildJoinCodeHash({ classCode: 'CHEM-101', joinCode: 'A1B2' }),
     );
+    expect(document.joinCodeVersion).toBe(1);
     expect(Object.keys(document)).toEqual([
       'ownerTeacherUid',
       'teacherUids',
       'title',
       'joinCodeHash',
+      'joinCodeVersion',
       'joinEnabled',
       'createdAt',
       'updatedAt',
