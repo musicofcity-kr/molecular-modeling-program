@@ -368,6 +368,12 @@ select {
 }
 
 .legal-footer-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 8px;
   border: 0;
   background: transparent;
   color: #314d66;
@@ -388,7 +394,7 @@ select {
 
 .legal-footer-link:focus-visible {
   border-radius: 6px;
-  box-shadow: 0 0 0 3px rgba(47, 111, 123, 0.18);
+  box-shadow: 0 0 0 2px var(--phase-build);
 }
 
 .legal-footer-copy,

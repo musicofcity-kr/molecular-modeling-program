@@ -133,3 +133,28 @@
 - mock 경계 목록: 해당 없음
 - 미해결/보류: 없음
 - 다음 단계 착수 가능: 가능
+
+## [Phase 7] R5 리디자인 마감 QA — 2026-07-06
+- 변경 파일:
+  - `.gitignore`
+  - `apps/workbench/src/styles/global.css`
+  - `docs/qa/phase7/phase7-student-375.png`
+  - `docs/qa/phase7/phase7-student-768.png`
+  - `docs/qa/phase7/phase7-student-1440.png`
+  - `WORK_STATE.md`
+  - `CODEX_FEEDBACK.md`
+- 검증: typecheck ✅ | test 250/250 ✅ | build ✅ | 3개 뷰포트 스크린샷 ✅ | 작은 폰트/구 회청색 grep ✅
+- 실행 로그 요약:
+  - `rg "font-size:\s*1[01]px|font-size:\s*[0-9]px|#21313a|#34464d|#42636c"`: 결과 없음
+  - Playwright viewport 375/768/1440px: 수평 오버플로우 없음, 위저드 액션 바 표시 확인
+  - Playwright 터치 타깃 검사: 보조 법적 링크 3개가 44px 미만으로 발견되어 CSS 보정 후 재검사 결과 0건
+  - Playwright 학생 흐름: 윤리 게이트 → 학생 입장 → 1단계 → 2단계 입력 → 3단계 Ketcher 표시 → 예제 구조 확인 → 4단계 검증 결과/비교 카드 표시 확인
+  - `npm run typecheck`: `tsc -b` 통과
+  - `npm test`: 47 files / 250 tests passed
+  - `npm run build`: Vite production build 성공, 기존 3Dmol eval 및 대용량 chunk 경고 유지
+- 신규 테스트: 없음
+- mock 경계 목록: 해당 없음
+- 미해결/보류:
+  - Vite dev 서버에서 5단계 최초 진입 시 `3dmol` 의존성 최적화로 1회 reload가 발생했다. production build 자체는 정상이며, 1→7 전체 브라우저 자동 반복은 Phase 10 Playwright E2E에서 정식 자동화한다.
+  - Playwright가 루트에 생성한 임시 스크린샷 파일은 Windows 권한 문제로 즉시 삭제되지 않아 `.gitignore`에 루트 임시 패턴을 추가했고, 커밋 대상 증거 파일은 `docs/qa/phase7/`에 복사했다.
+- 다음 단계 착수 가능: 가능
