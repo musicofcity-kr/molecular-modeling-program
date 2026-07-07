@@ -4,6 +4,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import {
   buildJoinCodeHash,
   buildLegacyJoinCodeHash,
+  buildUnsaltedServerJoinCodeHash,
   isJoinCodeHashAccepted,
   normalizeJoinClassCode,
   normalizeJoinCode,
@@ -12,6 +13,7 @@ import {
 export {
   buildJoinCodeHash,
   buildLegacyJoinCodeHash,
+  buildUnsaltedServerJoinCodeHash,
   normalizeJoinClassCode,
   normalizeJoinCode,
 };
@@ -51,6 +53,7 @@ type ClassroomRecord = {
   exists: boolean;
   joinEnabled?: unknown;
   joinCodeHash?: unknown;
+  joinCodeSalt?: unknown;
   joinCodeVersion?: unknown;
   activityTemplateIds?: unknown;
 };
@@ -456,6 +459,7 @@ function createFirebaseAdminDependencies(): JoinClassroomDependencies {
         exists: snapshot.exists,
         joinEnabled: snapshot.get('joinEnabled'),
         joinCodeHash: snapshot.get('joinCodeHash'),
+        joinCodeSalt: snapshot.get('joinCodeSalt'),
         joinCodeVersion: snapshot.get('joinCodeVersion'),
         activityTemplateIds: publicInfoSnapshot.get('activityTemplateIds'),
       };
@@ -524,6 +528,7 @@ function isJoinCodeAccepted(
     joinCodeVersion: classroom.joinCodeVersion,
     classCode: request.classCode,
     joinCode: request.joinCode,
+    joinCodeSalt: classroom.joinCodeSalt,
   });
 }
 

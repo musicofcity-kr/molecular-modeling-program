@@ -10,22 +10,25 @@
 
 ---
 
-## [FIXED] R-1 (🔴 높음) — create-classroom 이 기존 교실을 덮어씀(takeover)
+## [FIXED ✅검증] R-1 (🔴 높음) — create-classroom 이 기존 교실을 덮어씀(takeover)
 - 처리: `classroomRef.create()`로 신규 문서만 생성하도록 바꾸고, 중복 수업코드는 `409 classroom_exists`로 거절하는 회귀 테스트를 추가했다.
+- 감시자 검증 ✅ (2026-07-06): `create-classroom.ts` L374 `classroomRef.create(...)` + L238/244 `409 classroom_exists` 확인. 덮어쓰기/탈취 차단됨.
 - 위치: `apps/workbench/api/create-classroom.ts` → `createFirebaseAdminDependencies().writeClassroom` (`classroomRef.set(documents.classroom)`)
 - 문제: 존재 확인 없이 `.set()`을 실행 → 같은 `classCode`의 기존 교실 문서를 **무조건 덮어씀**. `ownerTeacherUid`·`joinCodeHash`·`teacherUids`가 전부 교체됨.
 - 영향: teacher claim을 가진 **아무 계정이나** 남의 `classCode`로 create 호출 시 그 교실을 **탈취/초기화**. 악의 없이 두 교사가 같은 코드를 써도 서로 덮어씀. Admin SDK는 Firestore 규칙을 우회하므로 규칙의 소유권 보호(`ownerTeacherUid` 불변)가 여기엔 적용되지 않음 → 엔드포인트가 직접 막아야 함. (`join-classroom.ts`는 교실 존재를 확인하는데 create는 비존재 확인이 없어 비대칭.)
 - 권장 수정: `.set()` 대신 `.create()`(문서 있으면 실패) 또는 트랜잭션으로 `if (snapshot.exists) return 409`. 소유자 재생성 허용 정책이면 기존 `ownerTeacherUid === uid` 확인 후에만 덮어쓰기.
 
-## [FIXED] R-2 (⚠️ 중간) — joinCodeHash가 비암호학적 해시(FNV-1a)
-- 처리: 신규 서버 수업방은 Node `crypto` SHA-256 기반 `server-join-code-v2-*` 해시와 `timingSafeEqual` 비교를 사용한다. 기존 FNV v1은 기존 수업방 호환 검증 전용으로만 남겼다.
-- 위치: `apps/workbench/src/services/firebase/classroomJoinCode.ts` (`buildJoinCodeHash`/`fnv1a`). 동일 구현이 `api/create-classroom.ts`, `api/join-classroom.ts`에도 중복 존재.
-- 문제: 입장코드 해시가 `fnv1a`(32비트 비암호학적 해시). 단방향성·충돌저항성이 사실상 없어, 저장된 `joinCodeHash`가 노출되면 입장코드를 역산하거나 **충돌 입력으로 우회** 가능. 알고리즘이 클라이언트 번들에 그대로 존재.
-- 완화(현재): 저장 해시는 classroom 문서에 있고 규칙상 교사만 read → 학생이 직접 못 봄(즉시 위험은 아님). 그러나 규칙 오설정·교사 계정 유출 시 무방비.
-- 권장 수정: **SHA-256 + 교실별 랜덤 salt**로 교체(서버측 `crypto.createHash('sha256')`), salt는 classroom 문서에 저장. 세 곳에 중복된 구현을 한 모듈로 통합.
+## [FIXED ✅검증] R-2 (⚠️ 중간) — joinCodeHash가 비암호학적 해시(FNV-1a)
+- 처리: 서버 수업방은 Node `crypto` SHA-256 기반 해시와 `timingSafeEqual` 비교를 사용한다. 2026-07-07부터 신규 수업방은 수업방별 랜덤 `joinCodeSalt`가 포함된 `server-join-code-v3-*`로 생성하고, 기존 v2 SHA-256과 v1 FNV는 호환 검증 전용으로 유지한다.
+- 감시자 검증 ✅ (2026-07-06): 신규 모듈 `api/join-code-security.ts`에서 `createHash('sha256')`(64 hex) + `timingSafeEqual`(상수시간, 타이밍공격 방어) 확인. 세 곳 중복 구현이 이 모듈로 통합됨(권장사항 반영). 핵심 약점(FNV-1a) 해소됨.
 
-## [FIXED] R-3 (⚠️ 중간) — join/create 엔드포인트 레이트리밋 부재
+### [FIXED] R-2b (🟡 낮음, 방어심층 후속) — join code 해시에 랜덤 salt 미포함
+- 처리: 신규 수업방 생성 시 서버에서 16바이트 랜덤 `joinCodeSalt`를 만들고, `sha256(classCode:joinCode:joinCodeSalt)` 기반 `server-join-code-v3-*` 해시를 저장하도록 수정했다. `/api/join-classroom`은 v3 salt 검증을 우선 사용하며, 기존 v2/v1 교실은 호환 검증 전용으로 유지한다.
+- 남는 위험: salt는 비밀값이 아니므로 짧은 입장 확인코드의 오프라인 추측 위험을 완전히 없애지는 않는다. 운영 단계에서는 충분한 길이의 확인코드와 회전 절차를 유지해야 한다.
+
+## [FIXED ✅검증] R-3 (⚠️ 중간) — join/create 엔드포인트 레이트리밋 부재
 - 처리: 학생 입장 경로에 `joinAttempts/{classCode}` 10분 윈도우/30회 실패 제한을 추가하고 초과 시 `429 rate_limited`로 차단한다. 수업방 생성 경로는 teacher custom claim 및 R-1 중복 생성 차단으로 보호한다.
+- 감시자 검증 ✅ (2026-07-06): `join-classroom.ts` L255/261 `429 rate_limited`, L472/481/484 `joinAttempts/{classCode}` 카운터(증가·성공시 삭제) 확인. 온라인 브루트포스 차단됨.
 - 위치: `apps/workbench/api/join-classroom.ts`, `apps/workbench/api/create-classroom.ts` (그 외 신규 엔드포인트 포함).
 - 문제: 시도 횟수 제한(429/throttle)이 없음. 익명 로그인 토큰은 쉽게 얻으므로 `classCode`+`joinCode` **무차별 대입(enumeration)** 가능. R-2의 약한 해시와 결합 시 실질 gate가 약함.
 - 권장 수정: IP/uid별 레이트리밋(Firestore TTL 카운터 또는 Vercel/edge 레벨) + 초과 시 429. `joinCode` 최소 길이·엔트로피 정책 도입(짧은 코드 금지).

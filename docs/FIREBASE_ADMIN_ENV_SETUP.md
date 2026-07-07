@@ -109,5 +109,5 @@ docs/TEACHER_CUSTOM_CLAIM_SETUP.md
 ## 7. 아직 남은 보안 작업
 
 - service account 권한 최소화 검토
-- `joinCodeHash`를 server-side salt/pepper 기반으로 강화
+- 입장 확인코드 최소 길이, 회전, 재발급 운영 절차 확정
 - 실제 학생 제출 저장 beta 운영 전 Firestore rules 재검증

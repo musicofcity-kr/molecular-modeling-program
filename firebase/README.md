@@ -24,5 +24,5 @@ Firestore Emulator 실행에는 JDK 11 이상이 필요하다.
 
 1. Vercel Firebase Admin 환경변수 연결
 2. 테스트 수업방에서 수업코드 + 입장 확인코드 기반 멤버십 생성 QA
-3. `joinCodeHash` 생성을 교사용 서버 endpoint 또는 server-side salt/pepper 방식으로 강화
+3. 입장 확인코드 최소 길이와 회전 절차 확정
 4. 제한 beta 수업방에서 제출 저장 활성화

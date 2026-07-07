@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   buildClassroomWriteDocuments,
   buildJoinCodeHash as buildApiJoinCodeHash,
+  generateJoinCodeSalt,
   handleCreateClassroomBody,
   parseCreateClassroomRequest,
 } from '../../../api/create-classroom';
@@ -32,13 +33,32 @@ describe('create-classroom API helpers', () => {
     });
   });
 
-  it('builds a versioned SHA-256 join-code hash for new server classrooms', () => {
+  it('builds a versioned salted SHA-256 join-code hash for new server classrooms', () => {
     const input = { classCode: ' chem/101 ', joinCode: ' a1 b2 ' };
+    const joinCodeSalt = '0123456789abcdef0123456789abcdef';
 
-    expect(buildApiJoinCodeHash(input)).toMatch(/^server-join-code-v2-[a-f0-9]{64}$/);
-    expect(buildApiJoinCodeHash(input)).toBe(
-      buildApiJoinCodeHash({ classCode: 'CHEM-101', joinCode: 'A1B2' }),
+    expect(buildApiJoinCodeHash({ ...input, joinCodeSalt })).toMatch(
+      /^server-join-code-v3-[a-f0-9]{64}$/,
     );
+    expect(buildApiJoinCodeHash({ ...input, joinCodeSalt })).toBe(
+      buildApiJoinCodeHash({
+        classCode: 'CHEM-101',
+        joinCode: 'A1B2',
+        joinCodeSalt,
+      }),
+    );
+    expect(buildApiJoinCodeHash({ ...input, joinCodeSalt })).not.toBe(
+      buildApiJoinCodeHash({
+        ...input,
+        joinCodeSalt: 'abcdef0123456789abcdef0123456789',
+      }),
+    );
+  });
+
+  it('generates random classroom join-code salts', () => {
+    const salt = generateJoinCodeSalt();
+
+    expect(salt).toMatch(/^[a-f0-9]{32}$/);
   });
 
   it('builds classroom documents without exposing the raw join code', () => {
@@ -56,9 +76,14 @@ describe('create-classroom API helpers', () => {
     expect(documents.classroom.ownerTeacherUid).toBe('teacher-uid');
     expect(documents.classroom.teacherUids['teacher-uid']).toBe(true);
     expect(documents.classroom.joinCodeHash).toBe(
-      buildApiJoinCodeHash({ classCode: 'CHEM-101', joinCode: 'A1B2' }),
+      buildApiJoinCodeHash({
+        classCode: 'CHEM-101',
+        joinCode: 'A1B2',
+        joinCodeSalt: documents.classroom.joinCodeSalt,
+      }),
     );
-    expect(documents.classroom.joinCodeVersion).toBe(2);
+    expect(documents.classroom.joinCodeSalt).toMatch(/^[a-f0-9]{32}$/);
+    expect(documents.classroom.joinCodeVersion).toBe(3);
     expect(documents.classroom).not.toHaveProperty('joinCode');
     expect(documents.publicInfo.activityTemplateIds).toEqual([
       'draw-water',

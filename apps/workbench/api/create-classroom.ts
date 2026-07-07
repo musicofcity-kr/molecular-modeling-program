@@ -4,11 +4,17 @@ import { getFirestore } from 'firebase-admin/firestore';
 import {
   JOIN_CODE_HASH_VERSION,
   buildJoinCodeHash,
+  generateJoinCodeSalt,
   normalizeJoinClassCode,
   normalizeJoinCode,
 } from './join-code-security';
 
-export { buildJoinCodeHash, normalizeJoinClassCode, normalizeJoinCode };
+export {
+  buildJoinCodeHash,
+  generateJoinCodeSalt,
+  normalizeJoinClassCode,
+  normalizeJoinCode,
+};
 
 type CreateClassroomDraft = {
   title: string;
@@ -58,6 +64,7 @@ type ClassroomDocument = {
   teacherUids: Record<string, true>;
   title: string;
   joinCodeHash: string;
+  joinCodeSalt: string;
   joinCodeVersion: number;
   joinEnabled: boolean;
   createdAt: string;
@@ -325,6 +332,7 @@ export function buildClassroomWriteDocuments(input: {
   const activityTemplateIds = normalizeActivityTemplateIds(
     input.draft.activityTemplateIds,
   );
+  const joinCodeSalt = generateJoinCodeSalt();
 
   return {
     classroom: {
@@ -336,7 +344,9 @@ export function buildClassroomWriteDocuments(input: {
       joinCodeHash: buildJoinCodeHash({
         classCode,
         joinCode: input.draft.joinCode,
+        joinCodeSalt,
       }),
+      joinCodeSalt,
       joinCodeVersion: JOIN_CODE_HASH_VERSION,
       joinEnabled: true,
       createdAt: input.now,
