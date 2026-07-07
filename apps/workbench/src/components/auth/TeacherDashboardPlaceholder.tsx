@@ -187,6 +187,7 @@ export function TeacherDashboardPlaceholder({
           <label>
             <span>수업명</span>
             <input
+              data-testid="teacher-classroom-title-input"
               aria-label="수업명"
               value={title}
               disabled={!canUseFirestoreTools}
@@ -198,6 +199,7 @@ export function TeacherDashboardPlaceholder({
           <label>
             <span>수업코드</span>
             <input
+              data-testid="teacher-classroom-code-input"
               aria-label="교사용 수업코드"
               value={classCode}
               disabled={!canUseFirestoreTools}
@@ -209,6 +211,7 @@ export function TeacherDashboardPlaceholder({
           <label>
             <span>학생 입장 확인코드</span>
             <input
+              data-testid="teacher-classroom-join-code-input"
               aria-label="학생 입장 확인코드"
               value={joinCode}
               disabled={!canUseFirestoreTools}
@@ -262,6 +265,7 @@ export function TeacherDashboardPlaceholder({
           <label>
             <span>조회할 수업코드</span>
             <input
+              data-testid="teacher-submission-class-code-input"
               aria-label="제출 목록 수업코드"
               value={classCode}
               disabled={!canUseFirestoreTools}

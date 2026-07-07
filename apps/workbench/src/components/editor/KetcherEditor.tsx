@@ -77,7 +77,11 @@ export const KetcherEditor = forwardRef<ChemicalEditorHandle, KetcherEditorProps
             <p className="section-label">좌측</p>
             <h2>분자 편집 영역</h2>
           </div>
-          <span className={isReady ? 'status-pill ready' : 'status-pill'}>
+          <span
+            className={isReady ? 'status-pill ready' : 'status-pill'}
+            data-testid="chemical-editor-status"
+            data-ready={isReady ? 'true' : 'false'}
+          >
             {isReady ? '그리기 도구 준비됨' : '그리기 도구 준비 중'}
           </span>
         </div>

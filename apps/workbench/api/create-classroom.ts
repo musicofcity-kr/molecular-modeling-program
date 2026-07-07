@@ -1,6 +1,20 @@
 import { cert, getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
+import {
+  JOIN_CODE_HASH_VERSION,
+  buildJoinCodeHash,
+  generateJoinCodeSalt,
+  normalizeJoinClassCode,
+  normalizeJoinCode,
+} from './join-code-security';
+
+export {
+  buildJoinCodeHash,
+  generateJoinCodeSalt,
+  normalizeJoinClassCode,
+  normalizeJoinCode,
+};
 
 type CreateClassroomDraft = {
   title: string;
@@ -19,6 +33,7 @@ type CreateClassroomApiStatus =
   | 'invalid_request'
   | 'server_not_configured'
   | 'unauthorized'
+  | 'classroom_exists'
   | 'server_error';
 
 type CreateClassroomApiPayload = {
@@ -49,6 +64,8 @@ type ClassroomDocument = {
   teacherUids: Record<string, true>;
   title: string;
   joinCodeHash: string;
+  joinCodeSalt: string;
+  joinCodeVersion: number;
   joinEnabled: boolean;
   createdAt: string;
   updatedAt: string;
@@ -221,6 +238,20 @@ export async function handleCreateClassroomBody(
       200,
     );
   } catch (error) {
+    if (isDuplicateClassroomError(error)) {
+      return jsonResponse(
+        {
+          ok: false,
+          status: 'classroom_exists',
+          classCode: request.draft.classCode,
+          studentMessage:
+            '이미 같은 수업코드의 수업방이 있습니다. 다른 수업코드를 사용하거나 기존 수업방을 확인해 주세요.',
+          developerMessage: `createClassroom duplicate classCode rejected: ${request.draft.classCode}`,
+        },
+        409,
+      );
+    }
+
     console.error('[create-classroom] request failed', {
       classCode: request.draft.classCode,
       message: getErrorMessage(error),
@@ -301,6 +332,7 @@ export function buildClassroomWriteDocuments(input: {
   const activityTemplateIds = normalizeActivityTemplateIds(
     input.draft.activityTemplateIds,
   );
+  const joinCodeSalt = generateJoinCodeSalt();
 
   return {
     classroom: {
@@ -312,7 +344,10 @@ export function buildClassroomWriteDocuments(input: {
       joinCodeHash: buildJoinCodeHash({
         classCode,
         joinCode: input.draft.joinCode,
+        joinCodeSalt,
       }),
+      joinCodeSalt,
+      joinCodeVersion: JOIN_CODE_HASH_VERSION,
       joinEnabled: true,
       createdAt: input.now,
       updatedAt: input.now,
@@ -336,37 +371,6 @@ export function buildClassroomWriteDocuments(input: {
   };
 }
 
-export function normalizeJoinCode(value: unknown): string {
-  return typeof value === 'string'
-    ? value.trim().replace(/\s+/g, '').toUpperCase().slice(0, 32)
-    : '';
-}
-
-export function normalizeJoinClassCode(value: unknown): string {
-  return typeof value === 'string'
-    ? value
-        .trim()
-        .replace(/[\\/]+/g, '-')
-        .replace(/\s+/g, '-')
-        .toUpperCase()
-        .slice(0, 24)
-    : '';
-}
-
-export function buildJoinCodeHash(input: {
-  classCode: string;
-  joinCode: string;
-}): string {
-  const classCode = normalizeJoinClassCode(input.classCode);
-  const joinCode = normalizeJoinCode(input.joinCode);
-
-  if (!classCode || !joinCode) {
-    return '';
-  }
-
-  return `client-join-code-v1-${fnv1a(`${classCode}:${joinCode}`)}`;
-}
-
 function createFirebaseAdminDependencies(): CreateClassroomDependencies {
   const app = getFirebaseAdminApp();
   const auth = getAuth(app);
@@ -377,7 +381,7 @@ function createFirebaseAdminDependencies(): CreateClassroomDependencies {
     writeClassroom: async (classCode, documents) => {
       const classroomRef = db.collection('classrooms').doc(classCode);
 
-      await classroomRef.set(documents.classroom);
+      await classroomRef.create(documents.classroom);
       await classroomRef.collection('public').doc('info').set(documents.publicInfo);
       await Promise.all(
         Object.values(documents.activityTemplates).map((template) =>
@@ -498,17 +502,22 @@ function jsonResponse(
   });
 }
 
-function fnv1a(value: string): string {
-  let hash = 0x811c9dc5;
-
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-
-  return (hash >>> 0).toString(16).padStart(8, '0');
-}
-
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function isDuplicateClassroomError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const candidate = error as { code?: unknown; message?: unknown };
+  const message = typeof candidate.message === 'string' ? candidate.message : '';
+
+  return (
+    candidate.code === 6 ||
+    candidate.code === 'already-exists' ||
+    candidate.code === 'ALREADY_EXISTS' ||
+    /already exists|ALREADY_EXISTS/i.test(message)
+  );
 }

@@ -5,12 +5,14 @@ type ReflectionStepProps = {
   questions: ActivityQuestion[];
   responses: ActivityResponseState;
   onResponseChange: (questionId: string, value: string) => void;
+  collapsible?: boolean;
 };
 
 export function ReflectionStep({
   questions,
   responses,
   onResponseChange,
+  collapsible,
 }: ReflectionStepProps) {
   return (
     <CollapsibleStudentStep
@@ -19,12 +21,14 @@ export function ReflectionStep({
       stepNumber={6}
       sectionLabel="정리 작성하기"
       title="예측과 확인 결과를 비교해 기록합니다"
+      collapsible={collapsible}
     >
       <div className="student-question-grid">
         {questions.map((question) => (
           <label className="activity-question" key={question.id}>
             <span>{question.label}</span>
             <textarea
+              data-testid={`reflection-input-${question.id}`}
               value={responses[question.id] ?? ''}
               placeholder={question.placeholder}
               onChange={(event) => {

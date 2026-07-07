@@ -1,5 +1,8 @@
 .playwright-mcp/
 .codex_*.png
+/phase7-student-*.png
+/.tmp-vite-*.log
+**/.tmp-vite-*.log
 .test_runs/
 .secrets/
 *.mp4
@@ -15,6 +18,9 @@ dist/
 dist-single/
 .vite/
 coverage/
+test-results/
+playwright-report/
+blob-report/
 *.tsbuildinfo
 firebase-debug.log
 firestore-debug.log

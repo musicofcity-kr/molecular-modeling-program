@@ -1,6 +1,22 @@
 import { cert, getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
+import {
+  buildJoinCodeHash,
+  buildLegacyJoinCodeHash,
+  buildUnsaltedServerJoinCodeHash,
+  isJoinCodeHashAccepted,
+  normalizeJoinClassCode,
+  normalizeJoinCode,
+} from './join-code-security';
+
+export {
+  buildJoinCodeHash,
+  buildLegacyJoinCodeHash,
+  buildUnsaltedServerJoinCodeHash,
+  normalizeJoinClassCode,
+  normalizeJoinCode,
+};
 
 type JoinClassroomRequest = {
   idToken: string;
@@ -17,6 +33,7 @@ type JoinClassroomApiStatus =
   | 'unauthorized'
   | 'classroom_not_found'
   | 'join_disabled'
+  | 'rate_limited'
   | 'server_error';
 
 type JoinClassroomApiPayload = {
@@ -36,7 +53,15 @@ type ClassroomRecord = {
   exists: boolean;
   joinEnabled?: unknown;
   joinCodeHash?: unknown;
+  joinCodeSalt?: unknown;
+  joinCodeVersion?: unknown;
   activityTemplateIds?: unknown;
+};
+
+type JoinAttemptCounter = {
+  failedCount: number;
+  windowStartedAtMs: number;
+  updatedAt: string;
 };
 
 type JoinClassroomDependencies = {
@@ -47,7 +72,14 @@ type JoinClassroomDependencies = {
     uid: string,
     document: StudentMembershipDocument,
   ) => Promise<void>;
+  getJoinAttemptCounter?: (classCode: string) => Promise<JoinAttemptCounter | null>;
+  writeJoinAttemptCounter?: (
+    classCode: string,
+    counter: JoinAttemptCounter,
+  ) => Promise<void>;
+  resetJoinAttemptCounter?: (classCode: string) => Promise<void>;
   now: () => string;
+  nowMs?: () => number;
 };
 
 type StudentMembershipDocument = {
@@ -78,6 +110,8 @@ const corsHeaders = {
 
 const SERVER_NOT_CONFIGURED_MESSAGE =
   '서버 수업코드 확인 설정이 아직 준비되지 않았습니다. 현재 브라우저에서 활동을 계속할 수 있습니다.';
+const JOIN_ATTEMPT_WINDOW_MS = 10 * 60 * 1000;
+const JOIN_ATTEMPT_MAX_FAILURES = 30;
 
 export default {
   async fetch(request: Request): Promise<Response> {
@@ -210,7 +244,48 @@ export async function handleJoinClassroomBody(
       );
     }
 
+    const nowMs = dependencies.nowMs?.() ?? Date.now();
+    const joinAttemptLimit = await getJoinAttemptLimitState(
+      request.classCode,
+      dependencies,
+      nowMs,
+    );
+
+    if (joinAttemptLimit.blocked) {
+      return jsonResponse(
+        {
+          ok: false,
+          status: 'rate_limited',
+          classCode: request.classCode,
+          studentMessage:
+            '입장 확인코드 오류가 여러 번 발생했습니다. 잠시 후 다시 시도하거나 교사에게 확인해 주세요.',
+          developerMessage: `joinClassroom rate limited before code check: classCode=${request.classCode}, failedCount=${joinAttemptLimit.failedCount}`,
+        },
+        429,
+      );
+    }
+
     if (!isJoinCodeAccepted(classroom, request)) {
+      const updatedCounter = await recordFailedJoinAttempt(
+        request.classCode,
+        dependencies,
+        nowMs,
+      );
+
+      if (updatedCounter.failedCount > JOIN_ATTEMPT_MAX_FAILURES) {
+        return jsonResponse(
+          {
+            ok: false,
+            status: 'rate_limited',
+            classCode: request.classCode,
+            studentMessage:
+              '입장 확인코드 오류가 여러 번 발생했습니다. 잠시 후 다시 시도하거나 교사에게 확인해 주세요.',
+            developerMessage: `joinClassroom rate limited after failed code: classCode=${request.classCode}, failedCount=${updatedCounter.failedCount}`,
+          },
+          429,
+        );
+      }
+
       return jsonResponse(
         {
           ok: false,
@@ -240,6 +315,7 @@ export async function handleJoinClassroomBody(
       decodedToken.uid,
       membership,
     );
+    await resetJoinAttemptCounter(request.classCode, dependencies);
 
     return jsonResponse(
       {
@@ -383,6 +459,8 @@ function createFirebaseAdminDependencies(): JoinClassroomDependencies {
         exists: snapshot.exists,
         joinEnabled: snapshot.get('joinEnabled'),
         joinCodeHash: snapshot.get('joinCodeHash'),
+        joinCodeSalt: snapshot.get('joinCodeSalt'),
+        joinCodeVersion: snapshot.get('joinCodeVersion'),
         activityTemplateIds: publicInfoSnapshot.get('activityTemplateIds'),
       };
     },
@@ -394,7 +472,23 @@ function createFirebaseAdminDependencies(): JoinClassroomDependencies {
         .doc(uid)
         .set(document, { merge: true });
     },
+    getJoinAttemptCounter: async (classCode) => {
+      const snapshot = await db.collection('joinAttempts').doc(classCode).get();
+
+      if (!snapshot.exists) {
+        return null;
+      }
+
+      return normalizeJoinAttemptCounter(snapshot.data());
+    },
+    writeJoinAttemptCounter: async (classCode, counter) => {
+      await db.collection('joinAttempts').doc(classCode).set(counter, { merge: true });
+    },
+    resetJoinAttemptCounter: async (classCode) => {
+      await db.collection('joinAttempts').doc(classCode).delete();
+    },
     now: () => new Date().toISOString(),
+    nowMs: () => Date.now(),
   };
 }
 
@@ -425,60 +519,95 @@ function normalizeClassCode(value: unknown): string {
   return normalizeJoinClassCode(sanitizeString(value, 24));
 }
 
-export function normalizeJoinCode(value: unknown): string {
-  return typeof value === 'string'
-    ? value.trim().replace(/\s+/g, '').toUpperCase().slice(0, 32)
-    : '';
-}
-
-export function normalizeJoinClassCode(value: unknown): string {
-  return typeof value === 'string'
-    ? value
-        .trim()
-        .replace(/[\\/]+/g, '-')
-        .replace(/\s+/g, '-')
-        .toUpperCase()
-        .slice(0, 24)
-    : '';
-}
-
-export function buildJoinCodeHash(input: {
-  classCode: string;
-  joinCode: string;
-}): string {
-  const classCode = normalizeJoinClassCode(input.classCode);
-  const joinCode = normalizeJoinCode(input.joinCode);
-
-  if (!classCode || !joinCode) {
-    return '';
-  }
-
-  return `client-join-code-v1-${fnv1a(`${classCode}:${joinCode}`)}`;
-}
-
-function fnv1a(value: string): string {
-  let hash = 0x811c9dc5;
-
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-
-  return (hash >>> 0).toString(16).padStart(8, '0');
-}
-
 function isJoinCodeAccepted(
   classroom: ClassroomRecord,
   request: JoinClassroomRequest,
 ): boolean {
-  return (
-    typeof classroom.joinCodeHash === 'string' &&
-    classroom.joinCodeHash ===
-      buildJoinCodeHash({
-        classCode: request.classCode,
-        joinCode: request.joinCode,
-      })
-  );
+  return isJoinCodeHashAccepted({
+    storedHash: classroom.joinCodeHash,
+    joinCodeVersion: classroom.joinCodeVersion,
+    classCode: request.classCode,
+    joinCode: request.joinCode,
+    joinCodeSalt: classroom.joinCodeSalt,
+  });
+}
+
+async function getJoinAttemptLimitState(
+  classCode: string,
+  dependencies: JoinClassroomDependencies,
+  nowMs: number,
+): Promise<{ blocked: boolean; failedCount: number }> {
+  const counter = await dependencies.getJoinAttemptCounter?.(classCode);
+
+  if (!counter || isJoinAttemptWindowExpired(counter, nowMs)) {
+    return { blocked: false, failedCount: 0 };
+  }
+
+  return {
+    blocked: counter.failedCount > JOIN_ATTEMPT_MAX_FAILURES,
+    failedCount: counter.failedCount,
+  };
+}
+
+async function recordFailedJoinAttempt(
+  classCode: string,
+  dependencies: JoinClassroomDependencies,
+  nowMs: number,
+): Promise<JoinAttemptCounter> {
+  const existingCounter = await dependencies.getJoinAttemptCounter?.(classCode);
+  const baseCounter =
+    existingCounter && !isJoinAttemptWindowExpired(existingCounter, nowMs)
+      ? existingCounter
+      : {
+          failedCount: 0,
+          windowStartedAtMs: nowMs,
+          updatedAt: dependencies.now(),
+        };
+  const updatedCounter = {
+    failedCount: baseCounter.failedCount + 1,
+    windowStartedAtMs: baseCounter.windowStartedAtMs,
+    updatedAt: dependencies.now(),
+  };
+
+  await dependencies.writeJoinAttemptCounter?.(classCode, updatedCounter);
+
+  return updatedCounter;
+}
+
+async function resetJoinAttemptCounter(
+  classCode: string,
+  dependencies: JoinClassroomDependencies,
+): Promise<void> {
+  await dependencies.resetJoinAttemptCounter?.(classCode);
+}
+
+function isJoinAttemptWindowExpired(
+  counter: JoinAttemptCounter,
+  nowMs: number,
+): boolean {
+  return nowMs - counter.windowStartedAtMs >= JOIN_ATTEMPT_WINDOW_MS;
+}
+
+function normalizeJoinAttemptCounter(value: unknown): JoinAttemptCounter | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  const failedCount =
+    typeof candidate.failedCount === 'number' ? candidate.failedCount : 0;
+  const windowStartedAtMs =
+    typeof candidate.windowStartedAtMs === 'number'
+      ? candidate.windowStartedAtMs
+      : 0;
+  const updatedAt =
+    typeof candidate.updatedAt === 'string' ? candidate.updatedAt : '';
+
+  return {
+    failedCount,
+    windowStartedAtMs,
+    updatedAt,
+  };
 }
 
 function normalizeActivityTemplateIds(value: unknown): string[] {

@@ -1327,7 +1327,8 @@ teacher signs in
   -> client POSTs ID token and classroom draft to /api/create-classroom
   -> Vercel Function verifies the ID token with Firebase Admin SDK
   -> Function checks teacher: true or role: "teacher" custom claim
-  -> Function writes classrooms/{classCode}
+  -> Function generates a per-classroom joinCodeSalt
+  -> Function writes classrooms/{classCode} with server-join-code-v3 salted SHA-256 joinCodeHash
   -> Function writes classrooms/{classCode}/public/info
   -> Function writes classrooms/{classCode}/activityTemplates/{templateId}
 ```
@@ -1342,16 +1343,16 @@ browser does not directly create classroom documents in the production path.
 student anonymous auth returns Firebase ID token
   -> client POSTs idToken, classCode, joinCode, displayName, anonymousStudentId to /api/join-classroom
   -> Vercel Function verifies ID token with Firebase Admin SDK
-  -> Function checks classrooms/{classCode}.joinEnabled and joinCodeHash
+  -> Function checks classrooms/{classCode}.joinEnabled, joinCodeHash, joinCodeVersion, and joinCodeSalt
   -> Function writes classrooms/{classCode}/students/{uid}
   -> later Firestore submission write can satisfy Security Rules
 ```
 
 The endpoint must not accept a raw UID without verifying the Firebase ID token.
-Public class codes are not sufficient for membership creation. The current MVP
-uses a client-generated `joinCodeHash`; the production hardening step is moving
-join-code hash generation to a trusted teacher/server endpoint with a server-side
-salt or pepper.
+Public class codes are not sufficient for membership creation. New server
+classrooms use `server-join-code-v3` salted SHA-256 hashes. Existing v2 server
+hashes and v1 client hashes are accepted only for compatibility with classrooms
+created before this hardening step.
 
 ### Student submission flow
 

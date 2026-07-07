@@ -6,6 +6,7 @@ type ShapeViewerSectionProps = {
   actual3DSlot: ReactNode;
   comparisonSlot: ReactNode;
   external3DSearchSlot?: ReactNode;
+  collapsible?: boolean;
 };
 
 export function ShapeViewerSection({
@@ -13,6 +14,7 @@ export function ShapeViewerSection({
   actual3DSlot,
   comparisonSlot,
   external3DSearchSlot,
+  collapsible,
 }: ShapeViewerSectionProps) {
   return (
     <>
@@ -23,6 +25,7 @@ export function ShapeViewerSection({
         stepNumber={5}
         sectionLabel="입체 구조 보기"
         title="예측 모형과 3D 구조를 구분해서 관찰합니다"
+        collapsible={collapsible}
       >
         {external3DSearchSlot}
 

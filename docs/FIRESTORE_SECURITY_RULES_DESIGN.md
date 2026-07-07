@@ -31,6 +31,12 @@ SDK로 교사 ID token과 teacher custom claim을 검증한 뒤 수업방 문서
 `joinCodeHash`를 확인한 뒤 `/classrooms/{classCode}/students/{uid}` 멤버십
 문서를 생성한다. 브라우저는 여전히 멤버십 문서를 직접 생성할 수 없다.
 
+2026-07-07 업데이트에서는 신규 서버 수업방의 `joinCodeHash`를
+`server-join-code-v3` salted SHA-256 형식으로 변경했다. 수업방별 랜덤
+`joinCodeSalt`를 classroom 문서에 저장하고, `/api/join-classroom`은 v3 salt
+검증을 우선 사용한다. 기존 v2 서버 해시와 v1 client 해시는 기존 교실 호환
+검증 전용으로만 유지한다.
+
 ## 2. 현재 유지할 원칙
 
 - 학생은 회원가입하지 않는 UX를 유지한다.
@@ -82,6 +88,8 @@ classrooms/{classroomId}
   teacherUids: map<string, true>
   title: string
   joinCodeHash: string
+  joinCodeSalt: string
+  joinCodeVersion: 3
   joinEnabled: boolean
   createdAt: timestamp
   updatedAt: timestamp
@@ -251,8 +259,8 @@ custom claim 읽기와 UI 게이트 분리는 완료. custom claim 발급 관리
 
 - 수업코드를 클라이언트 규칙만으로 검증하려 하면 우회 가능성이 크다.
 - teacher custom claim 발급은 Admin SDK가 있는 privileged server에서만 해야 한다.
-- 현재 수업방 생성에서 `joinCodeHash`는 클라이언트 생성 MVP 값이며 production 입장 secret의 최종 형태로 사용하면 안 된다.
-- `/api/join-classroom`은 existing classroom + joinEnabled + joinCodeHash를 확인한다. 현재 joinCodeHash는 교사용 클라이언트에서 생성되는 MVP 방식이므로, production 강화 단계에서는 서버 측 salt/pepper 기반 생성 또는 교사용 서버 endpoint로 이전해야 한다.
+- 신규 서버 수업방의 `joinCodeHash`는 수업방별 `joinCodeSalt`가 포함된 v3 SHA-256 값이다. 기존 v1/v2 교실은 호환을 위해 계속 검증하지만, 신규 생성에는 사용하지 않는다.
+- salt는 비밀값이 아니므로 짧은 입장 확인코드의 오프라인 추측 위험을 완전히 제거하지는 않는다. 운영 단계에서는 충분한 길이의 입장 확인코드, 코드 회전, 실패 횟수 제한을 함께 유지해야 한다.
 - 학생 닉네임에도 개인정보가 들어올 수 있으므로 길이 제한과 안내 문구가 필요하다.
 - AI 피드백 payload에 개인정보나 원본 로그가 섞이지 않도록 서버 쪽 필터가 필요하다.
 - Firestore Rules 테스트 없이 production write를 켜면 교사용 자료 또는 학생 제출이 노출될 수 있다.

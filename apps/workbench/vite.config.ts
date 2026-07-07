@@ -23,4 +23,18 @@ function ketcherRequireShimChunk(): Plugin {
 
 export default defineConfig({
   plugins: [react(), ketcherRequireShimChunk()],
+  optimizeDeps: {
+    entries: ['index.html', 'src/main.tsx'],
+    include: ['ketcher-core', 'ketcher-react', 'ketcher-standalone', '3dmol'],
+  },
+  server: {
+    watch: {
+      ignored: [
+        '**/dist/**',
+        '**/dist-single/**',
+        '**/test-results/**',
+        '**/playwright-report/**',
+      ],
+    },
+  },
 });

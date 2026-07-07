@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
   App,
+  EditorLoadingFallback,
   getReturnedStudentFeedbacksForSession,
   resolveActivityIdForExample,
   resolveActivityTemplateForResult,
@@ -53,6 +54,17 @@ describe('App scaffold', () => {
     teacherAuthorizationStatus: 'authorized',
     isEmergencyAccess: true,
   };
+
+  it('renders the Ketcher loading fallback with the classroom-friendly delay message', () => {
+    const markup = renderToStaticMarkup(<EditorLoadingFallback />);
+
+    expect(markup).toContain('data-testid="chemical-editor"');
+    expect(markup).toContain('그리기 도구 준비 중');
+    expect(markup).toContain('분자 편집기를 불러오는 중입니다');
+    expect(markup).toContain('최초 1회');
+    expect(markup).toContain('네트워크에 따라 수십 초');
+    expect(markup).not.toContain('Ketcher');
+  });
 
   it('renders the ethics guide gate before entering the app', () => {
     const markup = renderToStaticMarkup(<App />);
@@ -140,54 +152,53 @@ describe('App scaffold', () => {
     expect(markup).not.toContain('Phase 15: Classroom MVP Release Candidate');
     expect(markup).toContain('교사용 안내');
     expect(markup).toContain('오늘의 탐구 흐름');
-    expect(markup).toContain('student-step-tab');
-    expect(markup).toContain('panel-tab-button');
-    expect(markup).toContain('aria-expanded="true"');
-    expect(markup).toContain('접기');
+    expect(markup).toContain('data-testid="student-wizard-stage"');
+    expect(markup).toContain('data-current-step="1"');
+    expect(markup).toContain('student-wizard-action-bar');
     expect(markup).toContain('01');
     expect(markup).toContain('활동 선택');
-    expect(markup).toContain('01 활동 선택 단계로 이동');
+    expect(markup).toContain('01 활동 선택 단계 현재');
     expect(markup).toContain('id="student-step-1"');
     expect(markup).toContain('02');
     expect(markup).toContain('예측 입력');
-    expect(markup).toContain('02 예측 입력 단계로 이동');
-    expect(markup).toContain('id="student-step-2"');
+    expect(markup).toContain('02 예측 입력 단계 예정');
     expect(markup).toContain('03');
     expect(markup).toContain('구조 그리기');
-    expect(markup).toContain('03 구조 그리기 단계로 이동');
-    expect(markup).toContain('id="student-step-3"');
+    expect(markup).toContain('03 구조 그리기 단계 예정');
     expect(markup).toContain('04');
     expect(markup).toContain('구조 확인');
-    expect(markup).toContain('04 구조 확인 단계로 이동');
-    expect(markup).toContain('id="student-step-4"');
+    expect(markup).toContain('04 구조 확인 단계 예정');
     expect(markup).toContain('05');
     expect(markup).toContain('입체 구조 보기');
-    expect(markup).toContain('05 입체 구조 보기 단계로 이동');
-    expect(markup).toContain('id="student-step-5"');
+    expect(markup).toContain('05 입체 구조 보기 단계 예정');
     expect(markup).toContain('06');
     expect(markup).toContain('비교 기록');
-    expect(markup).toContain('06 비교 기록 단계로 이동');
-    expect(markup).toContain('id="student-step-6"');
+    expect(markup).toContain('06 비교 기록 단계 예정');
     expect(markup).toContain('07');
     expect(markup).toContain('결과 정리');
-    expect(markup).toContain('07 결과 정리 단계로 이동');
-    expect(markup).toContain('id="student-step-7"');
+    expect(markup).toContain('07 결과 정리 단계 예정');
     expect(markup).toContain('오늘의 활동 선택하기');
-    expect(markup).toContain('예측 입력하기');
-    expect(markup).toContain('분자 편집 영역');
-    expect(markup).toContain('분자 그리기');
-    expect(markup).toContain('내 구조 확인하기');
-    expect(markup).toContain('확인된 값만 결과로 봅니다');
-    expect(markup).toContain('입체 구조 보기');
-    expect(markup).toContain('정리 작성하기');
-    expect(markup).toContain('예상 입체 모형 보기');
-    expect(markup).toContain('참고 3D 구조 보기');
-    expect(markup).toContain('구조 비교하기');
-    expect(markup).toContain('활동 결과 정리');
-    expect(markup).toContain('임시 저장하기');
-    expect(markup).toContain('보고서로 저장하기');
-    expect(markup).toContain('활동지 인쇄하기');
-    expect(markup).toContain('이 분자의 3D 자료가 아직 준비되지 않았습니다');
+    expect(markup).toContain('다음: 예측 입력 →');
+    expect(markup).not.toContain('id="student-step-2"');
+    expect(markup).not.toContain('id="student-step-3"');
+    expect(markup).not.toContain('id="student-step-4"');
+    expect(markup).not.toContain('id="student-step-5"');
+    expect(markup).not.toContain('id="student-step-6"');
+    expect(markup).not.toContain('id="student-step-7"');
+    expect(markup).not.toContain('예측 입력하기');
+    expect(markup).not.toContain('분자 편집 영역');
+    expect(markup).not.toContain('분자 그리기');
+    expect(markup).not.toContain('내 구조 확인하기');
+    expect(markup).not.toContain('확인된 값만 결과로 봅니다');
+    expect(markup).not.toContain('정리 작성하기');
+    expect(markup).not.toContain('예상 입체 모형 보기');
+    expect(markup).not.toContain('참고 3D 구조 보기');
+    expect(markup).not.toContain('구조 비교하기');
+    expect(markup).not.toContain('활동 결과 정리');
+    expect(markup).not.toContain('임시 저장하기');
+    expect(markup).not.toContain('보고서로 저장하기');
+    expect(markup).not.toContain('활동지 인쇄하기');
+    expect(markup).not.toContain('이 분자의 3D 자료가 아직 준비되지 않았습니다');
     expect(markup).not.toContain('구조 정보');
     expect(markup).not.toContain('Canonical SMILES');
     expect(markup).not.toContain('아직 추출된 MOL 데이터');
@@ -205,12 +216,11 @@ describe('App scaffold', () => {
     expect(markup).not.toContain('개발자 로그 / 검증 결과');
     expect(markup).not.toContain('개발자 로그 보기');
     expect(markup).not.toContain('교사용 지도 패널');
-    expect(markup).toContain('분자 예시 불러오기');
-    expect(markup).toContain('기본 분자');
-    expect(markup).toContain('유기 기초');
-    expect(markup).toContain('생활 속 분자');
-    expect(markup).toContain('물 (Water)');
-    expect(markup).toContain('아스피린 (Aspirin)');
+    expect(markup).not.toContain('분자 예시 불러오기');
+    expect(markup).toContain(activityTemplates[0].title);
+    expect(markup).toContain(activityTemplates[0].targetMoleculeName);
+    expect(markup).not.toContain('물 (Water)');
+    expect(markup).not.toContain('아스피린 (Aspirin)');
     expect(markup).not.toContain('data-testid="formula-output"');
     expect(markup).not.toContain('data-testid="molecular-weight-output"');
   });

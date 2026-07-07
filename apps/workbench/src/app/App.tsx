@@ -168,7 +168,7 @@ const INITIAL_STRUCTURE_COMPARISON_OBSERVATION = {
   studentReflection: '',
 };
 
-function EditorLoadingFallback() {
+export function EditorLoadingFallback() {
   return (
     <section className="workspace-panel editor-panel" data-testid="chemical-editor">
       <div className="panel-heading editor-heading">
@@ -176,10 +176,20 @@ function EditorLoadingFallback() {
           <p className="section-label">좌측</p>
           <h2>분자 편집 영역</h2>
         </div>
-        <span className="status-pill">그리기 도구 준비 중</span>
+        <span
+          className="status-pill"
+          data-testid="chemical-editor-status"
+          data-ready="false"
+        >
+          그리기 도구 준비 중
+        </span>
       </div>
       <div className="ketcher-host editor-loading-state">
-        분자 그리기 도구를 불러오는 중입니다.
+        <span className="loading-spinner" aria-hidden="true" />
+        <span>
+          분자 편집기를 불러오는 중입니다 (최초 1회, 네트워크에 따라 수십 초
+          소요될 수 있습니다)
+        </span>
       </div>
     </section>
   );
@@ -504,6 +514,7 @@ function WorkbenchApp({
     initialRoute ?? getInitialAppRoute(),
   );
   const [appMode, setAppMode] = useState<AppMode>('activity');
+  const [currentLearningStep, setCurrentLearningStep] = useState<LearningStepId>(1);
   const [userMode, setUserMode] = useState<UserMode>(
     getUserModeForRoute(initialRoute ?? getInitialAppRoute()),
   );
@@ -613,6 +624,7 @@ function WorkbenchApp({
       )
     ) {
       setSelectedActivityId(currentActivityTemplates[0].id);
+      setCurrentLearningStep(1);
     }
   }, [currentActivityTemplates, selectedActivityId]);
 
@@ -644,6 +656,7 @@ function WorkbenchApp({
 
   const handleStudentEntered = useCallback(() => {
     setAppMode('activity');
+    setCurrentLearningStep(1);
     navigateToRoute('student-workbench');
   }, [navigateToRoute]);
 
@@ -802,7 +815,9 @@ function WorkbenchApp({
     });
   }, [isVseprModuleOpen, selectedActivityUsesVsepr, vseprAnalysis]);
 
-  const extractAndValidateCurrentStructure = async (example?: ExampleMolecule) => {
+  const extractAndValidateCurrentStructure = async (
+    example?: ExampleMolecule,
+  ): Promise<boolean> => {
     const structure = await editorRef.current?.extractStructure();
 
     if (!structure) {
@@ -906,18 +921,20 @@ function WorkbenchApp({
           ? buildExample3DInput(validatedExampleForHandoff)
           : retained3DInput,
       );
+      return true;
     } else {
       console.info('[RDKit validation]', result.developerLogs);
       appendLog(createLog('error', result.studentMessage));
       setValidatedExampleId(null);
       setMolecule3DInput(null);
       resetVseprAnalysis();
+      return false;
     }
   };
 
-  const handleExtractAndValidate = async () => {
+  const handleExtractAndValidate = async (): Promise<boolean> => {
     try {
-      await extractAndValidateCurrentStructure();
+      return await extractAndValidateCurrentStructure();
     } catch (error) {
       setMolecule3DInput(null);
       setValidatedExampleId(null);
@@ -933,6 +950,7 @@ function WorkbenchApp({
           normalizeKetcherError(error, '구조 데이터 추출 중 오류가 발생했습니다.'),
         ),
       );
+      return false;
     }
   };
 
@@ -983,6 +1001,7 @@ function WorkbenchApp({
 
     if (nextActivityId !== selectedActivityId) {
       setSelectedActivityId(nextActivityId);
+      setCurrentLearningStep(1);
     }
 
     resetCurrentStructureState();
@@ -1008,6 +1027,7 @@ function WorkbenchApp({
     });
 
     setSelectedActivityId(activityId);
+    setCurrentLearningStep(1);
     setSelectedExampleId(nextExampleId);
     resetCurrentStructureState();
 
@@ -1996,28 +2016,6 @@ function WorkbenchApp({
         onSelectCandidate={handleSelectPubChemCandidate}
       />
     ) : null;
-  const hasPredictionResponse =
-    selectedActivity?.predictionQuestions.some((question) =>
-      Boolean(currentActivityResponses[question.id]?.trim()),
-    ) ?? false;
-  const hasReflectionResponse =
-    selectedActivity?.reflectionQuestions.some((question) =>
-      Boolean(currentActivityResponses[question.id]?.trim()),
-    ) ?? false;
-  const hasComparisonObservation = Object.values(
-    structureComparisonObservationText,
-  ).some((value) => Boolean(value.trim()));
-  const currentLearningStep: LearningStepId = hasReflectionResponse
-    ? 7
-    : hasComparisonObservation
-      ? 6
-      : molecule3DInput || vseprModelStatus === 'rendered'
-        ? 5
-        : validationResult
-          ? 4
-          : appMode === 'free_draw' || hasPredictionResponse
-            ? 3
-            : 1;
   const studentFreeDrawView = (
     <div className="student-activity-shell" data-testid="student-free-draw-shell">
       <MoleculeDrawingStep
@@ -2225,8 +2223,11 @@ function WorkbenchApp({
         />
       ) : null}
 
-      {userMode === 'student' ? (
-        <LearningProgressRail currentStep={currentLearningStep} />
+      {isStudentActivityView ? (
+        <LearningProgressRail
+          currentStep={currentLearningStep}
+          onStepSelect={setCurrentLearningStep}
+        />
       ) : null}
 
       {isStudentActivityView ? (
@@ -2245,11 +2246,13 @@ function WorkbenchApp({
           external3DSearchSlot={studentExternal3DSearchSection}
           comparisonSlot={comparisonSection}
           resultSlot={resultSection}
+          currentStep={currentLearningStep}
           onSelectActivity={handleSelectActivity}
           onResponseChange={handleActivityResponseChange}
           onSelectExample={handleSelectExample}
           onLoadExample={handleLoadExample}
           onConfirmStructure={handleExtractAndValidate}
+          onStepChange={setCurrentLearningStep}
         />
       ) : isStudentFreeDrawView ? (
         studentFreeDrawView

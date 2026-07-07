@@ -9,6 +9,7 @@ type MoleculeDrawingStepProps = {
   onSelectExample: (exampleId: string) => void;
   onLoadExample: () => void;
   onConfirmStructure: () => void;
+  collapsible?: boolean;
 };
 
 export function MoleculeDrawingStep({
@@ -18,6 +19,7 @@ export function MoleculeDrawingStep({
   onSelectExample,
   onLoadExample,
   onConfirmStructure,
+  collapsible,
 }: MoleculeDrawingStepProps) {
   const categories = Array.from(new Set(examples.map((example) => example.category)));
 
@@ -29,6 +31,7 @@ export function MoleculeDrawingStep({
       stepNumber={3}
       sectionLabel="분자 그리기"
       title="분자 구조를 그리거나 예제를 불러옵니다"
+      collapsible={collapsible}
     >
       <div className="student-drawing-actions">
         <label className="example-picker">
@@ -54,7 +57,12 @@ export function MoleculeDrawingStep({
             ))}
           </select>
         </label>
-        <button className="secondary-action" type="button" onClick={onLoadExample}>
+        <button
+          className="secondary-action"
+          data-testid="student-load-example-button"
+          type="button"
+          onClick={onLoadExample}
+        >
           분자 예시 불러오기
         </button>
         <button

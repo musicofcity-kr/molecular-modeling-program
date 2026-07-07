@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildJoinCodeHash as buildApiJoinCodeHash,
+  buildLegacyJoinCodeHash,
+  buildUnsaltedServerJoinCodeHash,
   buildStudentMembershipDocument,
   handleJoinClassroomBody,
   parseJoinClassroomRequest,
   resolveAdminCredentialConfig,
 } from '../../../api/join-classroom';
-import { buildJoinCodeHash as buildClientJoinCodeHash } from './classroomJoinCode';
+
+const V3_JOIN_CODE_SALT = '0123456789abcdef0123456789abcdef';
 
 describe('join-classroom API helpers', () => {
   it('normalizes and validates a trusted classroom join request', () => {
@@ -30,10 +33,25 @@ describe('join-classroom API helpers', () => {
     });
   });
 
-  it('keeps server and client join-code hashing consistent', () => {
+  it('builds a versioned salted SHA-256 join-code hash for server checks', () => {
     const input = { classCode: ' chem/101 ', joinCode: ' a1 b2 ' };
 
-    expect(buildApiJoinCodeHash(input)).toBe(buildClientJoinCodeHash(input));
+    expect(buildApiJoinCodeHash({ ...input, joinCodeSalt: V3_JOIN_CODE_SALT })).toMatch(
+      /^server-join-code-v3-[a-f0-9]{64}$/,
+    );
+    expect(buildApiJoinCodeHash({ ...input, joinCodeSalt: V3_JOIN_CODE_SALT })).toBe(
+      buildApiJoinCodeHash({
+        classCode: 'CHEM-101',
+        joinCode: 'A1B2',
+        joinCodeSalt: V3_JOIN_CODE_SALT,
+      }),
+    );
+    expect(buildApiJoinCodeHash({ ...input, joinCodeSalt: V3_JOIN_CODE_SALT })).not.toBe(
+      buildApiJoinCodeHash({
+        ...input,
+        joinCodeSalt: 'abcdef0123456789abcdef0123456789',
+      }),
+    );
   });
 
   it('builds a minimal student membership document without student personal identifiers', () => {
@@ -76,6 +94,7 @@ describe('join-classroom API helpers', () => {
 
   it('creates a membership document only after token and classroom checks pass', async () => {
     const writeMembership = vi.fn().mockResolvedValue(undefined);
+    const resetJoinAttemptCounter = vi.fn().mockResolvedValue(undefined);
 
     const response = await handleJoinClassroomBody(
       {
@@ -93,7 +112,10 @@ describe('join-classroom API helpers', () => {
           joinCodeHash: buildApiJoinCodeHash({
             classCode: 'CHEM-101',
             joinCode: 'A1B2',
+            joinCodeSalt: V3_JOIN_CODE_SALT,
           }),
+          joinCodeSalt: V3_JOIN_CODE_SALT,
+          joinCodeVersion: 3,
           activityTemplateIds: [
             'draw-water',
             'draw-methane',
@@ -102,6 +124,7 @@ describe('join-classroom API helpers', () => {
           ],
         }),
         writeMembership,
+        resetJoinAttemptCounter,
         now: () => '2026-07-02T00:00:00.000Z',
       },
     );
@@ -122,6 +145,103 @@ describe('join-classroom API helpers', () => {
         anonymousStudentId: 'anon-123',
       }),
     );
+    expect(resetJoinAttemptCounter).toHaveBeenCalledWith('CHEM-101');
+  });
+
+  it('keeps existing v1 classrooms joinable when joinCodeVersion is missing', async () => {
+    const writeMembership = vi.fn().mockResolvedValue(undefined);
+
+    const response = await handleJoinClassroomBody(
+      {
+        idToken: 'token-123',
+        classCode: 'CHEM-101',
+        joinCode: 'A1B2',
+        displayName: '익명 학생',
+        anonymousStudentId: 'anon-123',
+      },
+      {
+        verifyIdToken: vi.fn().mockResolvedValue({ uid: 'firebase-student-uid' }),
+        getClassroom: vi.fn().mockResolvedValue({
+          exists: true,
+          joinEnabled: true,
+          joinCodeHash: buildLegacyJoinCodeHash({
+            classCode: 'CHEM-101',
+            joinCode: 'A1B2',
+          }),
+        }),
+        writeMembership,
+        now: () => '2026-07-02T00:00:00.000Z',
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(writeMembership).toHaveBeenCalled();
+  });
+
+  it('keeps existing v2 server classrooms joinable when joinCodeVersion is 2', async () => {
+    const writeMembership = vi.fn().mockResolvedValue(undefined);
+
+    const response = await handleJoinClassroomBody(
+      {
+        idToken: 'token-123',
+        classCode: 'CHEM-101',
+        joinCode: 'A1B2',
+        displayName: '익명 학생',
+        anonymousStudentId: 'anon-123',
+      },
+      {
+        verifyIdToken: vi.fn().mockResolvedValue({ uid: 'firebase-student-uid' }),
+        getClassroom: vi.fn().mockResolvedValue({
+          exists: true,
+          joinEnabled: true,
+          joinCodeHash: buildUnsaltedServerJoinCodeHash({
+            classCode: 'CHEM-101',
+            joinCode: 'A1B2',
+          }),
+          joinCodeVersion: 2,
+        }),
+        writeMembership,
+        now: () => '2026-07-02T00:00:00.000Z',
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(writeMembership).toHaveBeenCalled();
+  });
+
+  it('rejects v3 server classrooms when the stored salt is missing', async () => {
+    const writeMembership = vi.fn().mockResolvedValue(undefined);
+
+    const response = await handleJoinClassroomBody(
+      {
+        idToken: 'token-123',
+        classCode: 'CHEM-101',
+        joinCode: 'A1B2',
+        displayName: '익명 학생',
+        anonymousStudentId: 'anon-123',
+      },
+      {
+        verifyIdToken: vi.fn().mockResolvedValue({ uid: 'firebase-student-uid' }),
+        getClassroom: vi.fn().mockResolvedValue({
+          exists: true,
+          joinEnabled: true,
+          joinCodeHash: buildApiJoinCodeHash({
+            classCode: 'CHEM-101',
+            joinCode: 'A1B2',
+            joinCodeSalt: V3_JOIN_CODE_SALT,
+          }),
+          joinCodeVersion: 3,
+        }),
+        writeMembership,
+        getJoinAttemptCounter: vi.fn().mockResolvedValue(null),
+        writeJoinAttemptCounter: vi.fn().mockResolvedValue(undefined),
+        now: () => '2026-07-02T00:00:00.000Z',
+        nowMs: () => 1000,
+      },
+    );
+
+    expect(response.status).toBe(403);
+    expect(writeMembership).not.toHaveBeenCalled();
   });
 
   it('does not create membership when the classroom is missing', async () => {
@@ -156,6 +276,7 @@ describe('join-classroom API helpers', () => {
 
   it('rejects membership creation when the join code does not match the classroom hash', async () => {
     const writeMembership = vi.fn().mockResolvedValue(undefined);
+    const writeJoinAttemptCounter = vi.fn().mockResolvedValue(undefined);
 
     const response = await handleJoinClassroomBody(
       {
@@ -173,10 +294,16 @@ describe('join-classroom API helpers', () => {
           joinCodeHash: buildApiJoinCodeHash({
             classCode: 'CHEM-101',
             joinCode: 'A1B2',
+            joinCodeSalt: V3_JOIN_CODE_SALT,
           }),
+          joinCodeSalt: V3_JOIN_CODE_SALT,
+          joinCodeVersion: 3,
         }),
         writeMembership,
+        getJoinAttemptCounter: vi.fn().mockResolvedValue(null),
+        writeJoinAttemptCounter,
         now: () => '2026-07-02T00:00:00.000Z',
+        nowMs: () => 1000,
       },
     );
     const body = await response.json();
@@ -187,5 +314,103 @@ describe('join-classroom API helpers', () => {
       status: 'join_disabled',
     });
     expect(writeMembership).not.toHaveBeenCalled();
+    expect(writeJoinAttemptCounter).toHaveBeenCalledWith(
+      'CHEM-101',
+      expect.objectContaining({
+        failedCount: 1,
+        windowStartedAtMs: 1000,
+      }),
+    );
+  });
+
+  it('rate limits repeated failed join-code attempts in a 10 minute window', async () => {
+    const writeMembership = vi.fn().mockResolvedValue(undefined);
+
+    const response = await handleJoinClassroomBody(
+      {
+        idToken: 'token-123',
+        classCode: 'CHEM-101',
+        joinCode: 'WRONG',
+        displayName: '익명 학생',
+        anonymousStudentId: 'anon-123',
+      },
+      {
+        verifyIdToken: vi.fn().mockResolvedValue({ uid: 'firebase-student-uid' }),
+        getClassroom: vi.fn().mockResolvedValue({
+          exists: true,
+          joinEnabled: true,
+          joinCodeHash: buildApiJoinCodeHash({
+            classCode: 'CHEM-101',
+            joinCode: 'A1B2',
+            joinCodeSalt: V3_JOIN_CODE_SALT,
+          }),
+          joinCodeSalt: V3_JOIN_CODE_SALT,
+          joinCodeVersion: 3,
+        }),
+        writeMembership,
+        getJoinAttemptCounter: vi.fn().mockResolvedValue({
+          failedCount: 31,
+          windowStartedAtMs: 1000,
+          updatedAt: '2026-07-02T00:00:00.000Z',
+        }),
+        now: () => '2026-07-02T00:01:00.000Z',
+        nowMs: () => 60_000,
+      },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(429);
+    expect(body).toMatchObject({
+      ok: false,
+      status: 'rate_limited',
+    });
+    expect(writeMembership).not.toHaveBeenCalled();
+  });
+
+  it('starts a fresh attempt window after 10 minutes have elapsed', async () => {
+    const writeMembership = vi.fn().mockResolvedValue(undefined);
+    const writeJoinAttemptCounter = vi.fn().mockResolvedValue(undefined);
+
+    const response = await handleJoinClassroomBody(
+      {
+        idToken: 'token-123',
+        classCode: 'CHEM-101',
+        joinCode: 'WRONG',
+        displayName: '익명 학생',
+        anonymousStudentId: 'anon-123',
+      },
+      {
+        verifyIdToken: vi.fn().mockResolvedValue({ uid: 'firebase-student-uid' }),
+        getClassroom: vi.fn().mockResolvedValue({
+          exists: true,
+          joinEnabled: true,
+          joinCodeHash: buildApiJoinCodeHash({
+            classCode: 'CHEM-101',
+            joinCode: 'A1B2',
+            joinCodeSalt: V3_JOIN_CODE_SALT,
+          }),
+          joinCodeSalt: V3_JOIN_CODE_SALT,
+          joinCodeVersion: 3,
+        }),
+        writeMembership,
+        getJoinAttemptCounter: vi.fn().mockResolvedValue({
+          failedCount: 31,
+          windowStartedAtMs: 1000,
+          updatedAt: '2026-07-02T00:00:00.000Z',
+        }),
+        writeJoinAttemptCounter,
+        now: () => '2026-07-02T00:11:00.000Z',
+        nowMs: () => 601_000,
+      },
+    );
+
+    expect(response.status).toBe(403);
+    expect(writeJoinAttemptCounter).toHaveBeenCalledWith(
+      'CHEM-101',
+      expect.objectContaining({
+        failedCount: 1,
+        windowStartedAtMs: 601_000,
+      }),
+    );
   });
 });

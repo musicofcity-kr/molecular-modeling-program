@@ -57,6 +57,7 @@ export function StudentEntryScreen({
         <label>
           <span>수업코드</span>
           <input
+            data-testid="student-class-code-input"
             aria-label="수업코드"
             value={classCode}
             placeholder="예: CHEM-101"
@@ -68,6 +69,7 @@ export function StudentEntryScreen({
         <label>
           <span>입장 확인코드</span>
           <input
+            data-testid="student-join-code-input"
             aria-label="입장 확인코드"
             value={joinCode}
             placeholder="교사가 알려준 코드"
@@ -79,6 +81,7 @@ export function StudentEntryScreen({
         <label>
           <span>수업용 닉네임 또는 익명 ID</span>
           <input
+            data-testid="student-nickname-input"
             aria-label="수업용 닉네임 또는 익명 ID"
             value={nickname}
             placeholder="예: 3조-학생A"
@@ -88,7 +91,12 @@ export function StudentEntryScreen({
           />
         </label>
         {message ? <p className="entry-message warning">{message}</p> : null}
-        <button className="primary-action" type="submit" disabled={isEntering}>
+        <button
+          className="primary-action"
+          data-testid="student-entry-submit-button"
+          type="submit"
+          disabled={isEntering}
+        >
           {isEntering ? '입장 준비 중' : '분자구조 모델링 활동 시작하기'}
         </button>
       </form>

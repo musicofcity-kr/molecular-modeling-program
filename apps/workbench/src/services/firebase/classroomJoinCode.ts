@@ -29,6 +29,8 @@ export function buildJoinCodeHash(input: {
   return `client-join-code-v1-${fnv1a(`${classCode}:${joinCode}`)}`;
 }
 
+export const CLIENT_JOIN_CODE_HASH_VERSION = 1;
+
 function fnv1a(value: string): string {
   let hash = 0x811c9dc5;
 

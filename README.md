@@ -1,8 +1,16 @@
 # 다양한 분자의 분자구조 모델링
 
+[![CI](https://github.com/musicofcity-kr/molecular-modeling-program/actions/workflows/ci.yml/badge.svg)](https://github.com/musicofcity-kr/molecular-modeling-program/actions/workflows/ci.yml)
+
 고등학교 화학 수업에서 분자 구조를 그리고 확인하는 교육용 웹앱입니다.
 
 이 프로젝트는 수업 활동에 필요한 분자 구조 입력, 검증, 3D 관찰, 활동 결과 정리를 안정적으로 제공하는 것을 목표로 합니다.
+
+<!-- TODO: 배포 URL -->
+
+| 학생 활동 흐름 | 입체 구조 보기 | 교사용 안내 |
+|---|---|---|
+| ![학생 활동 흐름](docs/readme-assets/student-activity-overview.png) | ![입체 구조 보기](docs/readme-assets/shape-viewer-section.png) | ![교사용 안내](docs/readme-assets/teacher-mode.png) |
 
 ## 현재 상태
 
@@ -15,6 +23,17 @@
 - 윤리 가이드 게이트, 개인정보처리방침, 이용약관 화면 포함
 - Firebase Auth/Firestore 기반 수업방, 학생 제출, 교사 피드백 반환 흐름
 - 교사용 AI 피드백 초안 생성 API 연결
+
+## 기술 스택
+
+| 영역 | 사용 기술 | 현재 버전 기준 |
+|---|---|---|
+| 프론트엔드 | React, Vite, TypeScript | React 19.1 / Vite 6.3 / TypeScript 5.8 |
+| 2D 분자 편집 | Ketcher | 3.15 |
+| 구조 확인 | RDKit.js | 2025.3 |
+| 3D 시각화 | 3Dmol.js | 2.5 |
+| 인증/저장 | Firebase Web SDK / Firebase Admin SDK | Firebase 12.15 / Admin 13.5 |
+| 테스트 | Vitest | 3.2 |
 
 ## 앱 위치
 
@@ -45,7 +64,13 @@ cd apps/workbench
 npm run typecheck
 npm test
 npm run build
+npm run test:e2e
 ```
+
+`npm run test:e2e`는 Playwright 기반 UI 흐름 검증입니다. 학생/교사
+수업 흐름의 화면 무결성을 확인하며, Firebase/Vercel 서버 API는 테스트
+내부 mock 응답으로 경계를 고정합니다. RDKit.js 구조 확인은 mock하지 않고
+물 예제의 실제 분자식과 평균 분자량을 확인합니다.
 
 ## 학생 사용 흐름
 
@@ -57,7 +82,7 @@ npm run build
 6. `내 구조 확인하기`로 RDKit.js 검증값인 분자식과 평균 분자량을 확인합니다.
 7. 참고 3D 구조와 입체 구조 예측을 관찰하고 비교합니다.
 8. 활동 결과를 정리한 뒤 `교사에게 제출하기`를 누릅니다.
-9. 교사가 피드백을 반환하면 같은 수업방에 다시 입장해 피드백을 확인합니다.
+9. 교사가 피드백을 반환하면 같은 수업방에서 `교사 피드백 확인하기`를 눌러 피드백을 확인합니다.
 
 ## 교사 사용 흐름
 
@@ -208,7 +233,7 @@ AI 피드백은 자동 채점이 아닙니다. 학생에게 전달하기 전 교
 | 학생 화면에 활동이 너무 많이 보임 | 교사용 수업방에서 선택한 활동 템플릿이 제대로 저장되었는지 확인합니다. |
 | 서버 제출 목록이 보이지 않음 | 교사 custom claim, 수업코드, Firestore rules, Firebase Admin 환경변수를 확인합니다. |
 | AI 피드백이 로컬 초안으로 표시됨 | Vercel에 `GEMINI_API_KEY` 또는 `AI_FEEDBACK_ENDPOINT`가 등록되어 있는지 확인합니다. |
-| 학생에게 피드백이 보이지 않음 | 교사가 `교사 확인 후 학생에게 전달`을 눌렀는지, 학생이 같은 수업방에 다시 입장했는지 확인합니다. |
+| 학생에게 피드백이 보이지 않음 | 교사가 `교사 확인 후 학생에게 전달`을 눌렀는지, 학생이 같은 수업방에서 `교사 피드백 확인하기`를 눌렀는지 확인합니다. |
 
 ### 9. 수업 전 체크리스트
 
@@ -231,4 +256,17 @@ AI 피드백은 자동 채점이 아닙니다. 학생에게 전달하기 전 교
 4. RDKit.js 검증을 통과하지 않은 분자식과 분자량은 학생에게 결과로 표시하지 않습니다.
 5. PubChem 3D 구조와 VSEPR 교육용 예측 모형은 실제 계산/실험값처럼 혼동해서 표시하지 않습니다.
 
-*개발자: 강동고등학교 교사 이원재
+## 라이선스
+
+이 저장소의 소스 코드는 [MIT License](LICENSE)를 따릅니다.
+
+서드파티 라이브러리는 각자의 라이선스를 따릅니다.
+
+| 라이브러리 | 라이선스 |
+|---|---|
+| Ketcher | Apache-2.0 |
+| RDKit / RDKit.js | BSD-3-Clause |
+| 3Dmol.js | BSD-3-Clause |
+| Firebase SDK | Apache-2.0 |
+
+*개발자: 강동고등학교 교사 이원재*

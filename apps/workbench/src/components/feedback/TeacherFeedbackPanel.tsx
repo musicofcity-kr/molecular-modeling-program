@@ -199,6 +199,7 @@ export function TeacherFeedbackPanel({
                   <label className="teacher-feedback-editor">
                     <span>학생에게 전달할 피드백</span>
                     <textarea
+                      data-testid="teacher-feedback-student-message-input"
                       value={editedStudentMessage}
                       onChange={(event) => {
                         setEditedStudentMessage(event.currentTarget.value);

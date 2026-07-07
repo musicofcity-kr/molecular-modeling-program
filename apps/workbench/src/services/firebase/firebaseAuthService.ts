@@ -104,6 +104,36 @@ function userResult(user: User, providerId?: string): FirebaseAuthUserResult {
   };
 }
 
+function isE2eAuthStubEnabled(): boolean {
+  return import.meta.env.MODE === 'e2e';
+}
+
+function e2eStudentAuthResult(): FirebaseAuthUserResult {
+  return {
+    ok: true,
+    uid: 'e2e-student-uid',
+    idToken: 'e2e-student-id-token',
+    displayName: 'E2E 학생',
+    providerId: 'e2e-anonymous',
+    isAnonymous: true,
+  };
+}
+
+function e2eTeacherAuthResult(providerId: string): FirebaseAuthUserResult {
+  return {
+    ok: true,
+    uid: 'e2e-teacher-uid',
+    idToken: 'e2e-teacher-id-token',
+    displayName: 'E2E 교사',
+    email: 'teacher-e2e@example.com',
+    providerId,
+    isAnonymous: false,
+    teacherAuthorizationStatus: 'authorized',
+    developerMessage:
+      'E2E mode Firebase auth stub returned an authorized teacher session.',
+  };
+}
+
 async function studentUserResult(
   user: User,
   providerId?: string,
@@ -142,6 +172,10 @@ async function teacherUserResult(
 }
 
 export async function signInStudentAnonymously(): Promise<FirebaseAuthResult> {
+  if (isE2eAuthStubEnabled()) {
+    return e2eStudentAuthResult();
+  }
+
   const auth = getFirebaseAuth();
 
   if (!auth) {
@@ -162,6 +196,10 @@ export async function signInStudentAnonymously(): Promise<FirebaseAuthResult> {
 }
 
 export async function signInTeacherWithGooglePopup(): Promise<FirebaseAuthResult> {
+  if (isE2eAuthStubEnabled()) {
+    return e2eTeacherAuthResult('e2e-google');
+  }
+
   const auth = getFirebaseAuth();
 
   if (!auth) {
@@ -196,6 +234,10 @@ export async function signInTeacherWithEmailPassword(input: {
       studentMessage: '교사용 이메일과 비밀번호를 모두 입력해 주세요.',
       developerMessage: 'Teacher email/password sign-in skipped: missing input.',
     };
+  }
+
+  if (isE2eAuthStubEnabled()) {
+    return e2eTeacherAuthResult('e2e-password');
   }
 
   const auth = getFirebaseAuth();

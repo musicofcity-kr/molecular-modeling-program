@@ -10,6 +10,7 @@ import { getFirebaseFirestore } from '../../config/firebaseConfig';
 import type { ActivityTemplate } from '../../types/activity';
 import type { ActivitySubmission, TeacherFeedbackDraft } from '../../types/feedback';
 import {
+  CLIENT_JOIN_CODE_HASH_VERSION,
   buildJoinCodeHash,
   normalizeJoinClassCode,
 } from './classroomJoinCode';
@@ -87,6 +88,7 @@ export type ClassroomDocument = {
   teacherUids: Record<string, true>;
   title: string;
   joinCodeHash: string;
+  joinCodeVersion: number;
   joinEnabled: boolean;
   createdAt: string;
   updatedAt: string;
@@ -157,6 +159,7 @@ export function buildClassroomDocument(input: {
       classCode: input.draft.classCode,
       joinCode: input.draft.joinCode,
     }),
+    joinCodeVersion: CLIENT_JOIN_CODE_HASH_VERSION,
     joinEnabled: true,
     createdAt: input.now,
     updatedAt: input.now,

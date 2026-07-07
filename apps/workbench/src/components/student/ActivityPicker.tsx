@@ -5,12 +5,14 @@ type ActivityPickerProps = {
   templates: ActivityTemplate[];
   selectedActivityId: string;
   onSelectActivity: (activityId: string) => void;
+  collapsible?: boolean;
 };
 
 export function ActivityPicker({
   templates,
   selectedActivityId,
   onSelectActivity,
+  collapsible,
 }: ActivityPickerProps) {
   const selectedTemplate =
     templates.find((template) => template.id === selectedActivityId) ?? templates[0];
@@ -27,6 +29,7 @@ export function ActivityPicker({
       stepNumber={1}
       sectionLabel="오늘의 활동 선택하기"
       title={selectedTemplate.title}
+      collapsible={collapsible}
     >
       <div className="activity-picker-layout">
         <nav className="activity-list" aria-label="활동 목록">

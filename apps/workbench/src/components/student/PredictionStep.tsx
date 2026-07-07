@@ -5,6 +5,7 @@ type PredictionStepProps = {
   questions: ActivityQuestion[];
   responses: ActivityResponseState;
   onResponseChange: (questionId: string, value: string) => void;
+  collapsible?: boolean;
 };
 
 function isLongAnswerQuestion(questionId: string): boolean {
@@ -15,6 +16,7 @@ export function PredictionStep({
   questions,
   responses,
   onResponseChange,
+  collapsible,
 }: PredictionStepProps) {
   return (
     <CollapsibleStudentStep
@@ -24,6 +26,7 @@ export function PredictionStep({
       stepNumber={2}
       sectionLabel="예측 입력하기"
       title="분자 구조를 그리기 전에 먼저 예상해 봅니다"
+      collapsible={collapsible}
     >
       <div className="student-question-grid">
         {questions.map((question) => (
@@ -31,6 +34,7 @@ export function PredictionStep({
             <span>{question.label}</span>
             {isLongAnswerQuestion(question.id) ? (
               <textarea
+                data-testid={`prediction-input-${question.id}`}
                 value={responses[question.id] ?? ''}
                 placeholder={question.placeholder}
                 onChange={(event) => {
@@ -39,6 +43,7 @@ export function PredictionStep({
               />
             ) : (
               <input
+                data-testid={`prediction-input-${question.id}`}
                 value={responses[question.id] ?? ''}
                 placeholder={question.placeholder}
                 onChange={(event) => {

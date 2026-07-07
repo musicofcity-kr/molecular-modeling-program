@@ -43,6 +43,7 @@ The app should support:
 - After changing TypeScript/React code, run or propose: `npm run lint`, `npm run typecheck`, and relevant tests.
 - Do not remove validation gates to make demos work.
 - Keep education use cases visible. UI decisions should support teacher/student classroom use, not only developer convenience.
+- Check `REVIEWER_FEEDBACK.md` for external review feedback. Address `[OPEN]` items in the appropriate phase (some target locked zones / Phase 9) and update each item's status to `[FIXED]` with a one-line rationale.
 
 ## Definition of Done
 
