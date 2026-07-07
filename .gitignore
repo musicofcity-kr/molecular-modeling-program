@@ -18,6 +18,9 @@ dist/
 dist-single/
 .vite/
 coverage/
+test-results/
+playwright-report/
+blob-report/
 *.tsbuildinfo
 firebase-debug.log
 firestore-debug.log

@@ -267,6 +267,7 @@ export function StructureComparisonPanel({
           <label className="comparison-question">
             <span>참고 3D 구조와 예상 입체 모형에서 비슷하게 보이는 점은 무엇인가요?</span>
             <textarea
+              data-testid="comparison-similarities-input"
               value={observation.observedSimilarities}
               placeholder="예: 중심 원자 주변 원자 배치가 비슷해 보인다."
               onChange={(event) => {
@@ -277,6 +278,7 @@ export function StructureComparisonPanel({
           <label className="comparison-question">
             <span>다르게 보이는 점은 무엇인가요?</span>
             <textarea
+              data-testid="comparison-differences-input"
               value={observation.observedDifferences}
               placeholder="예: 예상 입체 모형은 비공유 전자쌍 방향을 강조하지만 참고 3D 구조에는 전자쌍 입자가 보이지 않는다."
               onChange={(event) => {
@@ -287,6 +289,7 @@ export function StructureComparisonPanel({
           <label className="comparison-question">
             <span>예상 입체 모형이 참고 3D 구조를 완전히 대신할 수 없는 이유는 무엇일까요?</span>
             <textarea
+              data-testid="comparison-reflection-input"
               value={observation.studentReflection}
               placeholder="예: 예상 입체 모형은 단순화한 예측이고, 참고 3D 구조는 별도 자료 출처가 있기 때문이다."
               onChange={(event) => {

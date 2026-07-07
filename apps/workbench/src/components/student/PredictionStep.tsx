@@ -34,6 +34,7 @@ export function PredictionStep({
             <span>{question.label}</span>
             {isLongAnswerQuestion(question.id) ? (
               <textarea
+                data-testid={`prediction-input-${question.id}`}
                 value={responses[question.id] ?? ''}
                 placeholder={question.placeholder}
                 onChange={(event) => {
@@ -42,6 +43,7 @@ export function PredictionStep({
               />
             ) : (
               <input
+                data-testid={`prediction-input-${question.id}`}
                 value={responses[question.id] ?? ''}
                 placeholder={question.placeholder}
                 onChange={(event) => {

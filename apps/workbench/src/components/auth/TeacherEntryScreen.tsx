@@ -92,7 +92,10 @@ export function TeacherEntryScreen({
   };
 
   return (
-    <section className="workspace-panel entry-panel teacher-entry-panel">
+    <section
+      className="workspace-panel entry-panel teacher-entry-panel"
+      data-testid="teacher-entry-screen"
+    >
       <div className="panel-heading teacher-entry-heading">
         <div>
           <p className="section-label">교사용 로그인</p>
@@ -114,6 +117,7 @@ export function TeacherEntryScreen({
       <div className="teacher-login-grid">
         <button
           className="secondary-action"
+          data-testid="teacher-google-login-button"
           type="button"
           disabled={isAuthenticating}
           onClick={() => {
@@ -132,6 +136,7 @@ export function TeacherEntryScreen({
           <label>
             <span>교사용 이메일</span>
             <input
+              data-testid="teacher-email-input"
               aria-label="교사용 이메일"
               placeholder="teacher@example.com"
               value={email}
@@ -143,6 +148,7 @@ export function TeacherEntryScreen({
           <label>
             <span>비밀번호</span>
             <input
+              data-testid="teacher-password-input"
               aria-label="교사용 비밀번호"
               placeholder="Firebase Auth 비밀번호"
               type="password"
@@ -154,6 +160,7 @@ export function TeacherEntryScreen({
           </label>
           <button
             className="secondary-action"
+            data-testid="teacher-email-login-button"
             type="submit"
             disabled={isAuthenticating}
           >
@@ -178,6 +185,7 @@ export function TeacherEntryScreen({
             <label>
               <span>긴급 로그인 아이디</span>
               <input
+                data-testid="teacher-emergency-username-input"
                 aria-label="긴급 교사용 아이디"
                 placeholder="환경변수에 설정한 아이디"
                 value={emergencyUsername}
@@ -189,6 +197,7 @@ export function TeacherEntryScreen({
             <label>
               <span>긴급 비밀번호</span>
               <input
+                data-testid="teacher-emergency-password-input"
                 aria-label="긴급 교사용 비밀번호"
                 placeholder="긴급 비밀번호"
                 type="password"
@@ -200,6 +209,7 @@ export function TeacherEntryScreen({
             </label>
             <button
               className="secondary-action"
+              data-testid="teacher-emergency-login-button"
               type="submit"
               disabled={isAuthenticating}
             >

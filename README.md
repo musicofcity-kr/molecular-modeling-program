@@ -64,7 +64,13 @@ cd apps/workbench
 npm run typecheck
 npm test
 npm run build
+npm run test:e2e
 ```
+
+`npm run test:e2e`는 Playwright 기반 UI 흐름 검증입니다. 학생/교사
+수업 흐름의 화면 무결성을 확인하며, Firebase/Vercel 서버 API는 테스트
+내부 mock 응답으로 경계를 고정합니다. RDKit.js 구조 확인은 mock하지 않고
+물 예제의 실제 분자식과 평균 분자량을 확인합니다.
 
 ## 학생 사용 흐름
 

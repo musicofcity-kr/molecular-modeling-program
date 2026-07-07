@@ -57,7 +57,12 @@ export function MoleculeDrawingStep({
             ))}
           </select>
         </label>
-        <button className="secondary-action" type="button" onClick={onLoadExample}>
+        <button
+          className="secondary-action"
+          data-testid="student-load-example-button"
+          type="button"
+          onClick={onLoadExample}
+        >
           분자 예시 불러오기
         </button>
         <button

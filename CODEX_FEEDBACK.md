@@ -217,3 +217,53 @@
   - 교실별 salt는 이번 FINAL Phase 9 명시 범위에 없어서 도입하지 않았다. 신규 경로는 SHA-256 v2, 기존 경로는 v1 호환으로 분리했다.
   - 수업방 생성 endpoint의 별도 IP 기반 rate limit은 teacher custom claim과 중복 수업코드 차단으로 1차 완화했고, 운영형 edge/IP rate limit은 후속 보안 단계에서 다룬다.
 - 다음 단계 착수 가능: 가능
+
+## [Phase 10] P6 Playwright E2E — 2026-07-07
+- 변경 파일:
+  - `.github/workflows/ci.yml`
+  - `.gitignore`
+  - `README.md`
+  - `apps/workbench/package.json`
+  - `apps/workbench/package-lock.json`
+  - `apps/workbench/playwright.config.ts`
+  - `apps/workbench/e2e/fixtures.ts`
+  - `apps/workbench/e2e/molecule-workbench.spec.ts`
+  - `apps/workbench/vite.config.ts`
+  - `apps/workbench/src/services/firebase/firebaseAuthService.ts`
+  - `apps/workbench/src/app/App.tsx`
+  - `apps/workbench/src/components/auth/StudentEntryScreen.tsx`
+  - `apps/workbench/src/components/auth/TeacherEntryScreen.tsx`
+  - `apps/workbench/src/components/auth/TeacherDashboardPlaceholder.tsx`
+  - `apps/workbench/src/components/editor/KetcherEditor.tsx`
+  - `apps/workbench/src/components/student/StudentActivityShell.tsx`
+  - `apps/workbench/src/components/student/MoleculeDrawingStep.tsx`
+  - `apps/workbench/src/components/student/PredictionStep.tsx`
+  - `apps/workbench/src/components/student/ReflectionStep.tsx`
+  - `apps/workbench/src/components/comparison/StructureComparisonPanel.tsx`
+  - `apps/workbench/src/components/feedback/TeacherFeedbackPanel.tsx`
+  - `WORK_STATE.md`
+  - `CODEX_FEEDBACK.md`
+- 검증: typecheck ✅ | test 255/255 ✅ | build ✅ | e2e 9/9 ✅
+- 실행 로그 요약:
+  - `npm run typecheck`: `tsc -b` 통과
+  - `npm test`: 47 files / 255 tests passed
+  - `npm run build`: Vite production build 성공, 기존 3Dmol eval 및 대용량 Ketcher chunk 경고 유지
+  - `npm run test:e2e -- --repeat-each=3`: chromium 1 worker, 3 scenarios x 3 repeats = 9 passed
+- 신규 테스트:
+  - `e2e/molecule-workbench.spec.ts`: 윤리 게이트/역할 선택 smoke
+  - `e2e/molecule-workbench.spec.ts`: 학생 수업 활동 흐름, 물 예제 로드, RDKit 실제 H2O/18.015 확인, 3D/VSEPR/비교/제출
+  - `e2e/molecule-workbench.spec.ts`: 교사 제출 목록 조회, AI 피드백 초안, 교사 확인 후 반환
+- mock 경계 목록:
+  - `/api/join-classroom`: 학생 수업방 입장과 활동 템플릿 제한 응답 mock
+  - `/api/save-submission`: 학생 서버 제출 저장 응답 mock
+  - `/api/list-student-feedback`: 학생 피드백 조회 응답 mock
+  - `/api/list-submissions`: 교사용 서버 제출 목록 응답 mock
+  - `/api/create-feedback-draft`: 교사용 AI 피드백 초안 응답 mock
+  - `/api/update-feedback`: 피드백 초안 저장/학생 반환 응답 mock
+  - Firebase Auth: `import.meta.env.MODE === 'e2e'`에서만 학생/교사 인증 결과를 stub. production 동작은 변경하지 않음.
+  - RDKit.js 검증은 mock하지 않고 실제 물 예제의 분자식/평균 분자량을 확인함.
+- 미해결/보류:
+  - Phase 10 E2E는 UI 흐름 무결성 검증이다. Firebase/Vercel 서버 실물 계약 검증은 후속 P7 후보다.
+  - 로컬 Windows에서는 Playwright 실행 전 `npx playwright install chromium`이 필요했다.
+  - Vite dev server가 `dist-single` 산출물을 dependency scan에 포함하지 않도록 `optimizeDeps.entries`를 고정했다.
+- 다음 단계 착수 가능: 가능

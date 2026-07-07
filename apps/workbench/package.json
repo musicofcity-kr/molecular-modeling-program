@@ -14,7 +14,8 @@
     "firebase:teacher-claim": "node scripts/manage-teacher-claim.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc -b",
-    "test": "vitest run --exclude \"**/*.emulator.test.ts\"",
+    "test": "vitest run --exclude \"**/*.emulator.test.ts\" --exclude \"e2e/**\"",
+    "test:e2e": "playwright test",
     "test:firestore-rules": "npx firebase-tools@15.22.4 --config ../../firebase.json emulators:exec --only firestore --project demo-molecule-workbench \"vitest run src/services/firebase/firestoreRules.emulator.test.ts\""
   },
   "dependencies": {
@@ -30,6 +31,7 @@
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.1",
+    "@playwright/test": "^1.61.1",
     "@types/node": "^22.15.30",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",

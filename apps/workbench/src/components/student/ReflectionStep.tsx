@@ -28,6 +28,7 @@ export function ReflectionStep({
           <label className="activity-question" key={question.id}>
             <span>{question.label}</span>
             <textarea
+              data-testid={`reflection-input-${question.id}`}
               value={responses[question.id] ?? ''}
               placeholder={question.placeholder}
               onChange={(event) => {

@@ -180,6 +180,13 @@ export function StudentActivityShell({
         className={stageClassName}
         data-testid="student-wizard-stage"
         data-current-step={currentStep}
+        data-validation-status={
+          validationResult?.ok === true
+            ? 'valid'
+            : validationResult
+              ? 'invalid'
+              : 'not_requested'
+        }
       >
         {currentStepContent}
       </div>
@@ -187,6 +194,7 @@ export function StudentActivityShell({
       <nav className="student-wizard-action-bar" aria-label="활동 단계 이동">
         <button
           className="secondary-action"
+          data-testid="student-wizard-previous-button"
           type="button"
           disabled={!previousStep}
           onClick={() => {
@@ -200,6 +208,7 @@ export function StudentActivityShell({
         {nextStep && nextStepLabel ? (
           <button
             className={`primary-action phase-${currentStepMeta.phase}`}
+            data-testid="student-wizard-next-button"
             type="button"
             disabled={isAdvancing}
             onClick={() => {

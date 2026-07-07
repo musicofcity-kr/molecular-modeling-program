@@ -176,7 +176,13 @@ export function EditorLoadingFallback() {
           <p className="section-label">좌측</p>
           <h2>분자 편집 영역</h2>
         </div>
-        <span className="status-pill">그리기 도구 준비 중</span>
+        <span
+          className="status-pill"
+          data-testid="chemical-editor-status"
+          data-ready="false"
+        >
+          그리기 도구 준비 중
+        </span>
       </div>
       <div className="ketcher-host editor-loading-state">
         <span className="loading-spinner" aria-hidden="true" />
