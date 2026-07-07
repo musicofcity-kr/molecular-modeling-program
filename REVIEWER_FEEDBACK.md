@@ -22,8 +22,9 @@
 - 처리: 서버 수업방은 Node `crypto` SHA-256 기반 해시와 `timingSafeEqual` 비교를 사용한다. 2026-07-07부터 신규 수업방은 수업방별 랜덤 `joinCodeSalt`가 포함된 `server-join-code-v3-*`로 생성하고, 기존 v2 SHA-256과 v1 FNV는 호환 검증 전용으로 유지한다.
 - 감시자 검증 ✅ (2026-07-06): 신규 모듈 `api/join-code-security.ts`에서 `createHash('sha256')`(64 hex) + `timingSafeEqual`(상수시간, 타이밍공격 방어) 확인. 세 곳 중복 구현이 이 모듈로 통합됨(권장사항 반영). 핵심 약점(FNV-1a) 해소됨.
 
-### [FIXED] R-2b (🟡 낮음, 방어심층 후속) — join code 해시에 랜덤 salt 미포함
+### [FIXED ✅검증] R-2b (🟡 낮음, 방어심층 후속) — join code 해시에 랜덤 salt 미포함
 - 처리: 신규 수업방 생성 시 서버에서 16바이트 랜덤 `joinCodeSalt`를 만들고, `sha256(classCode:joinCode:joinCodeSalt)` 기반 `server-join-code-v3-*` 해시를 저장하도록 수정했다. `/api/join-classroom`은 v3 salt 검증을 우선 사용하며, 기존 v2/v1 교실은 호환 검증 전용으로 유지한다.
+- 감시자 검증 ✅ (2026-07-07): salt 라운드트립 확인 — `generateJoinCodeSalt`=`randomBytes(16).hex`, create가 `joinCodeSalt`+`joinCodeVersion` 문서 저장(L335/347/350) → join이 다시 읽어(L462/463) v3 검증에 사용(L528/531). `sha256(classCode:joinCode:salt)` 정상, v3/v2/v1 버저닝 호환. 잔여위험(salt≠비밀) 인식도 정확.
 - 남는 위험: salt는 비밀값이 아니므로 짧은 입장 확인코드의 오프라인 추측 위험을 완전히 없애지는 않는다. 운영 단계에서는 충분한 길이의 확인코드와 회전 절차를 유지해야 한다.
 
 ## [FIXED ✅검증] R-3 (⚠️ 중간) — join/create 엔드포인트 레이트리밋 부재
