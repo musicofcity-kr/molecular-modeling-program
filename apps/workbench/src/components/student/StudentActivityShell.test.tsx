@@ -51,6 +51,7 @@ function renderShell() {
       submissionStatusMessage=""
       canSubmitThought
       isSubmittingThought={false}
+      thoughtSubmissionAvailabilityMessage="교사에게 제출할 수 있습니다."
       onSelectActivity={vi.fn()}
       onSelectExample={vi.fn()}
       onLoadExample={vi.fn()}

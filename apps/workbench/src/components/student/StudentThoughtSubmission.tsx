@@ -2,6 +2,7 @@ type StudentThoughtSubmissionProps = {
   value: string;
   canSubmit: boolean;
   isSubmitting: boolean;
+  availabilityMessage: string;
   statusMessage?: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
@@ -11,6 +12,7 @@ export function StudentThoughtSubmission({
   value,
   canSubmit,
   isSubmitting,
+  availabilityMessage,
   statusMessage,
   onChange,
   onSubmit,
@@ -42,6 +44,9 @@ export function StudentThoughtSubmission({
       >
         {isSubmitting ? '제출 중' : '교사에게 제출하기'}
       </button>
+      <p className="student-thought-availability" data-testid="student-thought-availability">
+        {availabilityMessage}
+      </p>
       {statusMessage ? (
         <p
           className="activity-result-status"

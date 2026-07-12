@@ -25,6 +25,7 @@ type StudentActivityShellProps = {
   submissionStatusMessage?: string;
   canSubmitThought: boolean;
   isSubmittingThought: boolean;
+  thoughtSubmissionAvailabilityMessage: string;
   onSelectActivity: (activityId: string) => void;
   onSelectExample: (exampleId: string) => void;
   onLoadExample: () => void;
@@ -49,6 +50,7 @@ export function StudentActivityShell({
   submissionStatusMessage,
   canSubmitThought,
   isSubmittingThought,
+  thoughtSubmissionAvailabilityMessage,
   onSelectActivity,
   onSelectExample,
   onLoadExample,
@@ -103,6 +105,7 @@ export function StudentActivityShell({
             statusMessage={submissionStatusMessage}
             canSubmit={canSubmitThought}
             isSubmitting={isSubmittingThought}
+            availabilityMessage={thoughtSubmissionAvailabilityMessage}
             onChange={onThoughtChange}
             onSubmit={onSubmitThought}
           />

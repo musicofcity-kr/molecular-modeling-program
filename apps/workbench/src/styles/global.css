@@ -1806,6 +1806,13 @@ select {
   justify-self: start;
 }
 
+.student-thought-availability {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .teacher-advanced-panel {
   display: grid;
   gap: 14px;

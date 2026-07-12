@@ -8,7 +8,7 @@ import {
   isJoinCodeHashAccepted,
   normalizeJoinClassCode,
   normalizeJoinCode,
-} from './join-code-security';
+} from './join-code-security.js';
 
 export {
   buildJoinCodeHash,

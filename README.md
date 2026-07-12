@@ -236,6 +236,7 @@ AI 피드백은 자동 채점이 아닙니다. 학생에게 전달하기 전 교
 | 학생 화면에 활동이 너무 많이 보임 | 교사용 수업방에서 선택한 활동 템플릿이 제대로 저장되었는지 확인합니다. |
 | Google 교사 로그인 버튼이 비활성화됨 | `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`가 로컬 `.env.local`과 Vercel 대상 환경에 등록되어 있는지 확인합니다. |
 | Google 로그인에서 승인 도메인 오류가 표시됨 | Firebase Authentication > Settings > Authorized domains에 현재 접속 도메인을 등록합니다. |
+| 학생 제출 버튼이 비활성화됨 | 버튼 아래 안내에서 구조 검증, 생각 입력, 수업방 입장 상태 중 완료되지 않은 조건을 확인합니다. `/api/join-classroom`이 실패하면 교사에게 제출할 수 없습니다. |
 | 서버 제출 목록이 보이지 않음 | 교사 custom claim, 수업코드, Firestore rules, Firebase Admin 환경변수를 확인합니다. |
 | AI 피드백이 로컬 초안으로 표시됨 | Vercel에 `GEMINI_API_KEY` 또는 `AI_FEEDBACK_ENDPOINT`가 등록되어 있는지 확인합니다. |
 | 학생에게 피드백이 보이지 않음 | 교사가 `교사 확인 후 학생에게 전달`을 눌렀는지, 학생이 같은 수업방에서 `교사 피드백 확인하기`를 눌렀는지 확인합니다. |

@@ -1407,6 +1407,30 @@ function WorkbenchApp({
       session.idToken &&
       !isActivitySubmissionPending,
   );
+  const thoughtSubmissionAvailabilityMessage = (() => {
+    if (validationResult?.ok !== true) {
+      return '구조 확인을 완료하면 제출할 수 있습니다.';
+    }
+
+    if (!currentStudentThought.trim()) {
+      return '나의 생각을 작성하면 제출할 수 있습니다.';
+    }
+
+    if (
+      session?.role !== 'student' ||
+      session.classroomJoinStatus !== 'joined' ||
+      !session.idToken
+    ) {
+      return (
+        (session?.role === 'student' ? session.classroomJoinMessage : undefined) ??
+        '수업방 입장 확인이 완료되어야 교사에게 제출할 수 있습니다.'
+      );
+    }
+
+    return isActivitySubmissionPending
+      ? '교사에게 제출하는 중입니다.'
+      : '교사에게 제출할 수 있습니다.';
+  })();
   const structureComparisonState = buildStructureComparisonState({
     validationResult,
     molecule3DInput,
@@ -2268,6 +2292,9 @@ function WorkbenchApp({
           submissionStatusMessage={activitySubmissionStatusMessage}
           canSubmitThought={canSubmitStudentThought}
           isSubmittingThought={isActivitySubmissionPending}
+          thoughtSubmissionAvailabilityMessage={
+            thoughtSubmissionAvailabilityMessage
+          }
           onSelectActivity={handleSelectActivity}
           onSelectExample={handleSelectExample}
           onLoadExample={handleLoadExample}

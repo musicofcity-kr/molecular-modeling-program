@@ -31,6 +31,25 @@
 - 미해결/보류: 라이브 데모 URL은 실제 확정 전까지 README에 TODO placeholder 유지
 - 다음 단계 착수 가능: 가능
 
+## [Phase 11.3] Vercel 학생 제출 버튼 비활성 원인 수정 — 2026-07-12
+
+- production 재현:
+  - Firebase Anonymous Auth 요청은 200으로 성공
+  - `/api/join-classroom`은 `500 FUNCTION_INVOCATION_FAILED`로 함수 시작 실패
+  - 학생은 로컬 fallback 세션으로 진입해도 `classroomJoinStatus=joined`가 아니므로 제출 버튼 비활성
+- 원인:
+  - 실패한 `join-classroom`, `create-classroom`만 공통으로 확장자 없는 로컬 ESM import 사용
+  - 정상 실행되는 다른 Vercel 함수에는 해당 로컬 import가 없음
+- 변경:
+  - `./join-code-security.js`로 Node ESM 해석 가능한 import 경로 사용
+  - 제출 버튼 아래에 구조 검증, 생각 입력, 수업방 입장 상태별 안내 표시
+- 검증:
+  - `npm run typecheck`: 통과
+  - `npm test`: 48 files / 253 tests passed
+  - `PLAYWRIGHT_PORT=5179 npm run test:e2e`: 3 scenarios passed
+  - `npm run build`: 성공
+  - production 재배포 후 실제 함수 응답 추가 확인 예정
+
 ## [Phase 11.2] 교사용 Google 로그인 실패 진단 및 오류 상태 보완 — 2026-07-12
 
 - 확인된 원인:
