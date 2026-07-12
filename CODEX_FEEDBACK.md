@@ -31,6 +31,75 @@
 - 미해결/보류: 라이브 데모 URL은 실제 확정 전까지 README에 TODO placeholder 유지
 - 다음 단계 착수 가능: 가능
 
+## [Phase 11.2] 교사용 Google 로그인 실패 진단 및 오류 상태 보완 — 2026-07-12
+
+- 확인된 원인:
+  - 로컬 `.env.local`에 `VERCEL_OIDC_TOKEN`만 존재
+  - 필수 Firebase Web App 변수 4개가 모두 누락되어 SDK 초기화와 팝업 호출이 생략됨
+  - 브라우저 콘솔 근거: `Firebase Web App config is missing. Auth call was skipped.`
+- 변경:
+  - Firebase 미설정 시 Google·이메일 로그인 컨트롤 비활성화
+  - 관리자 설정이 필요하다는 화면 안내 추가
+  - `auth/unauthorized-domain`, `auth/popup-blocked`, `auth/popup-closed-by-user`, `auth/operation-not-allowed`별 안내 분리
+  - E2E 인증 스텁은 설정 누락과 무관하게 계속 실행되도록 유지
+- 검증:
+  - `npm run typecheck`: 통과
+  - `npm test`: 48 files / 253 tests passed
+  - `PLAYWRIGHT_PORT=5178 npm run test:e2e`: 3 scenarios passed
+  - 실제 미설정 브라우저: 안내 표시, Google·이메일 컨트롤 비활성화, 오류 오버레이 없음
+- 외부 설정 필요:
+  - Firebase Web App config를 로컬과 Vercel 대상 환경에 등록해야 실제 Google 로그인이 활성화됨
+  - Google provider 활성화, Authorized domains, 교사 custom claim도 Firebase 콘솔에서 확인 필요
+
+## [Phase 11.1] 예상 입체 모형 아래 생각 정리 및 교사 제출 — 2026-07-12
+
+- 변경:
+  - 예상 입체 모형 바로 아래 단일 `나의 생각 정리` 입력 추가
+  - 구조 검증, 생각 입력, Firebase 수업방 입장 완료 시에만 제출 버튼 활성화
+  - 중복 제출 방지와 핸들러 수준 전제조건 재검사 추가
+  - 기존 `vseprReflection` 스냅샷 필드와 trusted 제출 API 재사용
+  - 교사 제출 화면에서 새 학생 생각을 레거시 소감보다 우선 표시
+- 범위 제한:
+  - 7단계 위저드, 별도 예측, 다중 성찰, 결과 보고서 패널은 복구하지 않음
+- 검증:
+  - `npm run typecheck`: 통과
+  - `npm test`: 48 files / 251 tests passed
+  - `PLAYWRIGHT_PORT=5174 npm run test:e2e`: 3 scenarios passed
+  - `npm run build`: 성공
+  - 1440px/375px 브라우저 QA: 생각 입력 위치 정상, 뷰어 겹침·가로 넘침 없음, 콘솔 오류·경고 0건
+  - 3D 캔버스 2개 모두 비어 있지 않은 픽셀 데이터 확인
+
+## [Phase 11] 학생 직접 작업형 화면 단순화 — 2026-07-12
+
+- 사용자 결정:
+  - 학생 기본 화면에서 불필요한 교육 단계를 제거한다.
+  - 핵심 흐름을 `분자 선택 → 구조 편집 → 검증 → 구조 보기`로 단순화한다.
+- 변경:
+  - 7단계 진행 레일, 이전/다음 이동, 단계 잠금 제거
+  - 예측 입력과 성찰 입력 제거
+  - 검증 결과의 `내 예측` 비교 카드 제거
+  - 학생 결과 저장·제출·보고서 패널 미노출
+  - 학생 핵심 도구를 한 화면에 동시 렌더링
+  - 기존 Firebase/API와 저장 데이터 타입은 호환성 때문에 유지
+- 삭제 파일:
+  - `apps/workbench/src/components/student/LearningProgressRail.tsx`
+  - `apps/workbench/src/components/student/LearningProgressRail.test.tsx`
+  - `apps/workbench/src/components/student/PredictionStep.tsx`
+  - `apps/workbench/src/components/student/ReflectionStep.tsx`
+- 테스트 수 변경 사유:
+  - 기능 제거에 따라 위저드 전용 테스트를 삭제하고 직접 작업형 회귀 테스트로 교체했다.
+  - 기존 255개에서 248개로 감소했으며 화학 엔진·Ketcher·3D·Firebase 호환 테스트는 유지했다.
+- 검증:
+  - `npm run typecheck`: 통과
+  - `npm test`: 46 files / 248 tests passed
+  - `npm run test:e2e`: 3 scenarios passed
+  - `npm run build`: 성공
+  - 1440px/375px 브라우저 QA: 가로 넘침 없음, 콘솔 오류·경고 0건
+- 남은 위험:
+  - 과거 위저드 전용 CSS 일부는 런타임에서 사용되지 않지만 역사적 스타일로 남아 있다.
+  - 기존 제출·피드백 API는 단일 생각 정리 제출에 재사용되며, 별도 결과 패널은 노출하지 않는다.
+- 다음 단계 착수 가능: 가능
+
 ## [Phase 2] GitHub Actions CI — 2026-07-06
 - 변경 파일:
   - `.github/workflows/ci.yml`

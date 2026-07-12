@@ -39,6 +39,8 @@ export function TeacherEntryScreen({
   const [message, setMessage] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const firebaseStatus = getFirebaseConfigStatus();
+  const isFirebaseAuthAvailable =
+    firebaseStatus === 'configured' || import.meta.env.MODE === 'e2e';
 
   const handleAuthResult = (result: {
     ok: boolean;
@@ -113,13 +115,22 @@ export function TeacherEntryScreen({
         후 teacher custom claim을 확인합니다. 교사 권한이 승인되지 않은 계정은
         교사용 비공개 패널과 서버 저장 기능을 사용할 수 없습니다.
       </p>
+      {!isFirebaseAuthAvailable ? (
+        <p
+          className="entry-message"
+          data-testid="firebase-auth-configuration-message"
+          role="alert"
+        >
+          Firebase 인증 설정이 필요합니다. 관리자에게 알려 주세요.
+        </p>
+      ) : null}
 
       <div className="teacher-login-grid">
         <button
           className="secondary-action"
           data-testid="teacher-google-login-button"
           type="button"
-          disabled={isAuthenticating}
+          disabled={isAuthenticating || !isFirebaseAuthAvailable}
           onClick={() => {
             void handleGoogleSignIn();
           }}
@@ -139,6 +150,7 @@ export function TeacherEntryScreen({
               data-testid="teacher-email-input"
               aria-label="교사용 이메일"
               placeholder="teacher@example.com"
+              disabled={!isFirebaseAuthAvailable}
               value={email}
               onChange={(event) => {
                 setEmail(event.currentTarget.value);
@@ -152,6 +164,7 @@ export function TeacherEntryScreen({
               aria-label="교사용 비밀번호"
               placeholder="Firebase Auth 비밀번호"
               type="password"
+              disabled={!isFirebaseAuthAvailable}
               value={password}
               onChange={(event) => {
                 setPassword(event.currentTarget.value);
@@ -162,7 +175,7 @@ export function TeacherEntryScreen({
             className="secondary-action"
             data-testid="teacher-email-login-button"
             type="submit"
-            disabled={isAuthenticating}
+            disabled={isAuthenticating || !isFirebaseAuthAvailable}
           >
             {isAuthenticating ? '이메일 로그인 중' : '이메일로 교사용 로그인'}
           </button>

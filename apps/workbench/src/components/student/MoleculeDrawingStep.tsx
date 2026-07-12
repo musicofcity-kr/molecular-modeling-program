@@ -26,10 +26,9 @@ export function MoleculeDrawingStep({
   return (
     <CollapsibleStudentStep
       id="student-step-3"
-      className="student-step drawing-step phase-build"
+      className="student-step drawing-step"
       testId="drawing-step"
-      stepNumber={3}
-      sectionLabel="분자 그리기"
+      sectionLabel="구조 편집"
       title="분자 구조를 그리거나 예제를 불러옵니다"
       collapsible={collapsible}
     >

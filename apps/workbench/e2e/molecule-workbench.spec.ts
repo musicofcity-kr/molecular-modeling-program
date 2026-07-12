@@ -25,14 +25,6 @@ async function enterStudentWorkbench(page: Page) {
   await expect(page).toHaveURL(/\/student\/workbench$/);
 }
 
-async function goToNextStep(page: Page, step: string) {
-  await page.getByTestId('student-wizard-next-button').click();
-  await expect(page.getByTestId('student-wizard-stage')).toHaveAttribute(
-    'data-current-step',
-    step,
-  );
-}
-
 test.describe('Molecule Modeling Workbench E2E', () => {
   test.beforeEach(async ({ page }) => {
     await mockClassroomApis(page);
@@ -47,50 +39,33 @@ test.describe('Molecule Modeling Workbench E2E', () => {
     await expect(page.getByTestId('open-teacher-entry-button')).toBeVisible();
   });
 
-  test('student: loads water example, validates with RDKit, compares shape, and submits', async ({
+  test('student: validates water, summarizes a thought, and submits it to the teacher', async ({
     page,
   }) => {
     await enterStudentWorkbench(page);
 
-    await expect(page.getByTestId('student-wizard-stage')).toHaveAttribute(
-      'data-current-step',
-      '1',
+    await expect(page.getByTestId('student-activity-shell')).toHaveAttribute(
+      'data-validation-status',
+      'not_requested',
     );
     await expect(page.getByTestId('activity-template-draw-water')).toBeVisible();
-    await goToNextStep(page, '2');
-
-    await page.getByTestId('prediction-input-predictedFormula').fill('H2O');
-    await page.getByTestId('prediction-input-predictedMolecularWeight').fill('18.015');
-    await page
-      .getByTestId('prediction-input-drawingReason')
-      .fill('산소와 수소의 결합 수를 기준으로 예상했습니다.');
-    await page.getByTestId('prediction-input-predictedCentralAtom').fill('O');
-    await page.getByTestId('prediction-input-predictedBondingDomains').fill('2');
-    await page.getByTestId('prediction-input-predictedLonePairs').fill('2');
-    await page.getByTestId('prediction-input-predictedVseprShape').fill('굽은형');
-    await goToNextStep(page, '3');
+    await expect(page.getByTestId('drawing-step')).toBeVisible();
+    await expect(page.getByTestId('validation-result-cards')).toBeVisible();
+    await expect(page.getByTestId('shape-viewer-section')).toBeVisible();
+    await expect(page.getByTestId('student-wizard-next-button')).toHaveCount(0);
+    await expect(page.getByTestId('prediction-step')).toHaveCount(0);
+    await expect(page.getByTestId('activity-result-panel')).toHaveCount(0);
 
     await expect(page.getByTestId('chemical-editor-status')).toHaveAttribute(
       'data-ready',
       'true',
       { timeout: 90_000 },
     );
-    await page.getByTestId('student-wizard-next-button').click();
-    await expect(page.getByTestId('student-wizard-stage')).toHaveAttribute(
-      'data-current-step',
-      '3',
-    );
     await page.getByTestId('student-example-select').selectOption('water');
     await page.getByTestId('student-load-example-button').click();
-    await expect(page.getByTestId('student-wizard-stage')).toHaveAttribute(
+    await expect(page.getByTestId('student-activity-shell')).toHaveAttribute(
       'data-validation-status',
       'valid',
-      { timeout: 90_000 },
-    );
-    await page.getByTestId('student-wizard-next-button').click();
-    await expect(page.getByTestId('student-wizard-stage')).toHaveAttribute(
-      'data-current-step',
-      '4',
       { timeout: 90_000 },
     );
     await expect(page.getByTestId('student-formula-output')).toContainText('H2O', {
@@ -100,30 +75,15 @@ test.describe('Molecule Modeling Workbench E2E', () => {
       '18.015',
     );
 
-    await goToNextStep(page, '5');
-    await expect(page.getByTestId('shape-viewer-section')).toBeVisible();
     await expect(page.getByTestId('vsepr-3d-model-viewer')).toBeVisible();
     await expect(page.getByTestId('molecule-3d-viewer')).toBeVisible();
-
-    await goToNextStep(page, '6');
-    await expect(page.getByTestId('toggle-structure-comparison-button')).toBeEnabled();
-    await page.getByTestId('toggle-structure-comparison-button').click();
     await page
-      .getByTestId('comparison-similarities-input')
-      .fill('두 구조 모두 굽은형으로 보입니다.');
-    await page
-      .getByTestId('comparison-differences-input')
-      .fill('예상 모형은 비공유 전자쌍 방향을 강조합니다.');
-    await page
-      .getByTestId('comparison-reflection-input')
-      .fill('예상 모형은 실제 좌표를 대신하지 않습니다.');
-    await goToNextStep(page, '7');
-
-    await expect(page.getByTestId('activity-result-panel')).toBeVisible();
-    await page.getByTestId('submit-activity-result-button').click();
-    await expect(page.getByTestId('activity-submission-status')).toContainText(
-      '서버 제출함',
-      { timeout: 20_000 },
+      .getByTestId('student-thought-input')
+      .fill('물 분자는 산소의 비공유 전자쌍 때문에 굽은형으로 보인다.');
+    await expect(page.getByTestId('submit-student-thought-button')).toBeEnabled();
+    await page.getByTestId('submit-student-thought-button').click();
+    await expect(page.getByTestId('student-thought-submission-status')).toContainText(
+      '서버 제출함에 저장했습니다.',
     );
   });
 

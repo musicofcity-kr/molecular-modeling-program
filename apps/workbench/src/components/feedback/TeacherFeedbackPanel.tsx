@@ -151,9 +151,10 @@ export function TeacherFeedbackPanel({
                 </p>
               </div>
               <div className="teacher-card compact">
-                <p className="section-label">학생 정리</p>
+                <p className="section-label">학생 생각 정리</p>
                 <p>
-                  {selectedSubmission.snapshot.finalReflection ??
+                  {selectedSubmission.snapshot.vseprResult?.studentNote ??
+                    selectedSubmission.snapshot.finalReflection ??
                     selectedSubmission.snapshot.afterValidationReflection ??
                     '아직 정리 문항이 충분히 작성되지 않았습니다.'}
                 </p>

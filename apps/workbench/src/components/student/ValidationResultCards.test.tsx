@@ -32,55 +32,26 @@ const unsupportedVsepr: VseprAnalysis = {
   studentMessage: '구조 확인 후 표시됩니다.',
 };
 
-describe('ValidationResultCards comparison view', () => {
-  it('shows a positive badge when the predicted formula and molecular weight match', () => {
+describe('ValidationResultCards direct result view', () => {
+  it('shows validated values without requiring a prediction', () => {
     const markup = renderToStaticMarkup(
       <ValidationResultCards
-        responses={{
-          predictedFormula: 'H2O',
-          predictedMolecularWeight: '18.015',
-        }}
         validationResult={waterValidation}
         vseprAnalysis={unsupportedVsepr}
         molecule3DInput={null}
       />,
     );
 
-    expect(markup).toContain('내 예측');
-    expect(markup).toContain('확인 결과');
-    expect(markup).toContain('✓ 예측과 일치해요');
-    expect(markup).toContain('student-comparison-value');
-    expect(markup).not.toContain('오답');
-    expect(markup).not.toContain('틀림');
-  });
-
-  it('uses a retry badge, not an error badge, when the prediction differs', () => {
-    const markup = renderToStaticMarkup(
-      <ValidationResultCards
-        responses={{
-          predictedFormula: 'HO',
-          predictedMolecularWeight: '20',
-        }}
-        validationResult={waterValidation}
-        vseprAnalysis={unsupportedVsepr}
-        molecule3DInput={null}
-      />,
-    );
-
-    expect(markup).toContain('△ 예측과 달라요 — 어디가 다른지 살펴보세요');
-    expect(markup).toContain('student-comparison-badge retry');
-    expect(markup).not.toContain('student-comparison-badge error');
-    expect(markup).not.toContain('오답');
-    expect(markup).not.toContain('틀림');
+    expect(markup).toContain('분자식');
+    expect(markup).toContain('H2O');
+    expect(markup).toContain('18.015');
+    expect(markup).not.toContain('내 예측');
+    expect(markup).not.toContain('예측과 일치');
   });
 
   it('separates system validation errors from prediction comparison', () => {
     const markup = renderToStaticMarkup(
       <ValidationResultCards
-        responses={{
-          predictedFormula: 'H2O',
-          predictedMolecularWeight: '18.015',
-        }}
         validationResult={systemErrorValidation}
         vseprAnalysis={unsupportedVsepr}
         molecule3DInput={null}
@@ -89,8 +60,7 @@ describe('ValidationResultCards comparison view', () => {
 
     expect(markup).toContain('구조 확인 중 문제가 생겼습니다');
     expect(markup).toContain('student-system-status-badge error');
-    expect(markup).toContain('아직 구조 확인 전');
-    expect(markup).not.toContain('오답');
-    expect(markup).not.toContain('틀림');
+    expect(markup).toContain('구조를 다시 확인해 주세요');
+    expect(markup).not.toContain('내 예측');
   });
 });

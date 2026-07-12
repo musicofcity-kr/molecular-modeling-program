@@ -4,7 +4,7 @@ type CollapsibleStudentStepProps = {
   id?: string;
   className: string;
   testId?: string;
-  stepNumber: number;
+  stepNumber?: number;
   sectionLabel: string;
   title: string;
   defaultOpen?: boolean;
@@ -36,9 +36,11 @@ export function CollapsibleStudentStep({
         tabIndex={-1}
       >
         <div className="student-step-heading">
-          <span className="student-step-number" aria-hidden="true">
-            {stepNumber}
-          </span>
+          {stepNumber !== undefined ? (
+            <span className="student-step-number" aria-hidden="true">
+              {stepNumber}
+            </span>
+          ) : null}
           <span className="student-step-title-group">
             <span className="section-label">{sectionLabel}</span>
             <span className="student-step-title">{title}</span>
@@ -69,9 +71,11 @@ export function CollapsibleStudentStep({
             setIsOpen((current) => !current);
           }}
         >
-          <span className="student-step-number" aria-hidden="true">
-            {stepNumber}
-          </span>
+          {stepNumber !== undefined ? (
+            <span className="student-step-number" aria-hidden="true">
+              {stepNumber}
+            </span>
+          ) : null}
           <span className="student-step-title-group">
             <span className="section-label">{sectionLabel}</span>
             <span className="student-step-title">{title}</span>

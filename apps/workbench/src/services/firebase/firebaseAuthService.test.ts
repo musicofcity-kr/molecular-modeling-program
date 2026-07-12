@@ -138,6 +138,43 @@ describe('firebaseAuthService', () => {
     });
   });
 
+  it('explains when the current domain is not authorized for Google sign-in', async () => {
+    vi.mocked(getFirebaseAuth).mockReturnValue(firebaseAuthMock as never);
+    vi.mocked(signInWithPopup).mockRejectedValue(
+      Object.assign(new Error('This domain is not authorized.'), {
+        code: 'auth/unauthorized-domain',
+      }),
+    );
+
+    const result = await signInTeacherWithGooglePopup();
+
+    expect(result).toMatchObject({
+      ok: false,
+      status: 'auth_error',
+      code: 'auth/unauthorized-domain',
+      studentMessage:
+        '현재 접속 주소가 Firebase 승인 도메인에 등록되지 않았습니다. 관리자에게 알려 주세요.',
+    });
+  });
+
+  it('explains when the browser blocks the Google sign-in popup', async () => {
+    vi.mocked(getFirebaseAuth).mockReturnValue(firebaseAuthMock as never);
+    vi.mocked(signInWithPopup).mockRejectedValue(
+      Object.assign(new Error('Popup blocked.'), {
+        code: 'auth/popup-blocked',
+      }),
+    );
+
+    const result = await signInTeacherWithGooglePopup();
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: 'auth/popup-blocked',
+      studentMessage:
+        '브라우저가 Google 로그인 팝업을 차단했습니다. 팝업을 허용한 뒤 다시 시도해 주세요.',
+    });
+  });
+
   it('marks teacher sign-in as pending when custom claim is missing', async () => {
     vi.mocked(getFirebaseAuth).mockReturnValue(firebaseAuthMock as never);
     vi.mocked(signInWithPopup).mockResolvedValue({

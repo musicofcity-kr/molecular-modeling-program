@@ -1,5 +1,10 @@
 # PRD Draft — ChemDraw-like Educational 다양한 분자의 분자구조 모델링
 
+> **2026-07-12 범위 결정:** 학생 기본 경험은 분자 선택, 구조 편집, 검증,
+> 3D/VSEPR 보기의 직접 작업 화면이다. 별도 예측·다중 성찰·단계 진행·결과
+> 보고서는 제외한다. 단, 예상 입체 모형 아래 단일 생각 정리 입력과 검증 후
+> 교사 제출은 포함한다.
+
 ## 1. Product Summary
 
 A browser-based molecule modeling workbench for high-school chemistry instruction. Teachers and students can draw molecules, inspect molecular data, export classroom-ready images, and compare 2D structural formulas with 3D molecular models.

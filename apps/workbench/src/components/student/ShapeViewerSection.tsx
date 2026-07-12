@@ -3,6 +3,7 @@ import { CollapsibleStudentStep } from './CollapsibleStudentStep';
 
 type ShapeViewerSectionProps = {
   predictionSlot: ReactNode;
+  thoughtSubmissionSlot?: ReactNode;
   actual3DSlot: ReactNode;
   comparisonSlot: ReactNode;
   external3DSearchSlot?: ReactNode;
@@ -11,6 +12,7 @@ type ShapeViewerSectionProps = {
 
 export function ShapeViewerSection({
   predictionSlot,
+  thoughtSubmissionSlot,
   actual3DSlot,
   comparisonSlot,
   external3DSearchSlot,
@@ -20,17 +22,19 @@ export function ShapeViewerSection({
     <>
       <CollapsibleStudentStep
         id="student-step-5"
-        className="student-step shape-viewer-section phase-verify"
+        className="student-step shape-viewer-section"
         testId="shape-viewer-section"
-        stepNumber={5}
-        sectionLabel="입체 구조 보기"
-        title="예측 모형과 3D 구조를 구분해서 관찰합니다"
+        sectionLabel="구조 보기"
+        title="검증된 3D 구조와 VSEPR 모형을 확인합니다"
         collapsible={collapsible}
       >
         {external3DSearchSlot}
 
         <div className="shape-viewer-grid">
-          {predictionSlot}
+          <div className="shape-viewer-column">
+            {predictionSlot}
+            {thoughtSubmissionSlot}
+          </div>
           {actual3DSlot}
         </div>
       </CollapsibleStudentStep>

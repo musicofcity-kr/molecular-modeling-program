@@ -1,5 +1,29 @@
 # MVP Implementation Status
 
+## 2026-07-12 — Direct student workbench
+
+### Implemented
+
+- Replaced the seven-step student wizard with one direct workbench.
+- The student screen now shows molecule selection, structure editing, validation results, and 3D/VSEPR viewing together.
+- Removed prediction, reflection, progress rail, previous/next navigation, and student result save/submit UI from the primary student screen.
+- Added one student thought field directly below the predicted 3D model and a guarded teacher submission button.
+- Teacher feedback now prioritizes the submitted VSEPR thought note over legacy reflection fields.
+- Preserved Ketcher extraction, RDKit validation gates, 3D viewers, existing stored-data contracts, and Firebase/API production behavior.
+
+### Verification
+
+- `npm run typecheck`: passed.
+- `npm test`: 48 files / 253 tests passed.
+- `npm run test:e2e`: 3 scenarios passed.
+- `npm run build`: passed with the existing 3Dmol eval and large Ketcher chunk warnings.
+- Visual QA: 1440px and 375px, no horizontal overflow, no console errors or warnings.
+- Visual layout QA: the thought field stays directly below the predicted model, 3D viewer columns do not overlap, and both canvases contain rendered pixel data.
+
+### Superseded behavior
+
+The former seven-step flame rail and prediction/reflection workflow is retained only in historical design documents and legacy stored-data types.
+
 ## 2026-06-29 — Phase 1 scaffold
 
 ### Implemented

@@ -50,6 +50,7 @@ export function buildE2eSubmission(overrides: Record<string, unknown> = {}) {
         molecularGeometryKo: '굽은형',
         idealBondAngle: '약 104.5°',
         confidence: 'high',
+        studentNote: '굽은형 모양은 산소의 비공유 전자쌍과 관련이 있습니다.',
       },
       comparisonObservation: {
         available: true,

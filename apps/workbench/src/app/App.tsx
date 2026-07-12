@@ -28,10 +28,6 @@ import { TeacherFeedbackPanel } from '../components/feedback/TeacherFeedbackPane
 import { LegalDocumentPanel } from '../components/legal/LegalDocumentPanel';
 import { LegalFooter } from '../components/legal/LegalFooter';
 import { StudentActivityShell } from '../components/student/StudentActivityShell';
-import {
-  LearningProgressRail,
-  type LearningStepId,
-} from '../components/student/LearningProgressRail';
 import { MoleculeDrawingStep } from '../components/student/MoleculeDrawingStep';
 import { ShapeViewerSection } from '../components/student/ShapeViewerSection';
 import { ValidationResultCards } from '../components/student/ValidationResultCards';
@@ -514,7 +510,6 @@ function WorkbenchApp({
     initialRoute ?? getInitialAppRoute(),
   );
   const [appMode, setAppMode] = useState<AppMode>('activity');
-  const [currentLearningStep, setCurrentLearningStep] = useState<LearningStepId>(1);
   const [userMode, setUserMode] = useState<UserMode>(
     getUserModeForRoute(initialRoute ?? getInitialAppRoute()),
   );
@@ -568,6 +563,8 @@ function WorkbenchApp({
     useState<string>('');
   const [activitySubmissionStatusMessage, setActivitySubmissionStatusMessage] =
     useState<string>('');
+  const [isActivitySubmissionPending, setIsActivitySubmissionPending] =
+    useState(false);
   const [teacherFeedbackStatusMessage, setTeacherFeedbackStatusMessage] =
     useState<string>('');
   const [teacherClassroomStatusMessage, setTeacherClassroomStatusMessage] =
@@ -624,7 +621,6 @@ function WorkbenchApp({
       )
     ) {
       setSelectedActivityId(currentActivityTemplates[0].id);
-      setCurrentLearningStep(1);
     }
   }, [currentActivityTemplates, selectedActivityId]);
 
@@ -656,7 +652,6 @@ function WorkbenchApp({
 
   const handleStudentEntered = useCallback(() => {
     setAppMode('activity');
-    setCurrentLearningStep(1);
     navigateToRoute('student-workbench');
   }, [navigateToRoute]);
 
@@ -1001,7 +996,6 @@ function WorkbenchApp({
 
     if (nextActivityId !== selectedActivityId) {
       setSelectedActivityId(nextActivityId);
-      setCurrentLearningStep(1);
     }
 
     resetCurrentStructureState();
@@ -1027,7 +1021,6 @@ function WorkbenchApp({
     });
 
     setSelectedActivityId(activityId);
-    setCurrentLearningStep(1);
     setSelectedExampleId(nextExampleId);
     resetCurrentStructureState();
 
@@ -1405,6 +1398,15 @@ function WorkbenchApp({
     [appMode, currentValidatedExample, selectedActivity],
   );
   const currentActivityResponses = activityResponsesById[selectedActivityId] ?? {};
+  const currentStudentThought = currentActivityResponses.vseprReflection ?? '';
+  const canSubmitStudentThought = Boolean(
+    validationResult?.ok === true &&
+      currentStudentThought.trim() &&
+      session?.role === 'student' &&
+      session.classroomJoinStatus === 'joined' &&
+      session.idToken &&
+      !isActivitySubmissionPending,
+  );
   const structureComparisonState = buildStructureComparisonState({
     validationResult,
     molecule3DInput,
@@ -1568,37 +1570,62 @@ function WorkbenchApp({
     }
   };
   const handleSubmitActivityResult = async () => {
-    const snapshot = createActivityResultSnapshot({
-      appMode,
-      userMode,
-      activityTemplate: selectedActivityForResult,
-      responses: currentActivityResponses,
-      validationResult,
-      molecule3DInput,
-      measurementResults,
-      vseprAnalysis,
-      comparisonObservation: structureComparisonObservation,
-    });
-    const submission = createActivitySubmission({
-      snapshot,
-      studentSession: session?.role === 'student' ? session : undefined,
-    });
-    const result = saveActivitySubmission(submission);
-    const developerLogs = [...result.developerLogs];
-    const statusMessages = [result.studentMessage];
-
-    if (result.ok) {
-      setActivitySubmissions(result.data);
-      setSelectedSubmissionId(submission.id);
+    if (validationResult?.ok !== true) {
+      setActivitySubmissionStatusMessage('구조 확인을 완료한 뒤 제출해 주세요.');
+      return;
     }
 
-    setActivitySubmissionStatusMessage(
-      session?.role === 'student'
-        ? `${result.studentMessage} 서버 제출 상태를 확인하는 중입니다.`
-        : result.studentMessage,
-    );
+    if (!currentStudentThought.trim()) {
+      setActivitySubmissionStatusMessage('나의 생각을 작성한 뒤 제출해 주세요.');
+      return;
+    }
 
-    if (session?.role === 'student') {
+    if (
+      session?.role !== 'student' ||
+      session.classroomJoinStatus !== 'joined' ||
+      !session.idToken
+    ) {
+      setActivitySubmissionStatusMessage(
+        '수업 입장이 완료된 학생만 교사에게 제출할 수 있습니다.',
+      );
+      return;
+    }
+
+    if (isActivitySubmissionPending) {
+      return;
+    }
+
+    setIsActivitySubmissionPending(true);
+
+    try {
+      const snapshot = createActivityResultSnapshot({
+        appMode,
+        userMode,
+        activityTemplate: selectedActivityForResult,
+        responses: currentActivityResponses,
+        validationResult,
+        molecule3DInput,
+        measurementResults,
+        vseprAnalysis,
+        comparisonObservation: structureComparisonObservation,
+      });
+      const submission = createActivitySubmission({
+        snapshot,
+        studentSession: session,
+      });
+      const result = saveActivitySubmission(submission);
+      const developerLogs = [...result.developerLogs];
+      const statusMessages = [result.studentMessage];
+
+      if (result.ok) {
+        setActivitySubmissions(result.data);
+        setSelectedSubmissionId(submission.id);
+      }
+
+      setActivitySubmissionStatusMessage(
+        `${result.studentMessage} 서버 제출 상태를 확인하는 중입니다.`,
+      );
+
       const remoteResult = await saveSubmissionWithTrustedEndpoint({
         submission,
         idToken: session.idToken,
@@ -1606,10 +1633,12 @@ function WorkbenchApp({
 
       developerLogs.push(...remoteResult.developerLogs);
       statusMessages.push(remoteResult.studentMessage);
-    }
 
-    setActivitySubmissionStatusMessage(statusMessages.join(' '));
-    console.info('[Activity submission storage]', developerLogs);
+      setActivitySubmissionStatusMessage(statusMessages.join(' '));
+      console.info('[Activity submission storage]', developerLogs);
+    } finally {
+      setIsActivitySubmissionPending(false);
+    }
   };
   const handleCreateFirestoreClassroom = async (draft: ClassroomDraft) => {
     const result = await createClassroomWithTrustedEndpoint({
@@ -2037,7 +2066,6 @@ function WorkbenchApp({
         external3DSearchSlot={studentExternal3DSearchSection}
         comparisonSlot={comparisonSection}
       />
-      {resultSection}
     </div>
   );
   const isStudentSessionActive = session?.role === 'student';
@@ -2224,17 +2252,9 @@ function WorkbenchApp({
       ) : null}
 
       {isStudentActivityView ? (
-        <LearningProgressRail
-          currentStep={currentLearningStep}
-          onStepSelect={setCurrentLearningStep}
-        />
-      ) : null}
-
-      {isStudentActivityView ? (
         <StudentActivityShell
           templates={currentActivityTemplates}
           selectedActivityId={selectedActivityId}
-          responses={currentActivityResponses}
           validationResult={validationResult}
           vseprAnalysis={vseprAnalysis}
           molecule3DInput={molecule3DInput}
@@ -2244,15 +2264,20 @@ function WorkbenchApp({
           predictionViewerSlot={vseprPredictionSection}
           actual3DViewerSlot={actual3DViewerSection}
           external3DSearchSlot={studentExternal3DSearchSection}
-          comparisonSlot={comparisonSection}
-          resultSlot={resultSection}
-          currentStep={currentLearningStep}
+          thoughtValue={currentStudentThought}
+          submissionStatusMessage={activitySubmissionStatusMessage}
+          canSubmitThought={canSubmitStudentThought}
+          isSubmittingThought={isActivitySubmissionPending}
           onSelectActivity={handleSelectActivity}
-          onResponseChange={handleActivityResponseChange}
           onSelectExample={handleSelectExample}
           onLoadExample={handleLoadExample}
           onConfirmStructure={handleExtractAndValidate}
-          onStepChange={setCurrentLearningStep}
+          onThoughtChange={(value) => {
+            handleActivityResponseChange('vseprReflection', value);
+          }}
+          onSubmitThought={() => {
+            void handleSubmitActivityResult();
+          }}
         />
       ) : isStudentFreeDrawView ? (
         studentFreeDrawView
@@ -2355,7 +2380,7 @@ function WorkbenchApp({
         {actual3DViewerSection}
       </TeacherAdvancedPanel>
 
-      {isStudentActivityView ? null : resultSection}
+      {isTeacherAuthorizedSession ? resultSection : null}
 
       <DeveloperDetailsPanel
         logs={logs}

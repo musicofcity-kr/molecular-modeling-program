@@ -24,10 +24,9 @@ export function ActivityPicker({
   return (
     <CollapsibleStudentStep
       id="student-step-1"
-      className="student-step activity-picker phase-predict"
+      className="student-step activity-picker"
       testId="activity-picker"
-      stepNumber={1}
-      sectionLabel="오늘의 활동 선택하기"
+      sectionLabel="분자 선택"
       title={selectedTemplate.title}
       collapsible={collapsible}
     >
@@ -55,8 +54,8 @@ export function ActivityPicker({
 
         <div className="activity-target student-target-card">
           <div>
-            <p className="section-label">학습 목표</p>
-            <h3>{selectedTemplate.learningGoal}</h3>
+            <p className="section-label">작업 대상</p>
+            <h3>{selectedTemplate.targetMoleculeName}</h3>
           </div>
           <p>{selectedTemplate.prompt}</p>
           <dl>

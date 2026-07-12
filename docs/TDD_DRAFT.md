@@ -1,5 +1,11 @@
 # TDD Draft — Technical Design for 다양한 분자의 분자구조 모델링
 
+> **2026-07-12 사용자 결정:** 학생 기본 화면은 7단계 위저드, 예측 입력,
+> 다중 성찰 입력, 단계 잠금, 결과 보고서 패널을 사용하지 않는다. 아래의 과거
+> activity prediction/reflection 설계는 레거시 데이터 호환 참고이며 신규 학생
+> UI 요구사항이 아니다. 현재 계약은 `분자 선택 → 구조 편집 → 검증 → 구조 보기
+> → 생각 정리 및 교사 제출`이며, 생각은 기존 `vseprReflection` 스냅샷 필드로 저장한다.
+
 ## 1. Architecture Summary
 
 MVP should be frontend-first.

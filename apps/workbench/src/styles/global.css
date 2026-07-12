@@ -1112,9 +1112,9 @@ select {
   gap: 16px;
 }
 
-.student-activity-shell.is-wizard {
-  justify-items: center;
-  padding-bottom: 88px;
+.student-activity-shell.direct-workbench {
+  width: min(100%, 1500px);
+  margin: 0 auto;
 }
 
 .student-wizard-stage {
@@ -1765,6 +1765,47 @@ select {
   align-items: start;
 }
 
+.shape-viewer-column {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.shape-viewer-column > * {
+  width: 100%;
+  min-width: 0;
+}
+
+.student-thought-submission {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 14px;
+}
+
+.student-thought-submission label {
+  display: grid;
+  gap: 8px;
+  color: var(--ink);
+}
+
+.student-thought-submission textarea {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  padding: 10px;
+}
+
+.student-thought-submission .primary-action {
+  justify-self: start;
+}
+
 .teacher-advanced-panel {
   display: grid;
   gap: 14px;
@@ -2186,6 +2227,8 @@ select {
 .vsepr-model-panel {
   display: grid;
   gap: 14px;
+  min-width: 0;
+  container: molecule-viewer / inline-size;
 }
 
 .vsepr-model-toolbar {
