@@ -48,7 +48,11 @@
   - `npm test`: 48 files / 253 tests passed
   - `PLAYWRIGHT_PORT=5179 npm run test:e2e`: 3 scenarios passed
   - `npm run build`: 성공
-  - production 재배포 후 실제 함수 응답 추가 확인 예정
+  - production `GET /api/join-classroom`: 405 JSON 정상 응답
+  - production `GET /api/create-classroom`: 405 JSON 정상 응답
+  - production 학생 입장 POST: 존재하지 않는 테스트 수업방에 404 JSON 정상 응답
+  - 기존 `500 FUNCTION_INVOCATION_FAILED` 해소 확인
+  - 구조 검증·생각 작성 후 수업방 실패 사유가 제출 버튼 아래 표시됨
 
 ## [Phase 11.2] 교사용 Google 로그인 실패 진단 및 오류 상태 보완 — 2026-07-12
 
