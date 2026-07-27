@@ -1,61 +1,95 @@
 ---
 name: chem-architecture
-description: Use when designing or revising the architecture of the ChemDraw-like educational molecule modeling app, including frontend/backend boundaries, chemistry data flow, validation gates, and phased implementation plans.
+description: Use when designing or revising the educational molecule modeling app architecture, including editor adapters, graph/connectivity gates, RDKit validation, VSEPR boundaries, 3D provenance, and phased implementation plans.
 ---
 
 # Chem Architecture Skill
 
 ## Purpose
 
-Use this skill when Codex must design, refactor, or evaluate the architecture of the Molecule Modeling Workbench.
+Use this skill when designing, refactoring, or evaluating the Molecule Modeling Workbench.
 
-The product is a classroom-oriented ChemDraw-like web app, not a full professional ChemDraw clone.
+The product is a classroom-oriented molecular modeling app, not a full professional ChemDraw clone.
 
 ## Architecture Principles
 
-1. Treat the chemical structure as data first, drawing second.
-2. Keep Ketcher as the input/editor layer.
-3. Keep RDKit.js as the browser validation layer.
-4. Do not show calculated chemical values until validation passes.
-5. Keep 3D visualization separate from 2D editing.
-6. Add backend services only when browser-only implementation is insufficient.
-7. Record dependency decisions in `docs/LIBRARY_DECISION_LOG.md`.
+1. Treat chemical structure as a graph first and a drawing second.
+2. Treat student construction intent as explicit state.
+3. Keep Ketcher as the input/editor layer behind an app-owned adapter.
+4. Inspect atom/bond/component connectivity before reporting construction success.
+5. Keep RDKit.js as the deterministic chemistry validation layer.
+6. Do not show calculated chemistry values until connectivity policy and RDKit validation pass.
+7. Keep 2D layout, VSEPR interpretation, and coordinate-based 3D visualization separate.
+8. Add backend services only when browser-only implementation is insufficient.
+9. Record dependency/API decisions in `docs/LIBRARY_DECISION_LOG.md`.
+10. Make direct mouse/touch drawing a product capability, not an untested assumption.
 
 ## Required Data Flow
 
 ```text
-User drawing → Ketcher editor state → SMILES/Molfile → RDKit validation → results panel/export/3D viewer
+Student gesture
+→ Ketcher adapter state
+→ SMILES/Molfile or graph representation
+→ graph summary
+→ structure-intent policy
+→ RDKit validation
+→ result panel/export
+→ local VSEPR analysis
+→ separately labelled 3D viewer
 ```
 
-Do not bypass this validation flow for demo convenience.
+Do not bypass graph or RDKit gates for demo convenience.
 
-## Recommended MVP Modules
+## Recommended Module Boundaries
 
 ```text
 src/
 ├─ app/
 ├─ components/
 │  ├─ editor/
+│  ├─ connectivity/
+│  ├─ validation/
+│  ├─ vsepr/
 │  ├─ molecule-panel/
 │  ├─ examples/
 │  └─ export/
 ├─ chemistry/
 │  ├─ structure-types.ts
+│  ├─ graph-summary.ts
+│  ├─ connectivity-policy.ts
 │  ├─ validation-service.ts
 │  ├─ rdkit-loader.ts
+│  ├─ vsepr-service.ts
 │  └─ examples.ts
+├─ e2e/
 ├─ tests/
 └─ styles/
 ```
 
-## When Planning
+Adapt paths to the current repository rather than moving files unnecessarily.
+
+## Required Domain Types
+
+The architecture must represent equivalents of:
+
+- `StructureIntent`
+- `MoleculeGraphSummary`
+- `ConnectivityDecision`
+- `MoleculeValidationResult`
+- `VseprAnalysis`
+- `Molecule3DInput` with coordinate provenance
+
+## Planning Standard
 
 Always state:
 
-- current phase
+- current phase and baseline
 - target user behavior
+- exact reproduction path
 - affected files
+- graph/connectivity gate
 - chemistry validation gate
+- VSEPR/3D boundary
 - tests needed
 - rollback risk
 
@@ -63,26 +97,31 @@ Always state:
 
 Allowed in MVP:
 
-- 2D editor integration
+- direct 2D editor integration
+- linear and branched chain construction
+- graph/connectivity summary
 - SMILES/Molfile extraction
 - formula and molecular mass
+- local-center VSEPR prediction
+- labelled 3D reference/model viewer
 - image export
 - example molecule library
 
-Not MVP:
+Not automatically MVP:
 
 - full IUPAC name generation
 - quantum calculations
-- publication-grade mechanism drawing
-- multi-user classroom accounts
+- publication-grade mechanisms
 - full ChemDraw compatibility
+- unsupported transition-metal geometry
 
 ## Output Standard
 
-When proposing architecture, include:
+Include:
 
-1. `What changes`
-2. `Why this is chemically safer`
-3. `Files affected`
-4. `Validation path`
-5. `Test path`
+1. What changes
+2. Why this is chemically and pedagogically safer
+3. Files affected
+4. Connectivity/validation path
+5. Direct drawing and test path
+6. Remaining unsupported cases

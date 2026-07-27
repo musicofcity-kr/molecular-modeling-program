@@ -37,6 +37,9 @@ export function formatActivityResultMarkdown(
     `- 표준 구조 표현: ${valueOrFallback(snapshot.rdkitValidation.canonicalSmiles)}`,
     `- 분자식: ${valueOrFallback(snapshot.rdkitValidation.molecularFormula)}`,
     `- 평균 분자량: ${formatNumber(snapshot.rdkitValidation.molecularWeight)}`,
+    `- 구조 의도: ${formatStructureIntent(snapshot)}`,
+    `- 연결 근거: ${formatConnectivityEvidence(snapshot)}`,
+    ...formatRDKitWarnings(snapshot),
     snapshot.rdkitValidation.studentMessage
       ? `- 안내: ${snapshot.rdkitValidation.studentMessage}`
       : null,
@@ -52,13 +55,17 @@ export function formatActivityResultMarkdown(
     '  이 값은 현재 로드된 3D 좌표 기준입니다. 정밀 실험값으로 사용하지 마세요.',
     '',
     '## 6. 입체 구조 예상',
+    `- 선택 중심 원자: ${valueOrFallback(snapshot.vseprResult?.selectedCenter?.atomLabel)}`,
+    `- 분석 범위: ${formatVseprScope(snapshot)}`,
     `- 전자쌍 모형 표기: ${valueOrFallback(snapshot.vseprResult?.axeNotation)}`,
     `- 전자쌍 배열: ${valueOrFallback(snapshot.vseprResult?.electronGeometryKo)}`,
-    `- 분자 구조: ${valueOrFallback(snapshot.vseprResult?.molecularGeometryKo)}`,
-    `- 이상적 결합각: ${valueOrFallback(snapshot.vseprResult?.idealBondAngle)}`,
+    `- 선택 중심 주변 분자 모양: ${valueOrFallback(snapshot.vseprResult?.molecularGeometryKo)}`,
+    `- VSEPR 이상각(이론): ${formatVseprIdealAngles(snapshot)}`,
+    `- VSEPR 생성 좌표 근거각(명시적): ${formatGeneratedCoordinateAngles(snapshot)}`,
+    `- 문헌 참고각: ${formatCuratedReferenceAngles(snapshot)}`,
     `- 학생 메모: ${valueOrFallback(snapshot.vseprResult?.studentNote)}`,
     '- 안내:',
-    '  입체 구조 예상은 전자쌍 반발 이론에 따른 교육용 예측 모형입니다.',
+    '  입체 구조 예상은 전자쌍 반발 이론에 따른 교육용 예측 모형입니다. 선택한 중심 원자 주변의 국소 예측이므로 분자 전체 형상이나 실험값으로 해석하지 마세요.',
     '',
     '## 7. 참고 3D 구조와 예상 입체 모형 비교',
     `- 비슷한 점: ${valueOrFallback(snapshot.comparisonObservation?.observedSimilarities)}`,
@@ -218,6 +225,89 @@ function formatActivityAnswers(snapshot: ActivityResultSnapshot): string[] {
     (answer) =>
       `- ${answer.questionText}: ${answer.answer.trim() || '미입력'}`,
   );
+}
+
+function formatVseprScope(snapshot: ActivityResultSnapshot): string {
+  return snapshot.vseprResult?.scope === 'local-center'
+    ? '선택 중심 원자 주변의 국소 VSEPR 예측'
+    : '없음';
+}
+
+function formatStructureIntent(snapshot: ActivityResultSnapshot): string {
+  switch (snapshot.rdkitValidation.structureIntent) {
+    case 'single-molecule':
+      return '단일 분자';
+    case 'ionic-compound':
+      return '이온 화합물';
+    case 'mixture':
+      return '혼합물';
+    default:
+      return '없음';
+  }
+}
+
+function formatConnectivityEvidence(snapshot: ActivityResultSnapshot): string {
+  const graph = snapshot.rdkitValidation.graphSummary;
+
+  if (!graph) {
+    return '없음';
+  }
+
+  const statusLabel = (() => {
+    switch (snapshot.rdkitValidation.connectivityStatus) {
+      case 'single-component':
+        return '하나의 연결된 구조';
+      case 'multiple-components-allowed':
+        return '명시한 구조 의도에 따라 여러 연결 성분을 구분함';
+      case 'multiple-components-blocked':
+        return '여러 조각으로 나뉘어 계산을 차단함';
+      case 'empty':
+        return '연결된 원자 구조가 없음';
+      default:
+        return graph.isSingleComponent
+          ? '하나의 연결된 구조'
+          : '여러 연결 성분';
+    }
+  })();
+
+  return `원자 ${graph.atomCount}개 · 결합 ${graph.bondCount}개 · 연결 성분 ${graph.componentCount}개 · ${statusLabel}`;
+}
+
+function formatRDKitWarnings(snapshot: ActivityResultSnapshot): string[] {
+  const warnings = snapshot.rdkitValidation.warnings ?? [];
+
+  return warnings.map((warning) => `- 구조 확인 참고: ${warning}`);
+}
+
+function formatVseprIdealAngles(snapshot: ActivityResultSnapshot): string {
+  const angles = snapshot.vseprResult?.angleEvidence?.vseprIdealAngles;
+
+  if (angles && angles.length > 0) {
+    return angles.join(', ');
+  }
+
+  return valueOrFallback(snapshot.vseprResult?.idealBondAngle);
+}
+
+function formatGeneratedCoordinateAngles(
+  snapshot: ActivityResultSnapshot,
+): string {
+  const angles =
+    snapshot.vseprResult?.angleEvidence?.generatedCoordinateMeasurements;
+
+  return angles && angles.length > 0
+    ? angles.map((value) => `${value}°`).join(', ')
+    : '없음';
+}
+
+function formatCuratedReferenceAngles(snapshot: ActivityResultSnapshot): string {
+  const angles = snapshot.vseprResult?.angleEvidence?.curatedReferenceAngles;
+
+  return angles && angles.length > 0
+    ? angles
+        .map((item) => `${item.value}° (${item.sourceLabel})`)
+        .join(', ')
+    : '없음';
 }
 
 function valueOrFallback(value: string | undefined): string {

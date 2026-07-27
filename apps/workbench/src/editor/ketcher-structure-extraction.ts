@@ -1,3 +1,4 @@
+import { parseStrictV2000Layout } from '../chemistry/v2000MolBlock';
 import type { ExtractedStructureData } from './chemical-editor-handle';
 
 export type KetcherStructureReader = {
@@ -40,17 +41,17 @@ async function readKetcherText(
 }
 
 function hasAtomsInV2000MolBlock(molBlock: string): boolean {
-  const countsLine = molBlock
-    .split(/\r?\n/)
-    .find((line) => /\bV2000\b/.test(line));
+  const layout = parseStrictV2000Layout(molBlock);
 
-  if (!countsLine) {
+  if (!layout) {
+    if (/\bV2000\b/.test(molBlock)) {
+      return false;
+    }
+
     return molBlock.trim().length > 0;
   }
 
-  const atomCount = Number.parseInt(countsLine.trim().split(/\s+/)[0] ?? '', 10);
-
-  return Number.isFinite(atomCount) && atomCount > 0;
+  return layout.atomCount > 0;
 }
 
 export function hasExtractedStructure(smiles: string, molBlock: string): boolean {

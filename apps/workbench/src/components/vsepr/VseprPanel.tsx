@@ -49,13 +49,20 @@ export function VseprPanel({
 }: VseprPanelProps) {
   const candidates = analysis.centralAtomCandidates ?? [];
   const canSelectCenter = candidates.length > 0;
+  const selectedCenterLabel =
+    analysis.centralAtomLabel ??
+    (analysis.centralAtomSymbol && analysis.centralAtomId
+      ? `${analysis.centralAtomSymbol}${analysis.centralAtomId}`
+      : analysis.centralAtomSymbol);
+  const vseprIdealAngles =
+    analysis.angleEvidence?.vseprIdealAngles ?? analysis.idealBondAngles;
 
   return (
     <section className="workspace-panel vsepr-panel" data-testid="vsepr-panel">
       <div className="panel-heading vsepr-heading">
         <div>
-          <p className="section-label">입체 구조 예상</p>
-          <h2>전자쌍 반발로 예상한 분자 모양</h2>
+          <p className="section-label">VSEPR 근거표</p>
+          <h2>선택한 중심 원자 주변의 전자 영역과 모양을 추론합니다</h2>
         </div>
         <span className={`status-pill ${analysis.status}`}>
           {formatStatus(analysis.status)}
@@ -63,14 +70,14 @@ export function VseprPanel({
       </div>
 
       <p className="vsepr-notice">
-        입체 구조 예상은 전자쌍 반발 이론에 따른 교육용 예측입니다. 실제 측정 구조
-        또는 계산화학 최적화 구조와 차이가 있을 수 있습니다.
+        2D 구조식은 원자의 연결 관계를 나타냅니다. VSEPR 모형은 선택한 중심 원자
+        주변의 이상적인 입체 배치를 따로 보여 주는 교육용 예측입니다.
       </p>
 
       <div className="vsepr-model-action">
         <p>
-          예상 입체 모형은 실제 3D 자료가 아니라 중심 원자 주변 전자쌍 방향을
-          이해하기 위한 단위 벡터 모형입니다.
+          예상 입체 모형은 실제 3D 자료가 아니라 선택한 중심 원자 주변 전자쌍
+          방향을 이해하기 위한 단위 벡터 모형입니다.
         </p>
         <button
           className="secondary-action"
@@ -85,7 +92,7 @@ export function VseprPanel({
 
       {canSelectCenter ? (
         <label className="vsepr-center-picker">
-          <span>중심 원자</span>
+          <span>선택 중심 원자</span>
           <select
             data-testid="vsepr-center-select"
             value={selectedCentralAtomId ?? analysis.centralAtomId ?? ''}
@@ -105,38 +112,61 @@ export function VseprPanel({
 
       <dl className="vsepr-result-grid">
         <div>
-          <dt>전자쌍 모형 표기</dt>
-          <dd>{analysis.axeNotation ?? '아직 예측되지 않음'}</dd>
+          <dt>선택 중심 원자</dt>
+          <dd data-testid="vsepr-central-atom-output">
+            {selectedCenterLabel ?? '아직 예측되지 않음'}
+          </dd>
         </div>
         <div>
-          <dt>전자쌍 배열</dt>
-          <dd>{analysis.electronDomainGeometryKo ?? '아직 예측되지 않음'}</dd>
-        </div>
-        <div>
-          <dt>분자 구조</dt>
-          <dd>{analysis.molecularShapeKo ?? '아직 예측되지 않음'}</dd>
-        </div>
-        <div>
-          <dt>결합 원자 수</dt>
-          <dd>{analysis.bondedAtomCount ?? '아직 예측되지 않음'}</dd>
+          <dt>결합 전자 영역 수</dt>
+          <dd data-testid="vsepr-bonding-domain-output">
+            {analysis.bondedAtomCount ?? '아직 예측되지 않음'}
+          </dd>
         </div>
         <div>
           <dt>비공유 전자쌍 수</dt>
-          <dd>{analysis.lonePairCount ?? '아직 예측되지 않음'}</dd>
+          <dd data-testid="vsepr-lone-pair-output">
+            {analysis.lonePairCount ?? '아직 예측되지 않음'}
+          </dd>
         </div>
         <div>
-          <dt>입체수</dt>
-          <dd>{analysis.stericNumber ?? '아직 예측되지 않음'}</dd>
+          <dt>전체 전자 영역 수</dt>
+          <dd data-testid="vsepr-total-domain-output">
+            {analysis.stericNumber ?? '아직 예측되지 않음'}
+          </dd>
         </div>
         <div>
-          <dt>예상 결합각</dt>
-          <dd>{analysis.idealBondAngles?.join(', ') ?? '아직 예측되지 않음'}</dd>
+          <dt>전자쌍 배열</dt>
+          <dd data-testid="vsepr-electron-geometry-output">
+            {analysis.electronDomainGeometryKo ?? '아직 예측되지 않음'}
+          </dd>
         </div>
         <div>
-          <dt>확인 수준</dt>
-          <dd>{formatConfidence(analysis.confidence)}</dd>
+          <dt>선택 중심 주변 분자 모양</dt>
+          <dd data-testid="vsepr-molecular-shape-output">
+            {analysis.molecularShapeKo ?? '아직 예측되지 않음'}
+          </dd>
+        </div>
+        <div>
+          <dt>VSEPR 이상각(이론)</dt>
+          <dd data-testid="vsepr-bond-angle-output">
+            {vseprIdealAngles?.join(', ') ?? '아직 예측되지 않음'}
+          </dd>
         </div>
       </dl>
+      <details className="student-secondary-details vsepr-secondary-details">
+        <summary>모형 표기와 분석 범위</summary>
+        <dl>
+          <div>
+            <dt>전자쌍 모형 표기</dt>
+            <dd>{analysis.axeNotation ?? '아직 예측되지 않음'}</dd>
+          </div>
+          <div>
+            <dt>확인 수준</dt>
+            <dd>{formatConfidence(analysis.confidence)}</dd>
+          </div>
+        </dl>
+      </details>
 
       {analysis.studentMessage ? (
         <p className="vsepr-student-message">{analysis.studentMessage}</p>

@@ -1,15 +1,20 @@
-# Source Check Template
+# Source Check Template v2
 
 ```md
 ## Source check — YYYY-MM-DD
 
 - Decision:
-- Primary source:
+- Installed package/version:
+- Primary versioned source:
 - Secondary source:
 - Evidence summary:
+- Public API or internal/private behavior:
 - License:
 - Maintenance signal:
-- Risk:
-- Verification:
+- Upgrade risk:
+- Minimal spike:
+- Automated verification:
+- Manual verification:
 - Decision outcome:
+- Remaining uncertainty:
 ```

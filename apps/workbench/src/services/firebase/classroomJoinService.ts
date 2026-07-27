@@ -9,14 +9,31 @@ export type JoinClassroomInput = {
   idToken?: string;
 };
 
-export type JoinClassroomResult = {
-  ok: true;
-  status: ClassroomJoinStatus;
-  classCode: string;
-  activityTemplateIds: string[];
-  studentMessage: string;
-  developerMessage: string;
-};
+export type JoinClassroomRejectionStatus =
+  | 'invalid_request'
+  | 'unauthorized'
+  | 'classroom_not_found'
+  | 'join_disabled'
+  | 'rate_limited'
+  | 'rejected';
+
+export type JoinClassroomResult =
+  | {
+      ok: true;
+      status: ClassroomJoinStatus;
+      classCode: string;
+      activityTemplateIds: string[];
+      studentMessage: string;
+      developerMessage: string;
+    }
+  | {
+      ok: false;
+      status: JoinClassroomRejectionStatus;
+      classCode: string;
+      activityTemplateIds: string[];
+      studentMessage: string;
+      developerMessage: string;
+    };
 
 export const JOIN_CLASSROOM_DEFERRED_MESSAGE =
   '수업코드 서버 확인은 다음 단계에서 연결합니다. 오늘 활동은 현재 브라우저에서 계속 진행할 수 있습니다.';
@@ -110,17 +127,36 @@ export async function joinClassroomWithTrustedEndpoint(
       };
     }
 
-    return {
-      ok: true,
-      status: 'deferred_until_trusted_endpoint',
-      classCode: input.classCode,
-      activityTemplateIds: [],
-      studentMessage:
-        body.studentMessage ?? JOIN_CLASSROOM_SERVER_FALLBACK_MESSAGE,
-      developerMessage:
+    const hasExplicitRejectionStatus =
+      body.ok === false &&
+      typeof body.status === 'string' &&
+      body.status !== 'server_error';
+
+    if (hasExplicitRejectionStatus) {
+      return rejectedJoinResult(input.classCode, body, response.status);
+    }
+
+    if (body.status === 'server_error' || response.status >= 500) {
+      return deferredJoinResult(
+        input.classCode,
         body.developerMessage ??
-        `joinClassroom endpoint rejected request: status=${response.status}`,
-    };
+          `joinClassroom endpoint server failure: status=${response.status}`,
+        body.studentMessage ?? JOIN_CLASSROOM_SERVER_FALLBACK_MESSAGE,
+      );
+    }
+
+    if (
+      (response.status === 404 || response.status === 405) &&
+      !hasExplicitRejectionStatus
+    ) {
+      return deferredJoinResult(
+        input.classCode,
+        `joinClassroom endpoint unavailable: status=${response.status}, rejection payload not provided`,
+        JOIN_CLASSROOM_SERVER_FALLBACK_MESSAGE,
+      );
+    }
+
+    return rejectedJoinResult(input.classCode, body, response.status);
   } catch (error) {
     return deferredJoinResult(
       input.classCode,
@@ -128,6 +164,24 @@ export async function joinClassroomWithTrustedEndpoint(
       JOIN_CLASSROOM_SERVER_FALLBACK_MESSAGE,
     );
   }
+}
+
+function rejectedJoinResult(
+  inputClassCode: string,
+  body: JoinClassroomApiResponse,
+  responseStatus: number,
+): JoinClassroomResult {
+  return {
+    ok: false,
+    status: normalizeRejectionStatus(body.status),
+    classCode: body.classCode ?? inputClassCode,
+    activityTemplateIds: [],
+    studentMessage:
+      body.studentMessage ?? '수업 입장 정보를 다시 확인해 주세요.',
+    developerMessage:
+      body.developerMessage ??
+      `joinClassroom endpoint rejected request: status=${responseStatus}, payloadStatus=${body.status ?? 'not provided'}`,
+  };
 }
 
 async function parseJoinClassroomResponse(
@@ -153,6 +207,21 @@ function deferredJoinResult(
     studentMessage,
     developerMessage,
   };
+}
+
+function normalizeRejectionStatus(
+  status: string | undefined,
+): JoinClassroomRejectionStatus {
+  switch (status) {
+    case 'invalid_request':
+    case 'unauthorized':
+    case 'classroom_not_found':
+    case 'join_disabled':
+    case 'rate_limited':
+      return status;
+    default:
+      return 'rejected';
+  }
 }
 
 function normalizeActivityTemplateIds(value: unknown): string[] {

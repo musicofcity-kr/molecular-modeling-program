@@ -1,6 +1,73 @@
 # MVP Implementation Status
 
-## 2026-07-12 — Direct student workbench
+## 2026-07-27 — Five-stage UX/QA meta-prompt integration
+
+### Decision precedence
+
+- The root `CODEX 분자구조모델링 메타프롬프트.md` is the current product and
+  QA contract.
+- It supersedes the 2026-07-12 decision to remove the student progress UI.
+- The 2026-07-12 direct-workbench section remains below as historical
+  implementation evidence, not as the current student UI requirement.
+
+### Current implementation
+
+- Added an unlocked five-stage student flow:
+  1. `분자 선택`
+  2. `구조 만들기`
+  3. `구조 분석`
+  4. `3D 비교`
+  5. `생각 정리·제출`
+- Added a desktop progress rail and compact mobile
+  `선택·그리기·분석·3D·기록` navigation. Current, completed, review, and error
+  states are derived from activity state rather than stage locks.
+- Added Ketcher `간편 모드` and `고급 편집 모드` with the same editor instance
+  so mode changes do not intentionally clear the current structure.
+- Updated student drawing actions to:
+  - `예시 구조 불러오기`
+  - `구조 초기화`
+  - `2D 구조 분석하기`
+- Added the `VSEPR 근거표` with separate center atom, bonding electron-domain,
+  lone-pair, total electron-domain, electron geometry, molecular shape, and
+  predicted-angle fields.
+- Kept the coordinate-based reference 3D viewer and the VSEPR educational model
+  as separate sources. The VSEPR viewer provides electron-domain/atoms-only,
+  lone-pair, reset-view, and fit-to-screen controls.
+- Added comparison questions and a mobile VSEPR/reference viewer switch.
+- Kept student reasoning in the existing `vseprReflection` field and placed
+  guarded `교사에게 제출하기` plus returned teacher feedback in stage 5.
+- Explicit trusted classroom endpoint 4xx rejections now block session
+  creation. Trusted endpoint 5xx and network failures retain the
+  browser-local/deferred recovery boundary.
+- Preserved the RDKit validation gate: chemistry-derived values and VSEPR
+  evidence are not presented as valid results before deterministic validation.
+
+### Verification status
+
+- `npm run typecheck`: passed.
+- `npm test`: 54 files / 392 tests passed, including the final adversarial
+  AI privacy regressions.
+- `npm run build`: passed with the documented 3Dmol `eval` and large Ketcher
+  chunk warnings.
+- `npm run test:e2e`: 34 Chromium/mobile-chromium scenarios passed, including
+  actual Ketcher mouse/touch construction and the 390×844
+  touch flow, session isolation, error recovery, chemistry comparison, and
+  teacher feedback review.
+- `npm run test:firestore-rules`: 17 emulator tests passed.
+- Six current screenshots were generated under `docs/qa-screenshots/final/`
+  and visually inspected.
+- Status: `unreleased release candidate / local QA complete`.
+- Production deployment was not performed or declared complete by this work.
+
+### Required completion gate
+
+Local implementation completion requires typecheck, unit tests, build, E2E,
+mobile/browser evidence, chemistry fixtures, and no critical/high defect.
+Production promotion additionally requires explicit deployment approval,
+live Firebase/Vercel verification, school privacy review, and physical-device
+accessibility checks.
+
+## 2026-07-12 — Direct student workbench — HISTORICAL / SUPERSEDED 2026-07-27
 
 ### Implemented
 
@@ -22,7 +89,10 @@
 
 ### Superseded behavior
 
-The former seven-step flame rail and prediction/reflection workflow is retained only in historical design documents and legacy stored-data types.
+The former seven-step flame rail and prediction/reflection workflow is retained
+only in historical design documents and legacy stored-data types. The
+2026-07-12 no-progress direct workbench described in this section was itself
+superseded by the 2026-07-27 unlocked five-stage flow.
 
 ## 2026-06-29 — Phase 1 scaffold
 
@@ -538,3 +608,29 @@ Chemistry-derived values are shown only when `MoleculeValidationResult.ok === tr
 - `npm run typecheck`: passed.
 - Targeted `npm test -- App PubChemCandidatePanel Molecule3DViewer`: passed with
   3 files and 13 tests.
+
+## 2026-07-27 — 그래프 연결성·직접 그리기·국소 VSEPR 통합
+
+### Current status
+
+- RDKit JSON의 원자·결합 배열에서 앱 소유 그래프를 만들고 원자 수(A),
+  결합 수(B), 연결된 구조 조각 수(C)를 계산한다.
+- `single-molecule` 활동에서 C가 2 이상이면 분자식·분자량을 표시하지 않고
+  원자 사이를 결합으로 연결하라는 학생용 안내를 제공한다.
+- Ketcher 사슬 도구의 실제 마우스 드래그와 390px 단일 터치 드래그를
+  지원한다. 툴바와 멀티터치는 터치 호환 계층이 가로채지 않는다.
+- VSEPR 결과는 분자 전체 확정값이 아니라 `O1`, `C2`처럼 선택한 중심 원자
+  주변의 국소 분석으로 표시하고, 이론 이상각과 좌표 기반 측정값을 구분한다.
+- 결과 스냅샷과 제출 content key v3에 RDKit 경고, 구조 의도, 안전한 그래프
+  요약, 연결 판정, 선택 중심 및 각도 근거를 보존한다.
+
+### Verification
+
+- `npm run typecheck`: passed.
+- `npm test`: 54 files, 392 tests passed.
+- `npm run build`: 2,131 modules transformed; known 3Dmol `eval` and large
+  Ketcher chunk warnings remain.
+- `npm run test:e2e`: 34 scenarios passed, including mouse/touch direct
+  construction and disconnected C4 blocking.
+- `npm run test:firestore-rules`: 17 tests passed.
+- Independent final review: Critical 0 / High 0.

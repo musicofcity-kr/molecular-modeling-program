@@ -1,4 +1,13 @@
 import type { AppMode, UserMode } from './activity';
+import type {
+  ConnectivityDecision,
+  MoleculeGraphSummary,
+  StructureIntent,
+} from './molecule';
+import type {
+  GeometryAngleEvidence,
+  VseprAnalysisScope,
+} from './vsepr';
 
 export interface ActivityResultSnapshot {
   id: string;
@@ -21,6 +30,10 @@ export interface ActivityResultSnapshot {
     molecularFormula?: string;
     molecularWeight?: number;
     studentMessage?: string;
+    warnings?: string[];
+    structureIntent?: StructureIntent;
+    graphSummary?: MoleculeGraphSummary;
+    connectivityStatus?: ConnectivityDecision['status'];
   };
   threeDObservation: {
     has3DStructure: boolean;
@@ -31,10 +44,17 @@ export interface ActivityResultSnapshot {
   measurements: ActivityResultMeasurement[];
   vseprResult?: {
     available: boolean;
+    scope?: VseprAnalysisScope;
+    selectedCenter?: {
+      atomId: string;
+      atomSymbol: string;
+      atomLabel: string;
+    };
     axeNotation?: string;
     electronGeometryKo?: string;
     molecularGeometryKo?: string;
     idealBondAngle?: string;
+    angleEvidence?: GeometryAngleEvidence;
     confidence?: string;
     studentNote?: string;
   };

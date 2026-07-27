@@ -1,7 +1,9 @@
+import type { RDKitModule } from '@rdkit/rdkit';
 import type {
   Molecule3DInput,
   Molecule3DStructureMatchStatus,
 } from '../types/molecule';
+import { initializeRDKit, validateMoleculeInput } from './rdkitService';
 
 export type PubChem3DLoadStatus = 'idle' | 'loading' | 'success' | 'noData' | 'error';
 
@@ -10,6 +12,7 @@ export type PubChem3DLookupInput = {
   label: string;
   pubchemName?: string;
   structureMatchStatus?: Molecule3DStructureMatchStatus;
+  expectedCanonicalSmiles: string;
 };
 
 export type PubChem3DLookupResult =
@@ -38,6 +41,12 @@ const PUBCHEM_3D_NO_DATA_MESSAGE =
 const PUBCHEM_3D_SOURCE_NOTE =
   'PubChem PUG-REST에서 CID 기반으로 가져온 3D SDF 좌표입니다. 교육용 시각화 자료이며 분자식, 분자량, 결합각, 결합길이의 기준으로 사용하지 않습니다.';
 
+const PUBCHEM_3D_STRUCTURE_MISMATCH_MESSAGE =
+  '외부 3D 구조가 현재 확인한 2D 구조와 일치하지 않아 불러오기를 중단했습니다. 현재 구조를 다시 확인해 주세요.';
+
+const PUBCHEM_3D_STRUCTURE_VALIDATION_FAILURE_MESSAGE =
+  '외부 3D 구조가 구조 검증을 통과하지 못해 불러오기를 중단했습니다. 2D 구조 검증 결과는 계속 확인할 수 있습니다.';
+
 const RESPONSE_TEXT_LIMIT = 500;
 
 function buildPubChem3DSdfUrl(cid: number): string {
@@ -60,6 +69,128 @@ function validateCid(cid: number): string | null {
   return null;
 }
 
+function getHydrogenNormalizedCanonicalSmiles(
+  rdkit: RDKitModule,
+  structure: string,
+  sourceLabel: string,
+): string {
+  let molecule: ReturnType<RDKitModule['get_mol']> = null;
+  let hydrogenNormalizedMolecule: ReturnType<RDKitModule['get_mol']> = null;
+
+  try {
+    molecule = rdkit.get_mol(structure);
+
+    if (!molecule || !molecule.is_valid()) {
+      throw new Error(`${sourceLabel} could not be parsed by RDKit.`);
+    }
+
+    const hydrogenNormalizedMolBlock = molecule.remove_hs();
+    hydrogenNormalizedMolecule = rdkit.get_mol(hydrogenNormalizedMolBlock);
+
+    if (
+      !hydrogenNormalizedMolecule ||
+      !hydrogenNormalizedMolecule.is_valid()
+    ) {
+      throw new Error(
+        `${sourceLabel} could not be normalized by RDKit after removing explicit hydrogens.`,
+      );
+    }
+
+    const canonicalSmiles = hydrogenNormalizedMolecule.get_smiles().trim();
+
+    if (!canonicalSmiles) {
+      throw new Error(`${sourceLabel} produced an empty RDKit canonical SMILES.`);
+    }
+
+    return canonicalSmiles;
+  } finally {
+    hydrogenNormalizedMolecule?.delete();
+    molecule?.delete();
+  }
+}
+
+async function verifySdfMatchesExpectedCanonicalStructure(
+  sdf: string,
+  expectedCanonicalSmiles: string,
+): Promise<
+  | {
+      ok: true;
+      expectedCanonicalSmiles: string;
+      sdfCanonicalSmiles: string;
+    }
+  | {
+      ok: false;
+      expectedCanonicalSmiles?: string;
+      sdfCanonicalSmiles?: string;
+      developerMessage: string;
+    }
+> {
+  const trimmedExpectedCanonicalSmiles = expectedCanonicalSmiles.trim();
+
+  if (!trimmedExpectedCanonicalSmiles) {
+    return {
+      ok: false,
+      developerMessage:
+        'current RDKit canonical SMILES was missing before SDF verification.',
+    };
+  }
+
+  try {
+    const sdfValidation = await validateMoleculeInput({
+      source: 'import',
+      validationStatus: 'unvalidated',
+      molBlock: sdf,
+    });
+
+    if (!sdfValidation.ok) {
+      return {
+        ok: false,
+        developerMessage: [
+          'PubChem 3D SDF failed the shared RDKit validation gate.',
+          ...sdfValidation.developerLogs,
+        ].join(' '),
+      };
+    }
+
+    const rdkit = await initializeRDKit();
+    const normalizedExpectedCanonicalSmiles =
+      getHydrogenNormalizedCanonicalSmiles(
+        rdkit,
+        trimmedExpectedCanonicalSmiles,
+        'current RDKit canonical structure',
+      );
+    const sdfCanonicalSmiles = getHydrogenNormalizedCanonicalSmiles(
+      rdkit,
+      sdf,
+      'PubChem 3D SDF',
+    );
+
+    if (sdfCanonicalSmiles !== normalizedExpectedCanonicalSmiles) {
+      return {
+        ok: false,
+        expectedCanonicalSmiles: normalizedExpectedCanonicalSmiles,
+        sdfCanonicalSmiles,
+        developerMessage:
+          'PubChem 3D SDF structure verification failed: canonical mismatch.',
+      };
+    }
+
+    return {
+      ok: true,
+      expectedCanonicalSmiles: normalizedExpectedCanonicalSmiles,
+      sdfCanonicalSmiles,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      developerMessage:
+        error instanceof Error
+          ? error.message
+          : 'Unknown RDKit SDF structure verification error.',
+    };
+  }
+}
+
 export async function fetchPubChem3DSdf(
   input: PubChem3DLookupInput,
   fetchImpl: typeof fetch = fetch,
@@ -76,6 +207,22 @@ export async function fetchPubChem3DSdf(
         'PubChem 3D SDF fetch failed.',
         `CID: ${input.cid}`,
         invalidCidReason,
+      ],
+    };
+  }
+
+  if (!input.expectedCanonicalSmiles.trim()) {
+    return {
+      ok: false,
+      status: 'error',
+      studentMessage: PUBCHEM_3D_STRUCTURE_VALIDATION_FAILURE_MESSAGE,
+      warnings: [
+        '현재 RDKit.js 검증 구조의 식별값이 없어 외부 3D 자료를 요청하지 않았습니다.',
+      ],
+      developerLogs: [
+        'PubChem 3D SDF fetch failed.',
+        `CID: ${input.cid}`,
+        'current RDKit canonical SMILES was missing before PubChem request.',
       ],
     };
   }
@@ -124,6 +271,44 @@ export async function fetchPubChem3DSdf(
       };
     }
 
+    const structureVerification =
+      await verifySdfMatchesExpectedCanonicalStructure(
+        responseText,
+        input.expectedCanonicalSmiles,
+      );
+
+    if (!structureVerification.ok) {
+      const isCanonicalMismatch =
+        Boolean(structureVerification.expectedCanonicalSmiles) &&
+        Boolean(structureVerification.sdfCanonicalSmiles);
+
+      return {
+        ok: false,
+        status: 'error',
+        studentMessage: isCanonicalMismatch
+          ? PUBCHEM_3D_STRUCTURE_MISMATCH_MESSAGE
+          : PUBCHEM_3D_STRUCTURE_VALIDATION_FAILURE_MESSAGE,
+        warnings: [
+          isCanonicalMismatch
+            ? '외부 3D 자료의 구조 식별값이 현재 RDKit.js 검증 구조와 다릅니다.'
+            : '외부 3D 자료를 RDKit.js로 구조 검증하지 못했습니다.',
+        ],
+        developerLogs: [
+          'PubChem 3D SDF structure verification failed.',
+          `CID: ${input.cid}`,
+          structureVerification.developerMessage,
+          ...(structureVerification.expectedCanonicalSmiles
+            ? [
+                `expected canonical SMILES: ${structureVerification.expectedCanonicalSmiles}`,
+              ]
+            : []),
+          ...(structureVerification.sdfCanonicalSmiles
+            ? [`SDF canonical SMILES: ${structureVerification.sdfCanonicalSmiles}`]
+            : []),
+        ],
+      };
+    }
+
     return {
       ok: true,
       status: 'success',
@@ -133,7 +318,7 @@ export async function fetchPubChem3DSdf(
         label: input.label,
         sourceType: 'pubchem',
         coordinateDimension: '3d',
-        structureMatchStatus: input.structureMatchStatus ?? 'verified',
+        structureMatchStatus: 'verified',
         coordinateSource: `PubChem CID ${input.cid}`,
         sourceNote: input.pubchemName
           ? `${PUBCHEM_3D_SOURCE_NOTE} PubChem name: ${input.pubchemName}.`
@@ -142,7 +327,10 @@ export async function fetchPubChem3DSdf(
       },
       studentMessage: `${input.label}의 PubChem 3D 구조 데이터를 불러왔습니다.`,
       warnings: [],
-      developerLogs: [`PubChem 3D SDF fetch succeeded: CID ${input.cid}.`],
+      developerLogs: [
+        `PubChem 3D SDF fetch succeeded: CID ${input.cid}.`,
+        `PubChem 3D SDF structure verified against RDKit canonical SMILES: ${structureVerification.sdfCanonicalSmiles}.`,
+      ],
     };
   } catch (error) {
     return {

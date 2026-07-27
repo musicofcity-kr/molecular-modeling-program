@@ -1,6 +1,6 @@
 ---
 name: chem-file-interop
-description: Use when implementing or reviewing chemical file import/export such as SMILES, Molfile, SDF, RXN, XYZ, PDB, CDXML-related notes, Open Babel conversion, and structure normalization boundaries.
+description: Use when implementing or reviewing chemical import/export such as SMILES, Molfile, SDF, RXN, XYZ, PDB, image export, coordinate provenance, structure normalization, and multi-component boundaries.
 ---
 
 # Chemical File Interoperability Skill
@@ -9,45 +9,51 @@ description: Use when implementing or reviewing chemical file import/export such
 
 Use this skill when handling chemical file formats.
 
-Chemical file formats are not interchangeable drawings. They carry different levels of structural, stereochemical, reaction, and coordinate information.
+Chemical files are not interchangeable drawings. They carry different structural, stereochemical, component, reaction, and coordinate information.
 
 ## MVP Formats
 
 Support first:
 
-- SMILES: compact structure string
-- Molfile: editor structure exchange
-- SVG/PNG: worksheet image export
+- SMILES: compact graph representation; may contain multiple dot-separated components
+- Molfile: atoms, bonds, and 2D/3D coordinates for one record
+- SVG/PNG: worksheet image export only
 
 Later support:
 
 - SDF: molecule records and properties
 - RXN: reaction structures
-- XYZ: atom coordinates only; bonding may be absent
-- PDB: biomolecular coordinate format
-- CDXML: ChemDraw-like exchange; treat as advanced
+- XYZ: atom coordinates; bonding may be absent
+- PDB: biomolecular coordinates with chemistry caveats
+- CDXML: advanced ChemDraw-like exchange
 
 ## Rules
 
-1. Every import must state what information may be lost.
-2. XYZ import must not assume bonding without a bond perception step.
-3. Image export is not machine-readable structure export.
-4. Molfile/RXN export should be validated before saving.
-5. If Open Babel is required, isolate it in backend or local CLI workflows.
+1. State what information is preserved or lost.
+2. Preserve component boundaries; do not silently join fragments.
+3. Do not infer a chemical bond merely from 2D/3D distance unless an explicit, source-checked bond-perception step is used.
+4. XYZ import must not assume bonding without bond perception.
+5. Image export is not machine-readable structure export.
+6. Molfile/SDF/RXN export must be validated before saving.
+7. Coordinate dimension and source must be labelled.
+8. Stereochemistry loss must produce a warning.
+9. If Open Babel or another converter is required, isolate it and record version/license.
 
-## Import Result Type
+## Import Result
 
 ```ts
 export type ChemicalImportResult = {
   ok: boolean;
   format: string;
   moleculeInput?: MoleculeInput;
+  detectedComponentCount?: number;
+  coordinateDimension?: '2d' | '3d' | 'unknown';
   warnings: string[];
   errors: string[];
 };
 ```
 
-## Export Result Type
+## Export Result
 
 ```ts
 export type ChemicalExportResult = {
@@ -62,16 +68,20 @@ export type ChemicalExportResult = {
 ## Do Not
 
 - Do not silently convert formats.
+- Do not silently merge dot-separated components.
 - Do not drop stereochemistry without warning.
-- Do not treat PNG/SVG as restorable chemical structure.
-- Do not promise perfect ChemDraw compatibility in MVP.
+- Do not treat PNG/SVG as restorable chemistry.
+- Do not promise perfect ChemDraw compatibility.
+- Do not assume file coordinates are experimentally determined.
 
 ## Output Standard
 
-When adding a format, document:
+Document:
 
 - what is preserved
 - what may be lost
-- validation tool used
-- example file tested
+- component behavior
+- coordinate dimension/source
+- validation tool and version
+- exact example files tested
 - classroom use case

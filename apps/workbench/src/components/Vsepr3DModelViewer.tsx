@@ -19,6 +19,8 @@ type Point3D = {
   z: number;
 };
 
+type VseprViewMode = 'electron-domains' | 'atoms-only';
+
 const SCALE = 1.7;
 const CENTER_COLOR = '#1d2730';
 const BOND_ATOM_COLOR = '#2f6f7b';
@@ -45,8 +47,10 @@ function getStudentMessage(
   status: VseprModelViewStatus,
   template: VseprGeometryTemplate | null,
 ): string {
+  const centralAtomLabel = getCentralAtomLabel(analysis);
+
   if (status === 'rendered' && template) {
-    return `${template.axeNotation} 전자쌍 반발 교육용 예측 모형을 표시합니다.`;
+    return `${centralAtomLabel ? `${centralAtomLabel} 주변 ` : ''}${template.axeNotation} 전자쌍 반발 교육용 예측 모형을 표시합니다.`;
   }
 
   if (analysis.status === 'needs_central_atom') {
@@ -61,7 +65,19 @@ function getStudentMessage(
     return '입체 구조 예상이 지원되는 구조에서만 교육용 3D 예측 모형을 표시합니다.';
   }
 
-  return '예상 입체 모형 보기 버튼을 누르면 교육용 3D 예측 모형을 표시합니다.';
+  return `${centralAtomLabel ? `${centralAtomLabel} 주변 ` : ''}예상 입체 모형 보기 버튼을 누르면 교육용 3D 예측 모형을 표시합니다.`;
+}
+
+function getCentralAtomLabel(analysis: VseprAnalysis): string | undefined {
+  if (analysis.centralAtomLabel) {
+    return analysis.centralAtomLabel;
+  }
+
+  if (analysis.centralAtomSymbol && analysis.centralAtomId) {
+    return `${analysis.centralAtomSymbol}${analysis.centralAtomId}`;
+  }
+
+  return analysis.centralAtomSymbol;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -75,11 +91,20 @@ export function Vsepr3DModelViewer({
 }: Vsepr3DModelViewerProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<any>(null);
+  const initialViewRef = useRef<any[] | null>(null);
   const [viewerStatus, setViewerStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
   );
   const [showLabels, setShowLabels] = useState(true);
+  const [showLonePairs, setShowLonePairs] = useState(true);
+  const [viewMode, setViewMode] =
+    useState<VseprViewMode>('electron-domains');
   const template = getVseprGeometryTemplate(analysis.axeNotation);
+  const centralAtomLabel = getCentralAtomLabel(analysis);
+  const vseprIdealAngles =
+    analysis.angleEvidence?.vseprIdealAngles ??
+    analysis.idealBondAngles ??
+    template?.idealBondAngles;
   const shouldRenderTemplate = modelStatus === 'rendered' && Boolean(template);
   const statusPillText =
     viewerStatus === 'error'
@@ -108,7 +133,7 @@ export function Vsepr3DModelViewer({
     });
 
     if (showLabels) {
-      viewer.addLabel(analysis.centralAtomSymbol ?? 'A', {
+      viewer.addLabel(centralAtomLabel ?? 'A', {
         position: { x: 0, y: 0.42, z: 0 },
         fontSize: 13,
         fontColor: CENTER_COLOR,
@@ -122,10 +147,13 @@ export function Vsepr3DModelViewer({
         return;
       }
 
-      renderLonePairVector(viewer, vector, index);
+      if (viewMode === 'electron-domains' && showLonePairs) {
+        renderLonePairVector(viewer, vector, index);
+      }
     });
 
     viewer.zoomTo();
+    initialViewRef.current = viewer.getView();
     viewer.render();
   }
 
@@ -182,6 +210,26 @@ export function Vsepr3DModelViewer({
     }
   }
 
+  function resetView() {
+    const viewer = viewerRef.current;
+
+    if (!viewer) {
+      return;
+    }
+
+    if (initialViewRef.current) {
+      viewer.setView(initialViewRef.current);
+    } else {
+      viewer.zoomTo();
+    }
+    viewer.render();
+  }
+
+  function zoomToFit() {
+    viewerRef.current?.zoomTo();
+    viewerRef.current?.render();
+  }
+
   useEffect(() => {
     let cancelled = false;
     let resizeObserver: ResizeObserver | null = null;
@@ -229,6 +277,7 @@ export function Vsepr3DModelViewer({
       resizeObserver?.disconnect();
       window.removeEventListener('resize', handleResize);
       clearViewer();
+      initialViewRef.current = null;
       viewerRef.current = null;
     };
   }, [onDeveloperLog]);
@@ -252,14 +301,27 @@ export function Vsepr3DModelViewer({
         `VSEPR 3D model render failed: ${getErrorMessage(error)}`,
       );
     }
-  }, [analysis.centralAtomSymbol, onDeveloperLog, shouldRenderTemplate, showLabels, template, viewerStatus]);
+  }, [
+    centralAtomLabel,
+    onDeveloperLog,
+    shouldRenderTemplate,
+    showLabels,
+    showLonePairs,
+    template,
+    viewerStatus,
+    viewMode,
+  ]);
 
   return (
     <section className="workspace-panel vsepr-model-panel" data-testid="vsepr-3d-model-viewer">
       <div className="panel-heading viewer-heading">
         <div>
           <p className="section-label">입체 구조 예상 보기</p>
-          <h2>예상 입체 모형</h2>
+          <h2>
+            {centralAtomLabel
+              ? `${centralAtomLabel} 주변 VSEPR 예상 입체 모형`
+              : '선택 중심 주변 VSEPR 예상 입체 모형'}
+          </h2>
         </div>
         <span className={viewerStatus === 'ready' ? 'status-pill ready' : 'status-pill'}>
           {statusPillText}
@@ -268,19 +330,77 @@ export function Vsepr3DModelViewer({
 
       <div className="vsepr-model-toolbar">
         <p>
-          이 화면은 전자쌍 반발 이론에 따른 교육용 예측 모형입니다. 실제 분자의
-          정밀한 3D 구조와는 차이가 있을 수 있습니다.
+          이 화면은 선택한 중심 원자 주변 전자쌍 반발을 나타낸 교육용 예측
+          모형입니다. 분자 전체의 정밀한 3D 구조와는 차이가 있을 수 있습니다.
         </p>
-        <label className="vsepr-label-toggle">
-          <input
-            checked={showLabels}
-            type="checkbox"
-            onChange={(event) => {
-              setShowLabels(event.currentTarget.checked);
+        <div className="vsepr-view-mode-buttons" aria-label="VSEPR 모형 보기 방식">
+          <button
+            className={viewMode === 'electron-domains' ? 'secondary-action active' : 'secondary-action'}
+            data-testid="vsepr-electron-domain-view-button"
+            type="button"
+            aria-pressed={viewMode === 'electron-domains'}
+            onClick={() => {
+              setViewMode('electron-domains');
             }}
-          />
-          <span>라벨 표시</span>
-        </label>
+          >
+            전자쌍 배열 보기
+          </button>
+          <button
+            className={viewMode === 'atoms-only' ? 'secondary-action active' : 'secondary-action'}
+            data-testid="vsepr-atoms-only-view-button"
+            type="button"
+            aria-pressed={viewMode === 'atoms-only'}
+            onClick={() => {
+              setViewMode('atoms-only');
+            }}
+          >
+            원자만 보기
+          </button>
+        </div>
+        <div className="vsepr-model-toggle-row">
+          <label className="vsepr-label-toggle">
+            <input
+              checked={showLonePairs}
+              data-testid="vsepr-lone-pair-toggle"
+              disabled={viewMode === 'atoms-only'}
+              type="checkbox"
+              onChange={(event) => {
+                setShowLonePairs(event.currentTarget.checked);
+              }}
+            />
+            <span>비공유 전자쌍 표시</span>
+          </label>
+          <label className="vsepr-label-toggle">
+            <input
+              checked={showLabels}
+              type="checkbox"
+              onChange={(event) => {
+                setShowLabels(event.currentTarget.checked);
+              }}
+            />
+            <span>라벨 표시</span>
+          </label>
+        </div>
+        <div className="viewer-button-row">
+          <button
+            className="secondary-action"
+            data-testid="vsepr-reset-view-button"
+            disabled={viewerStatus !== 'ready' || !shouldRenderTemplate}
+            type="button"
+            onClick={resetView}
+          >
+            초기 방향
+          </button>
+          <button
+            className="secondary-action"
+            data-testid="vsepr-zoom-to-fit-button"
+            disabled={viewerStatus !== 'ready' || !shouldRenderTemplate}
+            type="button"
+            onClick={zoomToFit}
+          >
+            화면에 맞추기
+          </button>
+        </div>
       </div>
 
       <div className="viewer-content">
@@ -310,10 +430,10 @@ export function Vsepr3DModelViewer({
               <dd>실제 입자가 아니라 전자쌍 방향 이해를 위한 시각화입니다.</dd>
             </div>
             <div>
-              <dt>결합각 안내</dt>
+              <dt>VSEPR 이상각(이론)</dt>
               <dd>
-                {template
-                  ? `${template.idealBondAngles.join(', ')} 이상화 각도`
+                {vseprIdealAngles
+                  ? `${vseprIdealAngles.join(', ')} · 선택 중심 주변의 이상화 각도`
                   : '정밀 실험값으로 표시하지 않습니다.'}
               </dd>
             </div>
@@ -324,6 +444,9 @@ export function Vsepr3DModelViewer({
           </dl>
         </div>
       </div>
+      <p className="viewer-gesture-hint">
+        한 손가락으로 회전하고 두 손가락으로 확대·축소할 수 있습니다.
+      </p>
     </section>
   );
 }

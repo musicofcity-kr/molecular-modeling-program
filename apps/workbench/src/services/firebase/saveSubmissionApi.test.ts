@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildFirestoreSubmissionDocument,
+  getSafeSubmissionWriteDecision,
   handleSaveSubmissionBody,
   parseSaveSubmissionRequest,
 } from '../../../api/save-submission';
@@ -76,7 +77,9 @@ describe('save-submission API helpers', () => {
   });
 
   it('writes a submission for a classroom member student', async () => {
-    const writeSubmission = vi.fn().mockResolvedValue(undefined);
+    const writeSubmissionSafely = vi.fn().mockResolvedValue({
+      status: 'created',
+    });
     const response = await handleSaveSubmissionBody(
       {
         idToken: 'student-token',
@@ -86,7 +89,7 @@ describe('save-submission API helpers', () => {
         verifyIdToken: vi.fn().mockResolvedValue({ uid: 'student-uid' }),
         classroomExists: vi.fn().mockResolvedValue(true),
         membershipExists: vi.fn().mockResolvedValue(true),
-        writeSubmission,
+        writeSubmissionSafely,
       },
     );
     const body = await response.json();
@@ -97,7 +100,7 @@ describe('save-submission API helpers', () => {
       status: 'saved',
       classCode: 'CHEM-111',
     });
-    expect(writeSubmission).toHaveBeenCalledWith(
+    expect(writeSubmissionSafely).toHaveBeenCalledWith(
       'CHEM-111',
       'submission-1',
       expect.objectContaining({
@@ -109,7 +112,9 @@ describe('save-submission API helpers', () => {
   });
 
   it('does not write when the student membership is missing', async () => {
-    const writeSubmission = vi.fn().mockResolvedValue(undefined);
+    const writeSubmissionSafely = vi.fn().mockResolvedValue({
+      status: 'created',
+    });
     const response = await handleSaveSubmissionBody(
       {
         idToken: 'student-token',
@@ -119,7 +124,7 @@ describe('save-submission API helpers', () => {
         verifyIdToken: vi.fn().mockResolvedValue({ uid: 'student-uid' }),
         classroomExists: vi.fn().mockResolvedValue(true),
         membershipExists: vi.fn().mockResolvedValue(false),
-        writeSubmission,
+        writeSubmissionSafely,
       },
     );
     const body = await response.json();
@@ -129,6 +134,124 @@ describe('save-submission API helpers', () => {
       ok: false,
       status: 'membership_required',
     });
-    expect(writeSubmission).not.toHaveBeenCalled();
+    expect(writeSubmissionSafely).not.toHaveBeenCalled();
+  });
+
+  it('rejects a same-id overwrite when the existing submission belongs to another student', async () => {
+    const incomingDocument = buildFirestoreSubmissionDocument({
+      submission: {
+        ...submission,
+        classCode: 'CHEM-111',
+      },
+      firebaseUid: 'student-b',
+    });
+
+    expect(
+      getSafeSubmissionWriteDecision(
+        {
+          ...incomingDocument,
+          studentUid: 'student-a',
+        },
+        incomingDocument,
+      ),
+    ).toBe('ownership_conflict');
+
+    const writeSubmissionSafely = vi.fn().mockResolvedValue({
+      status: 'ownership_conflict',
+    });
+    const response = await handleSaveSubmissionBody(
+      {
+        idToken: 'student-b-token',
+        submission,
+      },
+      {
+        verifyIdToken: vi.fn().mockResolvedValue({ uid: 'student-b' }),
+        classroomExists: vi.fn().mockResolvedValue(true),
+        membershipExists: vi.fn().mockResolvedValue(true),
+        writeSubmissionSafely,
+      },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body).toMatchObject({
+      ok: false,
+      status: 'submission_conflict',
+    });
+  });
+
+  it('allows an idempotent same-owner update while the submission is still submitted', async () => {
+    const incomingDocument = buildFirestoreSubmissionDocument({
+      submission: {
+        ...submission,
+        classCode: 'CHEM-111',
+      },
+      firebaseUid: 'student-uid',
+    });
+
+    expect(
+      getSafeSubmissionWriteDecision(incomingDocument, incomingDocument),
+    ).toBe('owned_update');
+
+    const writeSubmissionSafely = vi.fn().mockResolvedValue({
+      status: 'owned_update',
+    });
+    const response = await handleSaveSubmissionBody(
+      {
+        idToken: 'student-token',
+        submission,
+      },
+      {
+        verifyIdToken: vi.fn().mockResolvedValue({ uid: 'student-uid' }),
+        classroomExists: vi.fn().mockResolvedValue(true),
+        membershipExists: vi.fn().mockResolvedValue(true),
+        writeSubmissionSafely,
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(writeSubmissionSafely).toHaveBeenCalledOnce();
+  });
+
+  it('does not let the owning student erase returned teacher feedback by resubmitting', async () => {
+    const incomingDocument = buildFirestoreSubmissionDocument({
+      submission: {
+        ...submission,
+        classCode: 'CHEM-111',
+      },
+      firebaseUid: 'student-uid',
+    });
+
+    expect(
+      getSafeSubmissionWriteDecision(
+        {
+          ...incomingDocument,
+          status: 'feedback_returned',
+          teacherFeedback: {
+            studentMessage: '교사가 반환한 피드백',
+          },
+        },
+        incomingDocument,
+      ),
+    ).toBe('feedback_locked');
+
+    const writeSubmissionSafely = vi.fn().mockResolvedValue({
+      status: 'feedback_locked',
+    });
+    const response = await handleSaveSubmissionBody(
+      {
+        idToken: 'student-token',
+        submission,
+      },
+      {
+        verifyIdToken: vi.fn().mockResolvedValue({ uid: 'student-uid' }),
+        classroomExists: vi.fn().mockResolvedValue(true),
+        membershipExists: vi.fn().mockResolvedValue(true),
+        writeSubmissionSafely,
+      },
+    );
+
+    expect(response.status).toBe(409);
+    expect(writeSubmissionSafely).toHaveBeenCalledOnce();
   });
 });

@@ -5,6 +5,33 @@ import type { TeacherAuthorizationStatus } from '../../types/session';
 import type { ClassroomDraft } from '../../services/firebase/classroomRepository';
 import { formatKoreanDateTime } from '../../utils/formatKoreanDateTime';
 
+const SECURE_JOIN_CODE_ALPHABET =
+  'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const SECURE_JOIN_CODE_LENGTH = 8;
+const STRONG_JOIN_CODE_PATTERN =
+  /^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9]{6,32}$/;
+
+export function generateSecureClassroomJoinCode(): string {
+  const cryptoApi = globalThis.crypto;
+
+  if (!cryptoApi?.getRandomValues) {
+    throw new Error('A cryptographically secure random generator is required.');
+  }
+
+  let joinCode = '';
+
+  do {
+    const randomValues = new Uint8Array(SECURE_JOIN_CODE_LENGTH);
+    cryptoApi.getRandomValues(randomValues);
+    joinCode = Array.from(
+      randomValues,
+      (value) => SECURE_JOIN_CODE_ALPHABET[value % SECURE_JOIN_CODE_ALPHABET.length],
+    ).join('');
+  } while (!STRONG_JOIN_CODE_PATTERN.test(joinCode));
+
+  return joinCode;
+}
+
 const TEACHER_DASHBOARD_ITEMS = [
   {
     title: '수업방 생성',
@@ -89,7 +116,7 @@ export function TeacherDashboardPlaceholder({
 }: TeacherDashboardPlaceholderProps) {
   const [title, setTitle] = useState('고1 화학 분자구조 탐구');
   const [classCode, setClassCode] = useState('CHEM-101');
-  const [joinCode, setJoinCode] = useState('1010');
+  const [joinCode, setJoinCode] = useState(generateSecureClassroomJoinCode);
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>(
     templates.slice(0, 3).map((template) => template.id),
   );
@@ -213,13 +240,39 @@ export function TeacherDashboardPlaceholder({
             <input
               data-testid="teacher-classroom-join-code-input"
               aria-label="학생 입장 확인코드"
+              aria-describedby="teacher-classroom-join-code-help"
               value={joinCode}
               disabled={!canUseFirestoreTools}
+              minLength={6}
+              maxLength={32}
+              pattern="(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{6,32}"
+              required
               onChange={(event) => {
-                setJoinCode(event.currentTarget.value.toUpperCase());
+                setJoinCode(
+                  event.currentTarget.value
+                    .toUpperCase()
+                    .replace(/[^A-Z0-9]/g, ''),
+                );
               }}
             />
           </label>
+          <button
+            className="secondary-action compact-action"
+            data-testid="regenerate-classroom-join-code-button"
+            type="button"
+            disabled={!canUseFirestoreTools}
+            onClick={() => {
+              setJoinCode(generateSecureClassroomJoinCode());
+            }}
+          >
+            안전한 코드 다시 만들기
+          </button>
+          <p
+            className="teacher-boundary-note"
+            id="teacher-classroom-join-code-help"
+          >
+            새 수업방은 영문과 숫자를 섞은 6자 이상의 코드를 사용합니다.
+          </p>
           <div className="teacher-template-checklist">
             <p className="section-label">활동 템플릿</p>
             {templates.map((template) => (
@@ -283,8 +336,8 @@ export function TeacherDashboardPlaceholder({
             서버 제출 목록 불러오기
           </button>
           <p className="teacher-boundary-note">
-            현재 브라우저 제출함도 계속 유지됩니다. 서버 조회가 실패해도 기존
-            로컬 제출 자료는 삭제하지 않습니다.
+            학생 제출 자료는 서버 제출 목록에서만 불러옵니다. 식별 정보가 든
+            제출 snapshot은 이 브라우저에 영속 저장하지 않습니다.
           </p>
           {submissions.length > 0 ? (
             <div

@@ -16,7 +16,10 @@ describe('VseprPanel', () => {
       />,
     );
 
-    expect(markup).toContain('전자쌍 반발로 예상한 분자 모양');
+    expect(markup).toContain('VSEPR 근거표');
+    expect(markup).toContain(
+      '선택한 중심 원자 주변의 전자 영역과 모양을 추론합니다',
+    );
     expect(markup).toContain('대기');
     expect(markup).toContain('교육용 예측');
     expect(markup).toContain('예상 입체 모형 보기');
@@ -30,8 +33,10 @@ describe('VseprPanel', () => {
       <VseprPanel
         analysis={{
           status: 'supported',
+          scope: 'local-center',
           centralAtomId: '1',
           centralAtomSymbol: 'O',
+          centralAtomLabel: 'O1',
           centralAtomCandidates: [
             {
               atomId: '1',
@@ -49,6 +54,9 @@ describe('VseprPanel', () => {
           electronDomainGeometryKo: '정사면체',
           molecularShapeKo: '굽은형',
           idealBondAngles: ['<109.5°'],
+          angleEvidence: {
+            vseprIdealAngles: ['<109.5°'],
+          },
           confidence: 'medium',
           warnings: [
             '2D MOL block에서 생략된 수소를 일반 원자가 규칙으로 추정했습니다.',
@@ -62,9 +70,17 @@ describe('VseprPanel', () => {
     );
 
     expect(markup).toContain('AX2E2');
+    expect(markup).toContain('선택한 중심 원자 주변');
+    expect(markup).toContain('O1');
     expect(markup).toContain('정사면체');
     expect(markup).toContain('굽은형');
     expect(markup).toContain('&lt;109.5°');
+    expect(markup).toContain('선택 중심 원자');
+    expect(markup).toContain('결합 전자 영역 수');
+    expect(markup).toContain('비공유 전자쌍 수');
+    expect(markup).toContain('전체 전자 영역 수');
+    expect(markup).toContain('선택 중심 주변 분자 모양');
+    expect(markup).toContain('VSEPR 이상각(이론)');
     expect(markup).toContain('중간');
     expect(markup).toContain('생략된 수소');
     expect(markup).not.toContain('disabled=""');
@@ -81,7 +97,7 @@ describe('VseprPanel', () => {
           confidence: 'low',
           warnings: ['지원하지 않는 중심 원소입니다: Fe'],
           studentMessage:
-            '선택한 중심 원자는 현재 VSEPR MVP 규칙으로 안정적으로 예측하기 어렵습니다.',
+            '선택한 중심 원자는 현재 교육용 VSEPR 분석 범위에서 안정적으로 예측하기 어렵습니다.',
         }}
         onSelectCentralAtom={() => {}}
       />,

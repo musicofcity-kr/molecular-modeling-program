@@ -1,4 +1,11 @@
-# FINAL MASTER 지침서 — molecular-modeling-program 전체 개선 프로젝트
+# ARCHIVED — FINAL MASTER 지침서 (2026-07-04/12 이력)
+
+> **SUPERSEDED (2026-07-27):** 이 문서는 더 이상 현재 요구사항이나 SSOT가
+> 아니다. 현재 작업은 root `CODEX 분자구조모델링 메타프롬프트.md`,
+> `AGENTS.md`, `docs/PRD_DRAFT.md`, `docs/TDD_DRAFT.md`,
+> `docs/CLASSROOM_MVP_RELEASE_CHECKLIST.md`와 최신 QA 문서를 따른다. 아래의
+> 직접 작업형 흐름, Node 22, 과거 테스트 수, rules-test 제외, 구 입장코드
+> 계획을 현재 작업 지시로 사용하지 않는다. 본문은 결정 이력 보존용이다.
 
 > **대체 결정 (2026-07-12):** 발주자의 최신 지시에 따라 본 문서의 7단계
 > 학습 위저드·불꽃 레일·별도 예측·다중 성찰·결과 보고서 학생 흐름은 더 이상 활성 제품
@@ -9,9 +16,8 @@
 - 문서 버전: FINAL v1.0 (2026-07-04)
 - 대상 저장소: `musicofcity-kr/molecular-modeling-program`
 - 발주자: LEE WJ (총괄 컨트롤러) / 수행: 에이전트 체계 (§3)
-- 지위: **이 문서 하나가 본 프로젝트의 단일 기준(Single Source of Truth)이다.**
-  이 문서에 없는 작업은 수행하지 않는다. 판단이 필요하면 임의 결정하지
-  말고 질문 목록으로 정리해 중단한다.
+- 과거 지위: 2026-07-12 당시 단일 기준으로 작성되었으나 2026-07-27
+  메타프롬프트와 위 현행 문서 집합으로 대체됨.
 - 참조 문서(시각 사양 상세): `DESIGN_FLAME_RAIL.md` — 리디자인의 색·치수·
   문구는 이 문서가 최종 기준이며, 본 문서와 충돌 시 DESIGN 문서 우선.
 

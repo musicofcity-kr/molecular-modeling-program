@@ -3,11 +3,13 @@ import type {
   VseprCentralAtomCandidate,
   VseprConfidence,
 } from '../types/vsepr';
+import { parseStrictV2000Layout } from '../chemistry/v2000MolBlock';
 
 type MolAtom = {
   id: string;
   symbol: string;
   formalCharge: number;
+  declaredValence: number;
 };
 
 type MolBond = {
@@ -20,6 +22,8 @@ type MolBond = {
 type ParsedMolBlock = {
   atoms: MolAtom[];
   bonds: MolBond[];
+  containsQueryFeature: boolean;
+  containsRadical: boolean;
   warnings: string[];
   developerLogs: string[];
 };
@@ -74,6 +78,7 @@ const IMPLICIT_HYDROGEN_TARGET_VALENCE: Record<string, number> = {
 };
 
 const MEDIUM_CONFIDENCE_CENTERS = new Set(['Br', 'I', 'Xe']);
+const V2000_QUERY_PROPERTY_TAGS = new Set(['SUB', 'UNS', 'RBC']);
 
 const VSEPR_SHAPE_TABLE: Record<
   string,
@@ -166,18 +171,69 @@ export function analyzeVseprFromMolBlock(input: AnalyzeVseprInput): VseprAnalysi
 
   try {
     const parsed = parseV2000MolBlock(input.molBlock);
+
+    if (parsed.containsQueryFeature) {
+      return {
+        status: 'unsupported',
+        scope: 'local-center',
+        confidence: 'low',
+        warnings: parsed.warnings,
+        studentMessage:
+          '질의 또는 모호한 원자·결합 표기가 있는 구조는 현재 교육용 VSEPR 분석 범위에서 지원하지 않습니다.',
+        developerLogs: parsed.developerLogs,
+      };
+    }
+
+    if (parsed.containsRadical) {
+      return {
+        status: 'unsupported',
+        scope: 'local-center',
+        confidence: 'low',
+        warnings: parsed.warnings,
+        studentMessage:
+          '라디칼 구조는 현재 교육용 VSEPR 분석 범위 밖입니다. 교사와 함께 구조를 검토해 주세요.',
+        developerLogs: parsed.developerLogs,
+      };
+    }
+
+    const componentCount = countConnectedComponents(parsed);
+
+    if (componentCount > 1) {
+      return {
+        status: 'unsupported',
+        scope: 'local-center',
+        confidence: 'low',
+        warnings: [
+          ...parsed.warnings,
+          '현재 구조가 여러 조각으로 나뉘어 있어 국소 VSEPR 분석을 중단했습니다.',
+        ],
+        studentMessage:
+          '현재 구조가 여러 조각으로 나뉘어 있습니다. 하나의 분자를 만들려면 원자 사이를 결합으로 연결해 주세요.',
+        developerLogs: [
+          ...parsed.developerLogs,
+          `VSEPR analysis blocked disconnected atom graph: componentCount=${componentCount}.`,
+        ],
+      };
+    }
+
     const evaluations = parsed.atoms
       .filter((atom) => atom.symbol !== 'H')
       .map((atom) =>
         evaluateCentralAtom(atom, parsed, input.disableImplicitHydrogenInference),
       );
     const candidates = evaluations
-      .filter((evaluation) => evaluation.candidate.bondedAtomCount > 0)
+      .filter(
+        (evaluation) =>
+          evaluation.status === 'supported' &&
+          evaluation.candidate.bondedAtomCount > 0,
+      )
       .map((evaluation) => evaluation.candidate);
+    const requestedCentralAtomId = input.selectedCentralAtomId?.trim() || undefined;
 
-    if (candidates.length === 0) {
+    if (candidates.length === 0 && !requestedCentralAtomId) {
       return {
         status: 'unsupported',
+        scope: 'local-center',
         centralAtomCandidates: [],
         confidence: 'low',
         warnings: [
@@ -191,11 +247,12 @@ export function analyzeVseprFromMolBlock(input: AnalyzeVseprInput): VseprAnalysi
     }
 
     const centralAtomId =
-      input.selectedCentralAtomId ?? findClearCentralAtomId(candidates);
+      requestedCentralAtomId ?? findClearCentralAtomId(candidates);
 
     if (!centralAtomId && candidates.length > 1) {
       return {
         status: 'needs_central_atom',
+        scope: 'local-center',
         centralAtomCandidates: candidates,
         confidence: 'medium',
         warnings: [
@@ -215,6 +272,7 @@ export function analyzeVseprFromMolBlock(input: AnalyzeVseprInput): VseprAnalysi
     if (!evaluation) {
       return {
         status: 'needs_central_atom',
+        scope: 'local-center',
         centralAtomCandidates: candidates,
         confidence: 'low',
         warnings: [
@@ -229,22 +287,26 @@ export function analyzeVseprFromMolBlock(input: AnalyzeVseprInput): VseprAnalysi
     if (evaluation.status === 'unsupported') {
       return {
         status: 'unsupported',
+        scope: 'local-center',
         centralAtomId: evaluation.candidate.atomId,
         centralAtomSymbol: evaluation.candidate.atomSymbol,
+        centralAtomLabel: evaluation.candidate.atomLabel,
         centralAtomCandidates: candidates,
         bondedAtomCount: evaluation.candidate.bondedAtomCount,
         confidence: evaluation.confidence,
         warnings: [...parsed.warnings, ...evaluation.warnings],
         studentMessage:
-          '선택한 중심 원자는 현재 VSEPR MVP 규칙으로 안정적으로 예측하기 어렵습니다.',
+          '선택한 중심 원자는 현재 교육용 VSEPR 분석 범위에서 안정적으로 예측하기 어렵습니다.',
         developerLogs: [...parsed.developerLogs, ...evaluation.developerLogs],
       };
     }
 
     return {
       status: 'supported',
+      scope: 'local-center',
       centralAtomId: evaluation.candidate.atomId,
       centralAtomSymbol: evaluation.candidate.atomSymbol,
+      centralAtomLabel: evaluation.candidate.atomLabel,
       centralAtomCandidates: candidates,
       bondedAtomCount: evaluation.candidate.bondedAtomCount,
       lonePairCount: evaluation.lonePairCount,
@@ -253,6 +315,9 @@ export function analyzeVseprFromMolBlock(input: AnalyzeVseprInput): VseprAnalysi
       electronDomainGeometryKo: evaluation.electronDomainGeometryKo,
       molecularShapeKo: evaluation.molecularShapeKo,
       idealBondAngles: evaluation.idealBondAngles,
+      angleEvidence: {
+        vseprIdealAngles: [...(evaluation.idealBondAngles ?? [])],
+      },
       confidence: evaluation.confidence,
       warnings: [...parsed.warnings, ...evaluation.warnings],
       studentMessage:
@@ -276,20 +341,15 @@ export function analyzeVseprFromMolBlock(input: AnalyzeVseprInput): VseprAnalysi
 }
 
 function parseV2000MolBlock(molBlock: string): ParsedMolBlock {
-  const lines = molBlock.replace(/\r\n/g, '\n').split('\n');
-  const countsLineIndex = lines.findIndex((line) => line.includes('V2000'));
+  const layout = parseStrictV2000Layout(molBlock);
 
-  if (countsLineIndex < 0) {
-    throw new Error('Only V2000 mol blocks are supported in the VSEPR MVP.');
+  if (!layout) {
+    throw new Error(
+      'Invalid or non-standard V2000 counts line at the required fourth line.',
+    );
   }
 
-  const counts = lines[countsLineIndex].trim().split(/\s+/);
-  const atomCount = Number.parseInt(counts[0] ?? '', 10);
-  const bondCount = Number.parseInt(counts[1] ?? '', 10);
-
-  if (!Number.isFinite(atomCount) || !Number.isFinite(bondCount)) {
-    throw new Error('Invalid V2000 counts line.');
-  }
+  const { lines, countsLineIndex, atomCount, bondCount } = layout;
 
   const atomLines = lines.slice(countsLineIndex + 1, countsLineIndex + 1 + atomCount);
   const bondLines = lines.slice(
@@ -309,6 +369,7 @@ function parseV2000MolBlock(molBlock: string): ParsedMolBlock {
       id: String(index + 1),
       symbol,
       formalCharge: parseAtomLineChargeCode(Number.parseInt(parts[5] ?? '0', 10)),
+      declaredValence: Number.parseInt(parts[9] ?? '0', 10) || 0,
     };
   });
   const bonds = bondLines.map((line) => {
@@ -323,18 +384,68 @@ function parseV2000MolBlock(molBlock: string): ParsedMolBlock {
     };
   });
   const warnings: string[] = [];
+  let containsQueryFeature = false;
+  let containsRadical = false;
   const developerLogs = [
     `Parsed V2000 mol block with ${atoms.length} atoms and ${bonds.length} bonds.`,
   ];
+  const queryAtomSymbols = new Set(['*', 'A', 'Q', 'L', 'LP', 'R', 'R#']);
+
+  for (const atom of atoms) {
+    if (atom.declaredValence === 15) {
+      developerLogs.push(
+        `VSEPR parser honored declared zero valence for ${atom.symbol}${atom.id}.`,
+      );
+    }
+
+    if (queryAtomSymbols.has(atom.symbol)) {
+      containsQueryFeature = true;
+      warnings.push(
+        `질의 또는 더미 원자 표기(${atom.symbol})가 포함되어 VSEPR 추정을 중단했습니다.`,
+      );
+      developerLogs.push(
+        `VSEPR parser detected query atom symbol ${atom.symbol}.`,
+      );
+    }
+  }
+
+  for (const bond of bonds) {
+    if (bond.rawType >= 5 && bond.rawType <= 8) {
+      containsQueryFeature = true;
+      warnings.push(
+        `질의 또는 모호한 결합 형식(${bond.rawType})이 포함되어 VSEPR 추정을 중단했습니다.`,
+      );
+      developerLogs.push(
+        `VSEPR parser detected query bond type ${bond.rawType}.`,
+      );
+    }
+  }
 
   for (const line of propertyLines) {
+    const [recordType, propertyTag] = line.trim().split(/\s+/);
+
+    if (
+      recordType === 'M' &&
+      propertyTag &&
+      V2000_QUERY_PROPERTY_TAGS.has(propertyTag)
+    ) {
+      containsQueryFeature = true;
+      warnings.push(
+        `V2000 질의 속성(M ${propertyTag})이 포함되어 VSEPR 추정을 중단했습니다.`,
+      );
+      developerLogs.push(
+        `VSEPR parser detected query property M ${propertyTag}.`,
+      );
+    }
+
     if (line.startsWith('M  CHG')) {
       applyChargeLine(line, atoms);
     }
 
     if (line.startsWith('M  RAD')) {
+      containsRadical = true;
       warnings.push(
-        '라디칼 표기가 포함된 구조는 VSEPR MVP에서 낮은 신뢰도로만 다룹니다.',
+        '라디칼 표기가 포함된 구조는 현재 교육용 VSEPR 분석 범위에서 지원하지 않습니다.',
       );
       developerLogs.push(`VSEPR parser detected radical line: ${line.trim()}`);
     }
@@ -344,7 +455,62 @@ function parseV2000MolBlock(molBlock: string): ParsedMolBlock {
     warnings.push('방향족/공명 결합은 VSEPR 전자쌍 영역 1개로 단순화했습니다.');
   }
 
-  return { atoms, bonds, warnings, developerLogs };
+  return {
+    atoms,
+    bonds,
+    containsQueryFeature,
+    containsRadical,
+    warnings,
+    developerLogs,
+  };
+}
+
+function countConnectedComponents(parsed: ParsedMolBlock): number {
+  const adjacency = new Map(
+    parsed.atoms.map((atom) => [atom.id, new Set<string>()] as const),
+  );
+
+  for (const bond of parsed.bonds) {
+    const fromNeighbors = adjacency.get(bond.from);
+    const toNeighbors = adjacency.get(bond.to);
+
+    if (!fromNeighbors || !toNeighbors) {
+      continue;
+    }
+
+    fromNeighbors.add(bond.to);
+    toNeighbors.add(bond.from);
+  }
+
+  const visited = new Set<string>();
+  let componentCount = 0;
+
+  for (const atom of parsed.atoms) {
+    if (visited.has(atom.id)) {
+      continue;
+    }
+
+    componentCount += 1;
+    const pending = [atom.id];
+
+    while (pending.length > 0) {
+      const currentAtomId = pending.pop();
+
+      if (!currentAtomId || visited.has(currentAtomId)) {
+        continue;
+      }
+
+      visited.add(currentAtomId);
+
+      for (const neighborId of adjacency.get(currentAtomId) ?? []) {
+        if (!visited.has(neighborId)) {
+          pending.push(neighborId);
+        }
+      }
+    }
+  }
+
+  return componentCount;
 }
 
 function evaluateCentralAtom(
@@ -357,6 +523,16 @@ function evaluateCentralAtom(
   const connectedBonds = parsed.bonds.filter(
     (bond) => bond.from === atom.id || bond.to === atom.id,
   );
+
+  if (hasSulfurOxygenResonanceSimplification(atom, connectedBonds, parsed.atoms)) {
+    warnings.push(
+      'S-O 결합의 공명과 전자 분포를 하나의 Lewis 구조로 단순화한 국소 VSEPR 예측입니다.',
+    );
+    developerLogs.push(
+      `VSEPR center ${atom.symbol}${atom.id} uses a simplified sulfur-oxygen resonance model.`,
+    );
+  }
+
   const explicitBondedAtomCount = connectedBonds.length;
   const explicitBondOrderSum = connectedBonds.reduce(
     (sum, bond) => sum + bond.order,
@@ -455,7 +631,31 @@ function evaluateCentralAtom(
   };
 }
 
+function hasSulfurOxygenResonanceSimplification(
+  atom: MolAtom,
+  connectedBonds: MolBond[],
+  atoms: MolAtom[],
+): boolean {
+  if (atom.symbol !== 'S') {
+    return false;
+  }
+
+  const oxygenBonds = connectedBonds.filter((bond) => {
+    const neighborId = bond.from === atom.id ? bond.to : bond.from;
+    return atoms.find((candidate) => candidate.id === neighborId)?.symbol === 'O';
+  });
+
+  return (
+    oxygenBonds.length >= 2 &&
+    oxygenBonds.some((bond) => bond.order > 1)
+  );
+}
+
 function inferImplicitHydrogenCount(atom: MolAtom, explicitBondOrderSum: number): number {
+  if (atom.declaredValence === 15) {
+    return 0;
+  }
+
   const targetValence = IMPLICIT_HYDROGEN_TARGET_VALENCE[atom.symbol];
 
   if (targetValence === undefined) {

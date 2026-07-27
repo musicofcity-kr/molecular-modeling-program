@@ -4,6 +4,7 @@ import {
   buildJoinCodeHash as buildApiJoinCodeHash,
   generateJoinCodeSalt,
   handleCreateClassroomBody,
+  isStrongNewClassroomJoinCode,
   parseCreateClassroomRequest,
 } from '../../../api/create-classroom';
 
@@ -14,7 +15,7 @@ describe('create-classroom API helpers', () => {
       draft: {
         title: ' 고1   화학 ',
         classCode: ' chem/101 ',
-        joinCode: ' a1 b2 ',
+        joinCode: ' a1 b2 c3 d4 ',
         activityTemplateIds: ['draw-water', 'draw-water', 'bad id'],
       },
     });
@@ -26,15 +27,40 @@ describe('create-classroom API helpers', () => {
         draft: {
           title: '고1 화학',
           classCode: 'CHEM-101',
-          joinCode: 'A1B2',
+          joinCode: 'A1B2C3D4',
           activityTemplateIds: ['draw-water'],
         },
       },
     });
   });
 
+  it('requires mixed alphanumeric join codes of at least six characters for new classrooms', () => {
+    expect(isStrongNewClassroomJoinCode('ABC123')).toBe(true);
+    expect(isStrongNewClassroomJoinCode('A1B2C3D4')).toBe(true);
+
+    for (const joinCode of ['1010', '123456', 'ABCDEF', 'ABC-123']) {
+      const result = parseCreateClassroomRequest({
+        idToken: 'teacher-token',
+        draft: {
+          title: '고1 화학',
+          classCode: 'CHEM-101',
+          joinCode,
+          activityTemplateIds: ['draw-water'],
+        },
+      });
+
+      expect(result).toMatchObject({
+        ok: false,
+        studentMessage: expect.stringContaining('영문과 숫자를 섞어 6자 이상'),
+        developerMessage: expect.stringContaining(
+          'joinCode must be 6-32 alphanumeric characters',
+        ),
+      });
+    }
+  });
+
   it('builds a versioned salted SHA-256 join-code hash for new server classrooms', () => {
-    const input = { classCode: ' chem/101 ', joinCode: ' a1 b2 ' };
+    const input = { classCode: ' chem/101 ', joinCode: ' a1 b2 c3 d4 ' };
     const joinCodeSalt = '0123456789abcdef0123456789abcdef';
 
     expect(buildApiJoinCodeHash({ ...input, joinCodeSalt })).toMatch(
@@ -43,7 +69,7 @@ describe('create-classroom API helpers', () => {
     expect(buildApiJoinCodeHash({ ...input, joinCodeSalt })).toBe(
       buildApiJoinCodeHash({
         classCode: 'CHEM-101',
-        joinCode: 'A1B2',
+        joinCode: 'A1B2C3D4',
         joinCodeSalt,
       }),
     );
@@ -66,7 +92,7 @@ describe('create-classroom API helpers', () => {
       draft: {
         title: '고1 결합 수업',
         classCode: 'CHEM-101',
-        joinCode: 'A1B2',
+        joinCode: 'A1B2C3D4',
         activityTemplateIds: ['draw-water', 'draw-ethanol'],
       },
       teacherUid: 'teacher-uid',
@@ -78,7 +104,7 @@ describe('create-classroom API helpers', () => {
     expect(documents.classroom.joinCodeHash).toBe(
       buildApiJoinCodeHash({
         classCode: 'CHEM-101',
-        joinCode: 'A1B2',
+        joinCode: 'A1B2C3D4',
         joinCodeSalt: documents.classroom.joinCodeSalt,
       }),
     );
@@ -104,7 +130,7 @@ describe('create-classroom API helpers', () => {
         draft: {
           title: '고1 결합 수업',
           classCode: 'CHEM-101',
-          joinCode: 'A1B2',
+          joinCode: 'A1B2C3D4',
           activityTemplateIds: ['draw-water'],
         },
       },
@@ -147,7 +173,7 @@ describe('create-classroom API helpers', () => {
         draft: {
           title: '고1 결합 수업',
           classCode: 'CHEM-101',
-          joinCode: 'A1B2',
+          joinCode: 'A1B2C3D4',
           activityTemplateIds: ['draw-water'],
         },
       },
@@ -181,7 +207,7 @@ describe('create-classroom API helpers', () => {
         draft: {
           title: '고1 결합 수업',
           classCode: 'CHEM-101',
-          joinCode: 'A1B2',
+          joinCode: 'A1B2C3D4',
           activityTemplateIds: ['draw-water'],
         },
       },

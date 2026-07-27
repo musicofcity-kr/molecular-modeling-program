@@ -214,3 +214,28 @@ Superseded by the adoption decision below.
 - Security/privacy risk: High if service account credentials are exposed. Required environment variables are server-only and must not use the `VITE_` prefix. Public repository commits must never contain service account JSON, private keys, AI keys, or student records.
 - Runtime risk: Adds serverless cold-start and deployment dependency size. Client bundle should not grow because the dependency is not imported from `src`. Vercel production logs showed `firebase-admin@14.1.0 -> jwks-rsa@4.1.0 -> jose@6.2.3` could fail in the Node 24 serverless runtime with `ERR_REQUIRE_ESM`, so the server dependency is pinned to `firebase-admin@13.5.0` and `package.json` specifies `"node": "22.x"`.
 - Test/verification: `apps/workbench/api/join-classroom.test.ts` covers request validation, credential parsing, membership document shape, successful membership creation through injected dependencies, and missing classroom rejection. `npm run typecheck`, `npm test`, and `npm run build` remain required before deployment.
+
+## 2026-07-27 — Ketcher 간편/고급 편집 모드
+
+- 목적: 학생 기본 화면에서는 원자·결합·선택·이동·삭제·실행 취소 중심의 간편 모드를 제공하고, 필요할 때 같은 편집기에서 고급 구조 및 반응식 도구를 다시 사용할 수 있게 한다.
+- 확인한 근거: 설치된 `ketcher-react@3.15.0`의 패키지 메타데이터와 TypeScript 선언. `Editor`는 공식 `buttons?: ButtonsConfig` 입력을 제공하고 `ButtonsConfig`의 각 도구에 `hidden` 설정을 지원한다.
+- 구현 결정: Ketcher 내부 DOM이나 툴바 CSS 선택자를 조작하지 않고 `Editor.buttons`만 사용한다. 간편/고급 설정을 확실히 반영하기 위해 `Editor`를 재마운트하되, 전환 전에 `getKet()`으로 현재 구조를 보존하고 새 인스턴스에 `setMolecule()`로 그대로 복원한다. 구조를 LLM으로 변환하거나 새로 추론하지 않는다.
+- 변경 이벤트 결정: Ketcher v3.15.0 공식 소스(`https://github.com/epam/ketcher/blob/v3.15.0/packages/ketcher-core/src/application/ketcher.ts`)와 설치 타입 선언에서 `Ketcher.changeEvent: Subscription`, `add(handler)`/`remove(handler)` 계약을 확인했다. wrapper가 실제 사용자 편집 이벤트를 App에 알리면 기존 RDKit.js 검증, 참고 3D, VSEPR, 제출 완료 상태를 즉시 무효화한다. 예제 `setMolecule`, 앱의 `clear`, 편집 모드 재마운트 복원 중 발생하는 프로그램 변경 이벤트는 무시한다.
+- 3D 경계: Ketcher 내부 Miew 버튼은 두 모드 모두 공식 버튼 설정으로 숨긴다. 앱의 참고 3D 구조는 검증 후 3Dmol.js 경로, VSEPR 모형은 별도 교육용 예측 경로를 계속 사용한다.
+- 라이선스: `ketcher-react@3.15.0`은 `Apache-2.0`. 새 패키지를 추가하지 않았으므로 이번 변경으로 라이선스나 정적 배포 의존성은 늘지 않았다.
+- 번들 영향: 새 의존성은 없지만 기존 Ketcher 지연 청크는 2026-07-27 빌드에서 약 23.9 MB(minified), 7.0 MB(gzip)로 여전히 크다. 최초 편집기 로딩 지연 안내와 lazy import를 유지한다.
+- 런타임 결정: 설치된 Ketcher 3.15.0 메타데이터가 Node `>=24.14.1`을 요구하므로 앱의 `engines.node`를 `24.x`로 맞춘다. Vercel 공식 지원 버전 문서(`https://vercel.com/docs/functions/runtimes/node-js/node-js-versions`)도 빌드·함수용 Node 24.x를 지원한다. 기존 Node 24 ESM 장애를 일으켰던 `firebase-admin@14.1.0`은 도입하지 않고 검증된 `firebase-admin@13.5.0` 고정을 유지한다.
+- 검증: `npm run typecheck`, 단위 테스트, `npm run build`, Playwright에서 실제 Ketcher canvas clear 직후 결과 차단, 예제 재로드 복구, 모드 전환 시 구조와 검증 결과 보존을 확인한다.
+
+## 2026-07-27 — RDKit 그래프 연결성 및 Ketcher 직접 사슬 그리기 경계
+
+- 목적: 화학 문자열이 파싱되는 것과 학생이 의도한 하나의 연결된 분자가 만들어진 것을 분리해 판정한다.
+- 확인한 버전: 잠금 파일과 설치 패키지 기준 `@rdkit/rdkit@2025.3.4-1.0.0`, `ketcher-core/react/standalone@3.15.0`.
+- 확인한 공개 API: RDKit `JSMol.get_json()`과 `get_smiles()`, Ketcher `getSmiles()`, `getMolfile('v2000')`, `getKet()`, `changeEvent`. 앱은 Ketcher 내부 `editor.struct()`에 의존하지 않는다.
+- 런타임 근거: 설치된 RDKit 2025.03.4에서 `C.C.C.C`는 JSON 원자 4개·결합 0개, `CCCC`는 원자 4개·결합 3개, `[Na+].[Cl-]`는 원자 2개·결합 0개로 확인했다. RDKit JSON의 `molecules[0].bonds[].atoms` 0 기반 원자 인덱스를 앱 소유 adapter에서 엄격히 읽고 BFS로 연결 성분을 계산한다.
+- 정책: `single-molecule`은 다중 연결 성분을 계산 전에 차단한다. `ionic-compound`와 `mixture`는 명시적 의도일 때 연결성 자체는 허용하지만, 현재 버전은 여러 성분을 하나의 분자식·분자량으로 합산하지 않고 별도 교육 범위 메시지로 차단한다.
+- UI 결정: 분석 결과에 원자 수(A), 결합 수(B), 연결 성분 수(C)를 함께 표시한다. Ketcher의 공개 `chain` 도구를 학생용 간편 모드에 유지하고, 별도 원자 클릭이 분리 조각을 만든다는 안내와 직접 드래그 경로를 제공한다.
+- 터치 호환 결정: Ketcher 3.15.0의 직접 그리기 도구가 `mousedown`/`mousemove`/`mouseup` 경로를 사용하고 SVG 캔버스의 터치 드래그를 자체 변환하지 않는 것을 설치 소스와 실제 브라우저에서 확인했다. 앱 소유 adapter는 `ketcher-host`의 capture 단계에서 단일 터치가 버전 고정 selector `[data-testid="canvas"]` 내부에서 시작한 경우에만 같은 target으로 mouse 이벤트를 전달한다. 툴바와 멀티터치는 가로채지 않으며 Ketcher 인스턴스나 비공개 editor API에는 접근하지 않는다. Ketcher 업그레이드 시 이 selector와 직접 그리기 E2E를 함께 재검증한다.
+- 라이선스/배포 영향: 새 의존성은 없다. RDKit BSD-3-Clause와 Ketcher Apache-2.0의 기존 라이선스 및 브라우저 정적 배포 경계가 유지된다.
+- 위험과 방어: RDKit JSON의 atom/bond 배열이 없거나 결합 인덱스가 범위를 벗어나면 fail-closed한다. canonical SMILES의 `.` 문자 검색은 연결성 판정 근거로 사용하지 않는다.
+- 검증: 빈 구조, 고립 원자, 분리 C4, 선형/분지/고리 C4, 이온성/혼합물 의도 단위 테스트와 실제 Ketcher canvas 마우스/터치 회귀를 유지한다.

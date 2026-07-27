@@ -1,6 +1,14 @@
-# 분자구조 모델링 프로그램 프로젝트 인계 문서
+# ARCHIVED — activity MVP 이후 인계 문서
 
-> 새 채팅창에서 이어서 작업하기 위한 최신 인계 문서입니다.  
+> **SUPERSEDED (2026-07-27):** 이 파일은 activity MVP 직후의 과거 상태
+> 기록이며 더 이상 최신 인계 문서가 아닙니다. 현재 상태와 우선순위는
+> `WORK_STATE.md`, root `CODEX 분자구조모델링 메타프롬프트.md`,
+> `docs/MVP_IMPLEMENTATION_STATUS.md`, `docs/PRD_DRAFT.md`,
+> `docs/TDD_DRAFT.md`, 최신 QA 문서를 따르세요. 아래의 “미구현” 목록과
+> 시작용 요청문을 현재 작업 지시로 사용하지 않습니다.
+
+> activity MVP 직후 새 채팅창에서 이어서 작업하기 위해 작성된 인계
+> 이력입니다.
 > **현재 실제 완료 상태는 `add classroom activity mode MVP`까지**입니다.  
 > 이후 대화에서 제안된 VSEPR, 측정 도구, 학생/교사용 분리, 내보내기 기능은 **아직 완료된 것이 아니라 다음 후보 작업**입니다.
 

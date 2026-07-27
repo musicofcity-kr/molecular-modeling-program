@@ -144,6 +144,10 @@ function haveSameFormula(leftFormula: string, rightFormula: string): boolean {
   return true;
 }
 
+function hasExplicitStereochemistry(smiles: string | undefined): boolean {
+  return Boolean(smiles && /[@/\\]/.test(smiles));
+}
+
 export function evaluatePubChemCandidateForCurrentStructure(
   candidate: PubChemCandidate,
   validationResult: MoleculeValidationResult | null,
@@ -167,67 +171,163 @@ export function evaluatePubChemCandidateForCurrentStructure(
     };
   }
 
+  const candidateFormula = candidate.molecularFormula?.trim();
+  const candidateCanonicalSmiles = candidate.canonicalSmiles?.trim();
+  const candidateIsomericSmiles = candidate.isomericSmiles?.trim();
+  const candidateStructureSmiles =
+    candidateIsomericSmiles || candidateCanonicalSmiles;
+  const currentCanonicalSmiles = validationResult.canonicalSmiles;
+  const currentHasExplicitStereo = hasExplicitStereochemistry(
+    currentCanonicalSmiles,
+  );
+  const candidateHasExplicitStereo = hasExplicitStereochemistry(
+    candidateStructureSmiles,
+  );
+  const hasExactStereoMatch =
+    currentHasExplicitStereo &&
+    candidateHasExplicitStereo &&
+    candidateStructureSmiles === currentCanonicalSmiles;
+  const hasMatchingStructureSmiles =
+    candidateCanonicalSmiles === currentCanonicalSmiles ||
+    candidateIsomericSmiles === currentCanonicalSmiles ||
+    hasExactStereoMatch;
   const developerLogs = [
     'PubChem candidate compatibility check.',
     `candidate CID: ${candidate.cid}`,
     `RDKit formula: ${validationResult.molecularFormula}`,
-    `PubChem formula: ${candidate.molecularFormula ?? 'not provided'}`,
-    `RDKit canonicalSmiles: ${validationResult.canonicalSmiles}`,
-    `PubChem canonicalSmiles: ${candidate.canonicalSmiles ?? 'not provided'}`,
-    `PubChem isomericSmiles: ${candidate.isomericSmiles ?? 'not provided'}`,
+    `PubChem formula: ${candidateFormula || 'not provided'}`,
+    `RDKit canonicalSmiles: ${currentCanonicalSmiles}`,
+    `PubChem canonicalSmiles: ${candidateCanonicalSmiles || 'not provided'}`,
+    `PubChem isomericSmiles: ${candidateIsomericSmiles || 'not provided'}`,
   ];
   const warnings: string[] = [];
 
-  if (!candidate.molecularFormula) {
-    warnings.push(
-      'PubChem 후보의 분자식이 제공되지 않았습니다. 외부 데이터 후보로만 확인하세요.',
-    );
+  if (!candidateCanonicalSmiles && !candidateIsomericSmiles) {
+    if (!candidateFormula) {
+      return {
+        canLoad3D: false,
+        studentMessage:
+          '선택한 PubChem 후보에는 현재 구조와의 일치 여부를 확인할 근거가 없어 3D 불러오기를 중단했습니다.',
+        warnings: [
+          'PubChem 후보의 분자식과 구조 식별 정보가 모두 제공되지 않았습니다.',
+        ],
+        developerLogs: [
+          ...developerLogs,
+          'candidate blocked: canonical and isomeric SMILES not provided.',
+          'candidate blocked: formula and canonical SMILES not provided.',
+        ],
+      };
+    }
 
     return {
-      canLoad3D: true,
-      structureMatchStatus: 'review-needed',
-      warnings,
+      canLoad3D: false,
+      studentMessage:
+        '선택한 PubChem 후보에는 현재 구조와 일치하는지 확인할 구조 식별값이 없어 3D 불러오기를 중단했습니다.',
+      warnings: [
+        '분자식만으로는 구조 이성질체를 구별할 수 없습니다. canonical 또는 isomeric SMILES가 필요합니다.',
+      ],
       developerLogs: [
         ...developerLogs,
-        'candidate allowed with warning: PubChem formula not provided.',
+        'candidate blocked: canonical and isomeric SMILES not provided.',
       ],
     };
   }
 
-  if (!haveSameFormula(validationResult.molecularFormula, candidate.molecularFormula)) {
+  if (
+    currentHasExplicitStereo !== candidateHasExplicitStereo ||
+    (currentHasExplicitStereo &&
+      candidateHasExplicitStereo &&
+      !hasExactStereoMatch)
+  ) {
+    return {
+      canLoad3D: false,
+      studentMessage:
+        '현재 구조와 PubChem 후보의 입체화학 표기가 일치하지 않아 3D 불러오기를 중단했습니다.',
+      warnings: [
+        '입체화학의 명시 여부 또는 isomeric SMILES가 다릅니다. 교사와 함께 구조를 검토해 주세요.',
+      ],
+      developerLogs: [
+        ...developerLogs,
+        'candidate blocked: stereochemistry mismatch.',
+      ],
+    };
+  }
+
+  if (
+    candidateCanonicalSmiles &&
+    candidateCanonicalSmiles !== currentCanonicalSmiles &&
+    !hasExactStereoMatch
+  ) {
+    warnings.push(
+      'PubChem SMILES 표기가 RDKit.js canonical SMILES와 달라 현재 구조의 3D 자료로 사용할 수 없습니다.',
+    );
+
+    return {
+      canLoad3D: false,
+      studentMessage:
+        '선택한 외부 3D 자료 후보가 현재 구조와 일치하지 않아 불러오기를 중단했습니다.',
+      warnings,
+      developerLogs: [
+        ...developerLogs,
+        'candidate blocked: canonical SMILES mismatch.',
+      ],
+    };
+  }
+
+  if (
+    candidateFormula &&
+    !haveSameFormula(validationResult.molecularFormula, candidateFormula)
+  ) {
     return {
       canLoad3D: false,
       studentMessage:
         '선택한 PubChem 후보의 분자식이 현재 RDKit.js 검증 결과와 달라 3D 불러오기를 중단했습니다.',
       warnings: [
         `RDKit.js 분자식: ${validationResult.molecularFormula}`,
-        `PubChem 후보 분자식: ${candidate.molecularFormula}`,
+        `PubChem 후보 분자식: ${candidateFormula}`,
       ],
       developerLogs: [...developerLogs, 'candidate blocked: formula mismatch.'],
     };
   }
 
-  if (
-    candidate.canonicalSmiles &&
-    candidate.canonicalSmiles !== validationResult.canonicalSmiles
-  ) {
-    warnings.push(
-      'PubChem SMILES 표기가 RDKit.js canonical SMILES와 다를 수 있습니다. 분자식 검증값은 RDKit.js 결과를 기준으로 유지합니다.',
-    );
+  if (!hasMatchingStructureSmiles) {
+    return {
+      canLoad3D: false,
+      studentMessage:
+        '선택한 PubChem 후보의 구조 식별값이 현재 구조와 일치하지 않아 3D 불러오기를 중단했습니다.',
+      warnings: [
+        '분자식이 같더라도 구조 이성질체일 수 있으므로 현재 검증 구조와 정확히 일치하는 구조 식별값이 필요합니다.',
+      ],
+      developerLogs: [
+        ...developerLogs,
+        'candidate blocked: structure identifiers did not verify current structure.',
+      ],
+    };
   }
 
-  const structureMatchStatus =
-    candidate.canonicalSmiles === validationResult.canonicalSmiles
-      ? 'verified'
-      : 'formula-compatible';
+  if (!candidateFormula && hasMatchingStructureSmiles) {
+    warnings.push(
+      'PubChem 후보의 분자식이 제공되지 않았습니다. 구조 식별값은 현재 검증 구조와 일치합니다.',
+    );
+
+    return {
+      canLoad3D: true,
+      structureMatchStatus: 'verified',
+      warnings,
+      developerLogs: [
+        ...developerLogs,
+        'candidate allowed: canonical SMILES verified without formula.',
+      ],
+    };
+  }
 
   return {
     canLoad3D: true,
-    structureMatchStatus,
+    structureMatchStatus: 'verified',
     warnings,
     developerLogs: [
       ...developerLogs,
-      `candidate allowed: ${structureMatchStatus}.`,
+      'candidate allowed: verified.',
     ],
   };
 }

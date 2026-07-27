@@ -1,7 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { ActivitySubmission } from '../../types/feedback';
-import { TeacherDashboardPlaceholder } from './TeacherDashboardPlaceholder';
+import {
+  generateSecureClassroomJoinCode,
+  TeacherDashboardPlaceholder,
+} from './TeacherDashboardPlaceholder';
 
 const submission: ActivitySubmission = {
   id: 'activity-submission-test',
@@ -38,6 +41,35 @@ const submission: ActivitySubmission = {
 };
 
 describe('TeacherDashboardPlaceholder', () => {
+  it('uses a cryptographically generated mixed 8-character join code by default', () => {
+    const generatedCodes = Array.from({ length: 16 }, () =>
+      generateSecureClassroomJoinCode(),
+    );
+    const markup = renderToStaticMarkup(
+      <TeacherDashboardPlaceholder
+        authorizationStatus="authorized"
+        onCreateClassroom={() => {}}
+        onLoadSubmissions={() => {}}
+      />,
+    );
+    const renderedJoinCode = markup.match(
+      /data-testid="teacher-classroom-join-code-input"[^>]*value="([^"]+)"/,
+    )?.[1];
+
+    expect(generatedCodes).toEqual(
+      generatedCodes.map((joinCode) =>
+        expect.stringMatching(/^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9]{8}$/),
+      ),
+    );
+    expect(new Set(generatedCodes).size).toBeGreaterThan(1);
+    expect(renderedJoinCode).toMatch(
+      /^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9]{8}$/,
+    );
+    expect(markup).toContain('안전한 코드 다시 만들기');
+    expect(markup).toContain('영문과 숫자를 섞은 6자 이상의 코드');
+    expect(markup).not.toContain('value="1010"');
+  });
+
   it('renders server diagnostic details for teacher-only troubleshooting', () => {
     const markup = renderToStaticMarkup(
       <TeacherDashboardPlaceholder
@@ -105,5 +137,8 @@ describe('TeacherDashboardPlaceholder', () => {
     expect(markup).toContain('CO2');
     expect(markup).toContain('확인 완료');
     expect(markup).toContain('제출됨');
+    expect(markup).toContain('서버 제출 목록에서만 불러옵니다');
+    expect(markup).toContain('영속 저장하지 않습니다');
+    expect(markup).not.toContain('현재 브라우저 제출함도 계속 유지됩니다');
   });
 });

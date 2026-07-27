@@ -110,6 +110,8 @@ const corsHeaders = {
 
 const SERVER_NOT_CONFIGURED_MESSAGE =
   '서버 수업방 생성 설정이 아직 준비되지 않았습니다. 현재 교사용 안내 화면은 계속 사용할 수 있습니다.';
+const NEW_CLASSROOM_JOIN_CODE_PATTERN =
+  /^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9]{6,32}$/;
 
 export default {
   async fetch(request: Request): Promise<Response> {
@@ -308,6 +310,16 @@ export function parseCreateClassroomRequest(
     );
   }
 
+  if (!isStrongNewClassroomJoinCode(joinCode)) {
+    return {
+      ok: false,
+      studentMessage:
+        '새 수업방의 입장 확인코드는 영문과 숫자를 섞어 6자 이상 입력해 주세요.',
+      developerMessage:
+        'createClassroom invalid request: joinCode must be 6-32 alphanumeric characters and include both letters and numbers',
+    };
+  }
+
   return {
     ok: true,
     data: {
@@ -320,6 +332,10 @@ export function parseCreateClassroomRequest(
       },
     },
   };
+}
+
+export function isStrongNewClassroomJoinCode(joinCode: string): boolean {
+  return NEW_CLASSROOM_JOIN_CODE_PATTERN.test(joinCode);
 }
 
 export function buildClassroomWriteDocuments(input: {

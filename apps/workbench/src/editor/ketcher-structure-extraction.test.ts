@@ -89,13 +89,46 @@ describe('normalizeKetcherError', () => {
 describe('hasExtractedStructure', () => {
   it('accepts V2000 MOL blocks with atom counts', () => {
     expect(
-      hasExtractedStructure('', '  2  1  0  0  0  0  0  0  0  0999 V2000\nM  END'),
+      hasExtractedStructure(
+        '',
+        [
+          'molecule',
+          '  Workbench',
+          '',
+          '  2  1  0  0  0  0            999 V2000',
+          'M  END',
+        ].join('\n'),
+      ),
     ).toBe(true);
   });
 
   it('rejects V2000 MOL blocks with zero atoms', () => {
     expect(
-      hasExtractedStructure('', '  0  0  0  0  0  0  0  0  0  0999 V2000\nM  END'),
+      hasExtractedStructure(
+        '',
+        [
+          'molecule',
+          '  Workbench',
+          '',
+          '  0  0  0  0  0  0            999 V2000',
+          'M  END',
+        ].join('\n'),
+      ),
     ).toBe(false);
+  });
+
+  it('ignores V2000 text in the title when the standard counts line has atoms', () => {
+    expect(
+      hasExtractedStructure(
+        '',
+        [
+          'V2000 title is not a counts line',
+          '  Workbench',
+          '',
+          '  1  0  0  0  0  0            999 V2000',
+          'M  END',
+        ].join('\n'),
+      ),
+    ).toBe(true);
   });
 });

@@ -90,6 +90,13 @@ export function ActivityResultPanel({
     Boolean(answer.answer.trim()),
   ).length;
   const totalAnswerCount = snapshot.activityAnswers.length;
+  const vseprIdealAngle =
+    snapshot.vseprResult?.angleEvidence?.vseprIdealAngles.join(', ') ||
+    snapshot.vseprResult?.idealBondAngle;
+  const vseprScopeLabel =
+    snapshot.vseprResult?.scope === 'local-center'
+      ? '선택 중심 원자 주변의 국소 VSEPR 예측'
+      : undefined;
   const [isSectionOpen, setIsSectionOpen] = useState(true);
   const contentId = useId();
 
@@ -306,6 +313,11 @@ export function ActivityResultPanel({
           ) : null}
 
           <ActivityResultBlock title="입체 구조 예상 결과">
+            <ResultRow
+              label="선택 중심 원자"
+              value={snapshot.vseprResult?.selectedCenter?.atomLabel}
+            />
+            <ResultRow label="분석 범위" value={vseprScopeLabel} />
             {isTeacherMode ? (
               <ResultRow label="전자쌍 모형 표기" value={snapshot.vseprResult?.axeNotation} />
             ) : null}
@@ -314,12 +326,12 @@ export function ActivityResultPanel({
               value={snapshot.vseprResult?.electronGeometryKo}
             />
             <ResultRow
-              label="분자 구조"
+              label="선택 중심 주변 분자 모양"
               value={snapshot.vseprResult?.molecularGeometryKo}
             />
             <ResultRow
-              label="예상 결합각"
-              value={snapshot.vseprResult?.idealBondAngle}
+              label="VSEPR 이상각(이론)"
+              value={vseprIdealAngle}
             />
             <ResultRow label="확인 수준" value={snapshot.vseprResult?.confidence} />
           </ActivityResultBlock>

@@ -6,6 +6,8 @@ type StudentEntryScreenProps = {
   onOpenTeacher: () => void;
 };
 
+const ENTRY_ERROR_MESSAGE_ID = 'student-entry-error-message';
+
 export function StudentEntryScreen({
   onEntered,
   onOpenTeacher,
@@ -16,6 +18,7 @@ export function StudentEntryScreen({
   const [nickname, setNickname] = useState('');
   const [message, setMessage] = useState('');
   const [isEntering, setIsEntering] = useState(false);
+  const hasEntryError = Boolean(message);
 
   const handleSubmit = async () => {
     setIsEntering(true);
@@ -59,6 +62,8 @@ export function StudentEntryScreen({
           <input
             data-testid="student-class-code-input"
             aria-label="수업코드"
+            aria-describedby={ENTRY_ERROR_MESSAGE_ID}
+            aria-invalid={hasEntryError}
             value={classCode}
             placeholder="예: CHEM-101"
             onChange={(event) => {
@@ -71,6 +76,8 @@ export function StudentEntryScreen({
           <input
             data-testid="student-join-code-input"
             aria-label="입장 확인코드"
+            aria-describedby={ENTRY_ERROR_MESSAGE_ID}
+            aria-invalid={hasEntryError}
             value={joinCode}
             placeholder="교사가 알려준 코드"
             onChange={(event) => {
@@ -83,6 +90,8 @@ export function StudentEntryScreen({
           <input
             data-testid="student-nickname-input"
             aria-label="수업용 닉네임 또는 익명 ID"
+            aria-describedby={ENTRY_ERROR_MESSAGE_ID}
+            aria-invalid={hasEntryError}
             value={nickname}
             placeholder="예: 3조-학생A"
             onChange={(event) => {
@@ -90,7 +99,16 @@ export function StudentEntryScreen({
             }}
           />
         </label>
-        {message ? <p className="entry-message warning">{message}</p> : null}
+        <p
+          id={ENTRY_ERROR_MESSAGE_ID}
+          className="entry-message warning"
+          role="alert"
+          aria-live="assertive"
+          aria-atomic="true"
+          hidden={!hasEntryError}
+        >
+          {message}
+        </p>
         <button
           className="primary-action"
           data-testid="student-entry-submit-button"

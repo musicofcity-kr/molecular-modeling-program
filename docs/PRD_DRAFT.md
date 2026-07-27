@@ -1,13 +1,26 @@
 # PRD Draft — ChemDraw-like Educational 다양한 분자의 분자구조 모델링
 
-> **2026-07-12 범위 결정:** 학생 기본 경험은 분자 선택, 구조 편집, 검증,
-> 3D/VSEPR 보기의 직접 작업 화면이다. 별도 예측·다중 성찰·단계 진행·결과
-> 보고서는 제외한다. 단, 예상 입체 모형 아래 단일 생각 정리 입력과 검증 후
-> 교사 제출은 포함한다.
+> **2026-07-27 현재 범위 addendum:** 루트
+> `CODEX 분자구조모델링 메타프롬프트.md`의 UX·QA 계약이 현재 우선순위다.
+> 학생 기본 경험은 잠금 없는
+> `분자 선택 → 구조 만들기 → 구조 분석 → 3D 비교 → 생각 정리·제출`
+> 5단계이며, 데스크톱 진행 레일과 모바일 5탭을 제공한다.
+>
+> **2026-07-12 범위 결정 — SUPERSEDED 2026-07-27:** 단계 진행 UI가 없는
+> 직접 작업대와 단일 생각 입력을 현재 계약으로 삼았던 결정이다. 이력과
+> 레거시 데이터 호환 설명을 위해 보존하지만 신규 UI 요구사항으로 사용하지
+> 않는다.
+
+현재 제품 상태는 `unreleased release candidate / 로컬 QA 95점`이다.
+production 배포 완료나 학교 운영 승인은 이 문서에서 주장하지 않는다.
 
 ## 1. Product Summary
 
-A browser-based molecule modeling workbench for high-school chemistry instruction. Teachers and students can draw molecules, inspect molecular data, export classroom-ready images, and compare 2D structural formulas with 3D molecular models.
+A browser-based molecule modeling workbench for high-school chemistry
+instruction. Students draw or load a 2D structure, pass deterministic
+validation, inspect VSEPR evidence, compare a source-labeled reference 3D
+structure with an educational prediction model, record their reasoning, and
+submit it for teacher feedback.
 
 ## 2. Target Users
 
@@ -29,14 +42,17 @@ Existing professional tools such as ChemDraw are powerful but not always accessi
 - Calculate molecular formula and molecular weight.
 - Export 2D structure image for worksheets.
 - Provide a starter example molecule library.
+- Provide an unlocked five-stage student learning flow and compact mobile tabs.
+- Provide simple and advanced Ketcher editing modes without losing the structure.
+- Display VSEPR evidence separately from reference 3D coordinate data.
+- Support guarded student submission and teacher-returned formative feedback.
 
-### Extension Goals
+### Later Goals
 
-- Add 3D molecular viewer.
 - Add functional-group tagging.
-- Add polarity and geometry teaching overlays.
-- Add teacher template mode.
-- Add student worksheet/report export.
+- Add polarity teaching overlays beyond the current VSEPR evidence.
+- Complete teacher-configurable classroom focus mode.
+- Expand worksheet/report export without exposing raw technical data to students.
 
 ## 5. MVP Feature List
 
@@ -48,6 +64,12 @@ Existing professional tools such as ChemDraw are powerful but not always accessi
 | Image export | I can export PNG/SVG for worksheets. | Export works for example molecules. |
 | Example library | I can load water, methane, ethanol, acetic acid, benzene, glucose, aspirin. | All examples validate. |
 | Invalid structure warning | I receive an understandable warning if a structure is chemically invalid. | Invalid test inputs are blocked. |
+| Five-stage learning flow | I can move freely among molecule selection, drawing, analysis, 3D comparison, and reflection/submission. | Current/completed/review/error states reflect real activity state; no stage lock. |
+| Simple/advanced editor | I can start with essential tools and open the full editor when needed. | Mode switch preserves the current structure. |
+| VSEPR evidence table | I can distinguish the central atom, bonding/lone-pair/total electron domains, electron geometry, molecular shape, and predicted angle. | Runs only after RDKit validation and blocks unsupported cases. |
+| 3D comparison | I can distinguish source-based reference coordinates from the idealized VSEPR model. | The two viewers have separate labels, controls, and caveats. |
+| Student submission/feedback | I can submit reasoning after prerequisites pass and read returned teacher feedback. | Requires a valid structure, non-empty reasoning, joined Firebase classroom, and ID token. |
+| Mobile navigation | I can use the five stages at 390 px without horizontal overflow. | `선택·그리기·분석·3D·기록` controls remain keyboard/touch accessible. |
 
 ## 6. Non-goals for MVP
 
@@ -56,7 +78,7 @@ Existing professional tools such as ChemDraw are powerful but not always accessi
 - Full IUPAC name generation
 - Quantum chemistry calculations
 - Full 3D conformer energy minimization
-- Student account system
+- Real-name/student-number account profile system
 
 ## 7. Classroom Use Cases
 
@@ -75,3 +97,9 @@ Existing professional tools such as ChemDraw are powerful but not always accessi
 - Invalid structures do not produce confident false outputs.
 - At least 7 example molecules pass automated validation.
 - The app can run locally and be deployed as a static web app for MVP.
+- A novice student can identify the current stage and move among all five stages without a lock.
+- Water, methane, ammonia, and carbon dioxide show the correct center-local VSEPR evidence or an explicit supported-state limitation.
+- Reference 3D coordinates and the VSEPR educational model are never presented as the same source.
+- Student submission stays disabled until validation, reasoning, trusted classroom join, and token gates pass.
+- Explicit trusted-endpoint 4xx classroom rejections keep the student on the entry screen; 5xx/network failures preserve the documented local/deferred recovery path.
+- Final release status remains pending until typecheck, unit, build, E2E, mobile, accessibility, and live-environment checks are rerun together.

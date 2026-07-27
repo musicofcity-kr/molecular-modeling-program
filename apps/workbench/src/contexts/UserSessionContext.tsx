@@ -127,6 +127,14 @@ export function UserSessionProvider({
           idToken: authResult.ok ? authResult.idToken : undefined,
         });
 
+        if (!joinResult.ok) {
+          return {
+            ok: false,
+            studentMessage: joinResult.studentMessage,
+            developerMessage: joinResult.developerMessage,
+          };
+        }
+
         const nextSession: StudentSession = {
           role: 'student',
           classCode: validation.classCode,

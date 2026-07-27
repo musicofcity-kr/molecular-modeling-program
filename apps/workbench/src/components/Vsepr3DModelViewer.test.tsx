@@ -4,8 +4,10 @@ import { Vsepr3DModelViewer } from './Vsepr3DModelViewer';
 
 const waterAnalysis = {
   status: 'supported' as const,
+  scope: 'local-center' as const,
   centralAtomId: '1',
   centralAtomSymbol: 'O',
+  centralAtomLabel: 'O1',
   bondedAtomCount: 2,
   lonePairCount: 2,
   stericNumber: 4,
@@ -13,6 +15,9 @@ const waterAnalysis = {
   electronDomainGeometryKo: '정사면체',
   molecularShapeKo: '굽은형',
   idealBondAngles: ['<109.5°'],
+  angleEvidence: {
+    vseprIdealAngles: ['<109.5°'],
+  },
   confidence: 'medium' as const,
   warnings: [],
 };
@@ -24,10 +29,17 @@ describe('Vsepr3DModelViewer', () => {
     );
 
     expect(markup).toContain('예상 입체 모형');
+    expect(markup).toContain('O1 주변');
     expect(markup).toContain('교육용 예측 모형');
     expect(markup).toContain('외부 3D 자료와 구분합니다.');
     expect(markup).toContain('실제 결합길이 측정값이 아닙니다.');
     expect(markup).toContain('라벨 표시');
+    expect(markup).toContain('전자쌍 배열 보기');
+    expect(markup).toContain('원자만 보기');
+    expect(markup).toContain('비공유 전자쌍 표시');
+    expect(markup).toContain('초기 방향');
+    expect(markup).toContain('화면에 맞추기');
+    expect(markup).toContain('한 손가락으로 회전');
   });
 
   it('shows rendered model metadata when a supported template is requested', () => {
@@ -35,9 +47,12 @@ describe('Vsepr3DModelViewer', () => {
       <Vsepr3DModelViewer analysis={waterAnalysis} modelStatus="rendered" />,
     );
 
-    expect(markup).toContain('AX2E2 전자쌍 반발 교육용 예측 모형을 표시합니다.');
+    expect(markup).toContain(
+      'O1 주변 AX2E2 전자쌍 반발 교육용 예측 모형을 표시합니다.',
+    );
     expect(markup).toContain('AX2E2');
-    expect(markup).toContain('&lt;109.5° 이상화 각도');
+    expect(markup).toContain('VSEPR 이상각(이론)');
+    expect(markup).toContain('&lt;109.5°');
     expect(markup).toContain('비공유 전자쌍');
   });
 

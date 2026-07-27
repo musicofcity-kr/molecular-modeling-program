@@ -19,6 +19,7 @@ type RDKitJsonPayload = {
 
 const atomicSymbols: Record<number, string> = {
   1: 'H',
+  4: 'Be',
   5: 'B',
   6: 'C',
   7: 'N',

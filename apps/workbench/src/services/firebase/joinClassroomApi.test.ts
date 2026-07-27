@@ -1,15 +1,51 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildJoinCodeHash as buildApiJoinCodeHash,
+  buildJoinAttemptCounterDocumentId,
   buildLegacyJoinCodeHash,
+  consumeJoinAttemptCounterSlot,
   buildUnsaltedServerJoinCodeHash,
   buildStudentMembershipDocument,
   handleJoinClassroomBody,
   parseJoinClassroomRequest,
   resolveAdminCredentialConfig,
+  type JoinAttemptCounter,
 } from '../../../api/join-classroom';
 
 const V3_JOIN_CODE_SALT = '0123456789abcdef0123456789abcdef';
+const TEST_NOW = '2026-07-02T00:00:00.000Z';
+
+function createJoinAttemptDependencies(
+  initialCounter: JoinAttemptCounter | null = null,
+) {
+  let counter = initialCounter;
+
+  return {
+    consumeJoinAttemptSlot: vi.fn(
+      async (
+        classCode: string,
+        uid: string,
+        nowMs: number,
+        updatedAt: string,
+      ) => {
+        void classCode;
+        void uid;
+        const result = consumeJoinAttemptCounterSlot(
+          counter,
+          nowMs,
+          updatedAt,
+        );
+
+        if (result.allowed) {
+          counter = result.counter;
+        }
+
+        return result;
+      },
+    ),
+    readCounter: () => counter,
+  };
+}
 
 describe('join-classroom API helpers', () => {
   it('normalizes and validates a trusted classroom join request', () => {
@@ -54,6 +90,23 @@ describe('join-classroom API helpers', () => {
     );
   });
 
+  it('builds a stable opaque counter document id from class and Firebase uid', () => {
+    expect(
+      buildJoinAttemptCounterDocumentId(' chem/101 ', 'student/uid@example.com'),
+    ).toMatch(/^join-attempt-v2-[a-f0-9]{64}$/);
+    expect(
+      buildJoinAttemptCounterDocumentId('CHEM-101', 'student/uid@example.com'),
+    ).toBe(
+      buildJoinAttemptCounterDocumentId(
+        ' chem/101 ',
+        'student/uid@example.com',
+      ),
+    );
+    expect(
+      buildJoinAttemptCounterDocumentId('CHEM-101', 'student-a'),
+    ).not.toBe(buildJoinAttemptCounterDocumentId('CHEM-101', 'student-b'));
+  });
+
   it('builds a minimal student membership document without student personal identifiers', () => {
     expect(
       buildStudentMembershipDocument({
@@ -94,7 +147,7 @@ describe('join-classroom API helpers', () => {
 
   it('creates a membership document only after token and classroom checks pass', async () => {
     const writeMembership = vi.fn().mockResolvedValue(undefined);
-    const resetJoinAttemptCounter = vi.fn().mockResolvedValue(undefined);
+    const joinAttempts = createJoinAttemptDependencies();
 
     const response = await handleJoinClassroomBody(
       {
@@ -124,8 +177,8 @@ describe('join-classroom API helpers', () => {
           ],
         }),
         writeMembership,
-        resetJoinAttemptCounter,
-        now: () => '2026-07-02T00:00:00.000Z',
+        ...joinAttempts,
+        now: () => TEST_NOW,
       },
     );
     const body = await response.json();
@@ -145,11 +198,17 @@ describe('join-classroom API helpers', () => {
         anonymousStudentId: 'anon-123',
       }),
     );
-    expect(resetJoinAttemptCounter).toHaveBeenCalledWith('CHEM-101');
+    expect(joinAttempts.consumeJoinAttemptSlot).toHaveBeenCalledWith(
+      'CHEM-101',
+      'firebase-student-uid',
+      expect.any(Number),
+      TEST_NOW,
+    );
   });
 
   it('keeps existing v1 classrooms joinable when joinCodeVersion is missing', async () => {
     const writeMembership = vi.fn().mockResolvedValue(undefined);
+    const joinAttempts = createJoinAttemptDependencies();
 
     const response = await handleJoinClassroomBody(
       {
@@ -170,7 +229,8 @@ describe('join-classroom API helpers', () => {
           }),
         }),
         writeMembership,
-        now: () => '2026-07-02T00:00:00.000Z',
+        ...joinAttempts,
+        now: () => TEST_NOW,
       },
     );
 
@@ -180,6 +240,7 @@ describe('join-classroom API helpers', () => {
 
   it('keeps existing v2 server classrooms joinable when joinCodeVersion is 2', async () => {
     const writeMembership = vi.fn().mockResolvedValue(undefined);
+    const joinAttempts = createJoinAttemptDependencies();
 
     const response = await handleJoinClassroomBody(
       {
@@ -201,7 +262,8 @@ describe('join-classroom API helpers', () => {
           joinCodeVersion: 2,
         }),
         writeMembership,
-        now: () => '2026-07-02T00:00:00.000Z',
+        ...joinAttempts,
+        now: () => TEST_NOW,
       },
     );
 
@@ -211,6 +273,7 @@ describe('join-classroom API helpers', () => {
 
   it('rejects v3 server classrooms when the stored salt is missing', async () => {
     const writeMembership = vi.fn().mockResolvedValue(undefined);
+    const joinAttempts = createJoinAttemptDependencies();
 
     const response = await handleJoinClassroomBody(
       {
@@ -233,9 +296,8 @@ describe('join-classroom API helpers', () => {
           joinCodeVersion: 3,
         }),
         writeMembership,
-        getJoinAttemptCounter: vi.fn().mockResolvedValue(null),
-        writeJoinAttemptCounter: vi.fn().mockResolvedValue(undefined),
-        now: () => '2026-07-02T00:00:00.000Z',
+        ...joinAttempts,
+        now: () => TEST_NOW,
         nowMs: () => 1000,
       },
     );
@@ -246,6 +308,7 @@ describe('join-classroom API helpers', () => {
 
   it('does not create membership when the classroom is missing', async () => {
     const writeMembership = vi.fn().mockResolvedValue(undefined);
+    const joinAttempts = createJoinAttemptDependencies();
 
     const response = await handleJoinClassroomBody(
       {
@@ -261,7 +324,8 @@ describe('join-classroom API helpers', () => {
           exists: false,
         }),
         writeMembership,
-        now: () => '2026-07-02T00:00:00.000Z',
+        ...joinAttempts,
+        now: () => TEST_NOW,
       },
     );
     const body = await response.json();
@@ -276,7 +340,7 @@ describe('join-classroom API helpers', () => {
 
   it('rejects membership creation when the join code does not match the classroom hash', async () => {
     const writeMembership = vi.fn().mockResolvedValue(undefined);
-    const writeJoinAttemptCounter = vi.fn().mockResolvedValue(undefined);
+    const joinAttempts = createJoinAttemptDependencies();
 
     const response = await handleJoinClassroomBody(
       {
@@ -300,9 +364,8 @@ describe('join-classroom API helpers', () => {
           joinCodeVersion: 3,
         }),
         writeMembership,
-        getJoinAttemptCounter: vi.fn().mockResolvedValue(null),
-        writeJoinAttemptCounter,
-        now: () => '2026-07-02T00:00:00.000Z',
+        ...joinAttempts,
+        now: () => TEST_NOW,
         nowMs: () => 1000,
       },
     );
@@ -314,23 +377,31 @@ describe('join-classroom API helpers', () => {
       status: 'join_disabled',
     });
     expect(writeMembership).not.toHaveBeenCalled();
-    expect(writeJoinAttemptCounter).toHaveBeenCalledWith(
+    expect(joinAttempts.consumeJoinAttemptSlot).toHaveBeenCalledWith(
       'CHEM-101',
-      expect.objectContaining({
-        failedCount: 1,
-        windowStartedAtMs: 1000,
-      }),
+      'firebase-student-uid',
+      1000,
+      TEST_NOW,
     );
+    expect(joinAttempts.readCounter()).toMatchObject({
+      attemptCount: 1,
+      windowStartedAtMs: 1000,
+    });
   });
 
-  it('rate limits repeated failed join-code attempts in a 10 minute window', async () => {
+  it('rate limits the 31st join attempt before checking whether its code is correct', async () => {
     const writeMembership = vi.fn().mockResolvedValue(undefined);
+    const joinAttempts = createJoinAttemptDependencies({
+      attemptCount: 30,
+      windowStartedAtMs: 1000,
+      updatedAt: TEST_NOW,
+    });
 
     const response = await handleJoinClassroomBody(
       {
         idToken: 'token-123',
         classCode: 'CHEM-101',
-        joinCode: 'WRONG',
+        joinCode: 'A1B2',
         displayName: '익명 학생',
         anonymousStudentId: 'anon-123',
       },
@@ -339,20 +410,14 @@ describe('join-classroom API helpers', () => {
         getClassroom: vi.fn().mockResolvedValue({
           exists: true,
           joinEnabled: true,
-          joinCodeHash: buildApiJoinCodeHash({
-            classCode: 'CHEM-101',
-            joinCode: 'A1B2',
-            joinCodeSalt: V3_JOIN_CODE_SALT,
-          }),
+          get joinCodeHash() {
+            throw new Error('blocked attempts must not inspect the join-code hash');
+          },
           joinCodeSalt: V3_JOIN_CODE_SALT,
           joinCodeVersion: 3,
         }),
         writeMembership,
-        getJoinAttemptCounter: vi.fn().mockResolvedValue({
-          failedCount: 31,
-          windowStartedAtMs: 1000,
-          updatedAt: '2026-07-02T00:00:00.000Z',
-        }),
+        ...joinAttempts,
         now: () => '2026-07-02T00:01:00.000Z',
         nowMs: () => 60_000,
       },
@@ -365,11 +430,24 @@ describe('join-classroom API helpers', () => {
       status: 'rate_limited',
     });
     expect(writeMembership).not.toHaveBeenCalled();
+    expect(joinAttempts.consumeJoinAttemptSlot).toHaveBeenCalledWith(
+      'CHEM-101',
+      'firebase-student-uid',
+      60_000,
+      '2026-07-02T00:01:00.000Z',
+    );
+    expect(joinAttempts.readCounter()).toMatchObject({
+      attemptCount: 30,
+    });
   });
 
   it('starts a fresh attempt window after 10 minutes have elapsed', async () => {
     const writeMembership = vi.fn().mockResolvedValue(undefined);
-    const writeJoinAttemptCounter = vi.fn().mockResolvedValue(undefined);
+    const joinAttempts = createJoinAttemptDependencies({
+      attemptCount: 30,
+      windowStartedAtMs: 1000,
+      updatedAt: TEST_NOW,
+    });
 
     const response = await handleJoinClassroomBody(
       {
@@ -393,24 +471,173 @@ describe('join-classroom API helpers', () => {
           joinCodeVersion: 3,
         }),
         writeMembership,
-        getJoinAttemptCounter: vi.fn().mockResolvedValue({
-          failedCount: 31,
-          windowStartedAtMs: 1000,
-          updatedAt: '2026-07-02T00:00:00.000Z',
-        }),
-        writeJoinAttemptCounter,
+        ...joinAttempts,
         now: () => '2026-07-02T00:11:00.000Z',
         nowMs: () => 601_000,
       },
     );
 
     expect(response.status).toBe(403);
-    expect(writeJoinAttemptCounter).toHaveBeenCalledWith(
+    expect(joinAttempts.consumeJoinAttemptSlot).toHaveBeenCalledWith(
       'CHEM-101',
-      expect.objectContaining({
-        failedCount: 1,
-        windowStartedAtMs: 601_000,
+      'firebase-student-uid',
+      601_000,
+      '2026-07-02T00:11:00.000Z',
+    );
+    expect(joinAttempts.readCounter()).toMatchObject({
+      attemptCount: 1,
+      windowStartedAtMs: 601_000,
+    });
+  });
+
+  it('atomically consumes 30 per-student slots and blocks later parallel guesses before code checks', async () => {
+    const concurrentAttempts = 35;
+    let counter: JoinAttemptCounter | null = null;
+    const recordedCounts: number[] = [];
+    const consumeJoinAttemptSlot = vi.fn(
+      async (
+        classCode: string,
+        uid: string,
+        nowMs: number,
+        updatedAt: string,
+      ) => {
+        void classCode;
+        void uid;
+        const result = consumeJoinAttemptCounterSlot(
+          counter,
+          nowMs,
+          updatedAt,
+        );
+
+        if (result.allowed) {
+          counter = result.counter;
+          recordedCounts.push(result.counter.attemptCount);
+        }
+
+        return result;
+      },
+    );
+    const dependencies = {
+      verifyIdToken: vi.fn().mockResolvedValue({ uid: 'firebase-student-uid' }),
+      getClassroom: vi.fn().mockResolvedValue({
+        exists: true,
+        joinEnabled: true,
+        joinCodeHash: buildApiJoinCodeHash({
+          classCode: 'CHEM-101',
+          joinCode: 'A1B2',
+          joinCodeSalt: V3_JOIN_CODE_SALT,
+        }),
+        joinCodeSalt: V3_JOIN_CODE_SALT,
+        joinCodeVersion: 3,
       }),
+      writeMembership: vi.fn().mockResolvedValue(undefined),
+      consumeJoinAttemptSlot,
+      now: () => TEST_NOW,
+      nowMs: () => 1000,
+    };
+
+    const responses = await Promise.all(
+      Array.from({ length: concurrentAttempts }, (_, index) =>
+        handleJoinClassroomBody(
+          {
+            idToken: `token-${index}`,
+            classCode: 'CHEM-101',
+            joinCode: `WRONG${index}`,
+            displayName: '익명 학생',
+            anonymousStudentId: `anon-${index}`,
+          },
+          dependencies,
+        ),
+      ),
+    );
+
+    expect(recordedCounts).toEqual(
+      Array.from({ length: 30 }, (_, index) => index + 1),
+    );
+    expect(new Set(recordedCounts).size).toBe(30);
+    expect(responses.filter((response) => response.status === 403)).toHaveLength(
+      30,
+    );
+    expect(responses.filter((response) => response.status === 429)).toHaveLength(
+      5,
+    );
+  });
+
+  it('keeps one student rate limited without blocking another student in the same class', async () => {
+    const counters = new Map<string, JoinAttemptCounter>();
+    counters.set('student-a', {
+      attemptCount: 30,
+      windowStartedAtMs: 1000,
+      updatedAt: TEST_NOW,
+    });
+    const consumeJoinAttemptSlot = vi.fn(
+      async (
+        classCode: string,
+        uid: string,
+        nowMs: number,
+        updatedAt: string,
+      ) => {
+        void classCode;
+        const result = consumeJoinAttemptCounterSlot(
+          counters.get(uid) ?? null,
+          nowMs,
+          updatedAt,
+        );
+
+        if (result.allowed) {
+          counters.set(uid, result.counter);
+        }
+
+        return result;
+      },
+    );
+    const writeMembership = vi.fn().mockResolvedValue(undefined);
+    const verifyIdToken = vi.fn(async (idToken: string) => ({
+      uid: idToken === 'token-a' ? 'student-a' : 'student-b',
+    }));
+    const dependencies = {
+      verifyIdToken,
+      getClassroom: vi.fn().mockResolvedValue({
+        exists: true,
+        joinEnabled: true,
+        joinCodeHash: buildApiJoinCodeHash({
+          classCode: 'CHEM-101',
+          joinCode: '1010',
+          joinCodeSalt: V3_JOIN_CODE_SALT,
+        }),
+        joinCodeSalt: V3_JOIN_CODE_SALT,
+        joinCodeVersion: 3,
+      }),
+      writeMembership,
+      consumeJoinAttemptSlot,
+      now: () => TEST_NOW,
+      nowMs: () => 2000,
+    };
+
+    const responses = await Promise.all(
+      [
+        { idToken: 'token-a', joinCode: '1010' },
+        { idToken: 'token-b', joinCode: '1010' },
+      ].map(({ idToken, joinCode }, index) =>
+        handleJoinClassroomBody(
+          {
+            idToken,
+            classCode: 'CHEM-101',
+            joinCode,
+            displayName: '익명 학생',
+            anonymousStudentId: `anon-${index}`,
+          },
+          dependencies,
+        ),
+      ),
+    );
+
+    expect(responses.map((response) => response.status)).toEqual([429, 200]);
+    expect(writeMembership).toHaveBeenCalledOnce();
+    expect(writeMembership).toHaveBeenCalledWith(
+      'CHEM-101',
+      'student-b',
+      expect.objectContaining({ uid: 'student-b' }),
     );
   });
 });

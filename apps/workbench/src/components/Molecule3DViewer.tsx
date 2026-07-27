@@ -106,11 +106,11 @@ function formatSourceType(sourceType?: Molecule3DInput['sourceType']): string {
 function formatRepresentationMode(mode: Molecule3DRepresentationMode): string {
   switch (mode) {
     case 'ball-and-stick':
-      return 'Ball-and-stick';
+      return '공-막대 모형';
     case 'stick':
-      return 'Stick';
+      return '막대 모형';
     case 'space-filling':
-      return 'Space-filling';
+      return '공간 채움 모형';
   }
 }
 
@@ -632,9 +632,9 @@ export const Molecule3DViewer = forwardRef<
                 );
               }}
             >
-              <option value="ball-and-stick">Ball-and-stick</option>
-              <option value="stick">Stick</option>
-              <option value="space-filling">Space-filling</option>
+              <option value="ball-and-stick">공-막대 모형</option>
+              <option value="stick">막대 모형</option>
+              <option value="space-filling">공간 채움 모형</option>
             </select>
           </label>
           <p>3D 좌표 데이터가 있는 경우에만 입체 표현 방식을 바꿀 수 있습니다.</p>
@@ -667,7 +667,7 @@ export const Molecule3DViewer = forwardRef<
             type="button"
             onClick={resetView}
           >
-            처음 보기로
+            초기 방향
           </button>
           <button
             className="secondary-action"
@@ -750,6 +750,9 @@ export const Molecule3DViewer = forwardRef<
           </dl>
         </div>
       </div>
+      <p className="viewer-gesture-hint">
+        한 손가락으로 회전하고 두 손가락으로 확대·축소할 수 있습니다.
+      </p>
 
       {shouldShowMeasurementControls ? (
         <div

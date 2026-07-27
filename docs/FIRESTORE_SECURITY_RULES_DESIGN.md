@@ -1,15 +1,17 @@
 # Firestore Security Rules Design
 
 작성일: 2026-07-01  
-상태: Firestore 수업방/제출 저장 MVP 연결, trusted join endpoint 초안 구현
+상태: Firestore 수업방/제출 저장 MVP 연결, trusted endpoint 및 emulator rules
+회귀 검증
 
 ## 1. 목적
 
 `다양한 분자의 분자구조 모델링` 앱에서 학생 활동 결과와 교사용 피드백을 Firestore에 저장하기 전에 권한 모델, 데이터 경계, Security Rules, 테스트 기준을 먼저 확정한다.
 
-현재 `localStorage` 기반 임시 저장은 유지한다. Firestore 저장은 Security
-Rules가 허용하는 교사용 수업방 생성, published 활동 템플릿 생성, 학생 제출
-snapshot 생성, 교사 제출 조회/피드백 update 범위에서만 제한적으로 시도한다.
+개인 식별 가능성이 있는 학생 제출 snapshot은 브라우저 `localStorage`에
+영속 저장하지 않는다. Firestore 저장은 Security Rules가 허용하는 교사용
+수업방 생성, published 활동 템플릿 생성, 학생 제출 snapshot 생성, 교사 제출
+조회/피드백 update 범위에서만 제한적으로 수행한다.
 
 2026-07-01 Auth 1단계에서는 Firebase Web SDK 초기화, 학생 Anonymous Auth,
 교사용 Google/email 로그인을 연결했다.
@@ -21,8 +23,7 @@ snapshot 생성, 교사 제출 조회/피드백 update 범위에서만 제한적
 2026-07-02 다음 단계에서는 Firestore client service를 연결했다. 단,
 학생 멤버십 문서 생성은 여전히 client write로 허용하지 않는다. 따라서 학생
 서버 제출은 `/classrooms/{classCode}/students/{uid}` 멤버십 문서가 trusted
-경로로 미리 생성된 경우에만 성공한다. 멤버십이 없으면 앱은 localStorage
-제출함을 유지하고 서버 제출 실패 메시지를 분리해 표시한다.
+경로로 미리 생성된 경우에만 성공한다.
 
 2026-07-02 추가 단계에서는 Vercel Function `/api/create-classroom`과
 `/api/join-classroom`을 추가했다. `/api/create-classroom`은 Firebase Admin
@@ -36,6 +37,12 @@ SDK로 교사 ID token과 teacher custom claim을 검증한 뒤 수업방 문서
 `joinCodeSalt`를 classroom 문서에 저장하고, `/api/join-classroom`은 v3 salt
 검증을 우선 사용한다. 기존 v2 서버 해시와 v1 client 해시는 기존 교실 호환
 검증 전용으로만 유지한다.
+
+2026-07-27 업데이트에서는 공유 교실 기기의 교차 세션 노출을 막기 위해
+학생 제출의 origin-wide `localStorage` fallback을 제거했다. 제출 요청 중
+자료는 현재 탭 메모리에만 유지하고, trusted endpoint 저장 성공 영수증이
+확인되어야 완료 상태를 반영한다. 이전 버전의 제출 저장 키는 앱 시작 시
+정리한다.
 
 ## 2. 현재 유지할 원칙
 
@@ -169,8 +176,9 @@ npm run test:firestore-rules
 - 수업 입장 멤버십 생성은 Firestore client write가 아니라 trusted server endpoint가 담당한다.
 
 현재 클라이언트 구현은 이 원칙을 우회하지 않는다. `joinClassroom` endpoint가
-설정되지 않았거나 실패해도 학생 멤버십 문서를 직접 만들지 않으며, 제출 write가
-권한 부족으로 실패하면 브라우저 제출함 fallback을 사용한다.
+설정되지 않았거나 실패해도 학생 멤버십 문서를 직접 만들지 않는다. 제출 저장이
+실패하면 학생에게 재시도 안내를 표시하고, 개인정보가 포함된 제출 snapshot을
+영속 브라우저 저장소에 복사하지 않는다.
 
 ## 8. Rules 테스트 기준
 
@@ -212,13 +220,18 @@ Firestore Rules는 필터가 아니다. 규칙상 허용되는 범위와 query �
 
 - `docs/FIRESTORE_SECURITY_RULES_DESIGN.md` 작성
 - `firebase/firestore.rules` draft 작성
-- current Firestore repository는 disabled 상태 유지
+
+상태: 완료. rules 파일은 emulator 회귀 대상으로 유지하며, production 반영은
+별도 배포 승인과 환경 검증이 필요하다.
 
 ### Phase B: 테스트 하네스
 
 - Firebase Emulator 설치
 - Rules unit test 작성
 - 허용/거부 케이스 자동화
+
+상태: 완료. `npm run test:firestore-rules`가 일반 `npm test`와 분리된 필수
+릴리즈 게이트다.
 
 ### Phase C: 교사 Auth 연결
 
@@ -227,9 +240,9 @@ Firestore Rules는 필터가 아니다. 규칙상 허용되는 범위와 query �
 - teacher custom claim 발급 절차 수립
 - 교사용 화면을 실제 Auth 상태와 연결
 
-상태: SDK 초기화와 Google/email login UI 연결은 완료. ID token의 teacher
-custom claim 읽기와 UI 게이트 분리는 완료. custom claim 발급 관리자 절차와
-교사용 Firestore 권한 연결은 다음 단계.
+상태: SDK 초기화, Google/email login, ID token teacher custom claim 판정,
+교사용 UI 게이트와 trusted 수업방·제출·피드백 endpoint 연결은 완료. 실제
+교사 계정 claim 발급·회수와 production 환경 확인은 운영 절차다.
 
 ### Phase D: 학생 익명 세션 연결
 
@@ -237,8 +250,9 @@ custom claim 읽기와 UI 게이트 분리는 완료. custom claim 발급 관리
 - joinClassroom 서버 엔드포인트 구현
 - 수업코드와 입장 확인코드 검증 후 membership 문서 생성
 
-상태: Anonymous Auth 시도와 config-missing fallback은 완료. `joinClassroom`
-연결 지점은 추가했으나 trusted endpoint와 membership 문서 생성은 다음 단계.
+상태: Anonymous Auth, trusted `/api/join-classroom`, 입장코드 검증과
+membership 생성 코드는 완료. Firebase Admin 환경변수가 연결된 실제 테스트
+수업방의 production/preview 왕복 QA는 배포 전 운영 확인으로 남는다.
 
 ### Phase E: 제한 beta 저장
 
@@ -246,8 +260,10 @@ custom claim 읽기와 UI 게이트 분리는 완료. custom claim 발급 관리
 - 교사 피드백 반환 흐름 연결
 - 모니터링과 데이터 삭제 절차 확인
 
-상태: 클라이언트 서비스 계층은 연결됨. 실제 end-to-end 성공 조건은 다음과
-같다.
+상태: 클라이언트 서비스 계층과 trusted save/list/update endpoint, 학생
+반환 피드백 흐름은 연결됨. 자동 보유기간·학생 self-service 삭제 UI는 없으므로
+제한 beta 전 운영 보유·삭제 절차가 필요하다. 실제 운영 end-to-end 성공
+조건은 다음과 같다.
 
 1. 교사 계정에 `teacher: true` 또는 `role: "teacher"` custom claim이 있어야 한다.
 2. 교사가 앱에서 수업방을 생성해야 한다.

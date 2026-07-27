@@ -60,6 +60,22 @@ export function createActivityResultSnapshot(
     input.activityTemplate,
     input.responses,
   );
+  const validationEvidence = input.validationResult
+    ? {
+        warnings: [...input.validationResult.warnings],
+        structureIntent: input.validationResult.structureIntent,
+        graphSummary: input.validationResult.graphSummary
+          ? {
+              ...input.validationResult.graphSummary,
+              componentAtomCounts: [
+                ...input.validationResult.graphSummary.componentAtomCounts,
+              ],
+            }
+          : undefined,
+        connectivityStatus:
+          input.validationResult.connectivityDecision?.status,
+      }
+    : {};
   const rdkitValidation: ActivityResultSnapshot['rdkitValidation'] =
     input.validationResult?.ok === true
       ? {
@@ -67,13 +83,51 @@ export function createActivityResultSnapshot(
           canonicalSmiles: input.validationResult.canonicalSmiles,
           molecularFormula: input.validationResult.molecularFormula,
           molecularWeight: input.validationResult.molecularWeight,
+          ...validationEvidence,
         }
       : {
           isValid: false,
           studentMessage:
             input.validationResult?.studentMessage ??
             '아직 구조 확인을 통과한 구조가 없습니다.',
+          ...validationEvidence,
         };
+  const selectedCenter =
+    input.vseprAnalysis.centralAtomId && input.vseprAnalysis.centralAtomSymbol
+      ? {
+          atomId: input.vseprAnalysis.centralAtomId,
+          atomSymbol: input.vseprAnalysis.centralAtomSymbol,
+          atomLabel:
+            input.vseprAnalysis.centralAtomLabel ??
+            `${input.vseprAnalysis.centralAtomSymbol}${input.vseprAnalysis.centralAtomId}`,
+        }
+      : undefined;
+  const vseprIdealAngles =
+    input.vseprAnalysis.angleEvidence?.vseprIdealAngles ??
+    input.vseprAnalysis.idealBondAngles ??
+    [];
+  const generatedCoordinateMeasurements =
+    input.vseprAnalysis.angleEvidence?.generatedCoordinateMeasurements ?? [];
+  const angleEvidence =
+    input.vseprAnalysis.status === 'supported'
+      ? {
+          vseprIdealAngles: [...vseprIdealAngles],
+          ...(generatedCoordinateMeasurements.length > 0
+            ? {
+                generatedCoordinateMeasurements: [
+                  ...generatedCoordinateMeasurements,
+                ],
+              }
+            : {}),
+          ...(input.vseprAnalysis.angleEvidence?.curatedReferenceAngles
+            ? {
+                curatedReferenceAngles: [
+                  ...input.vseprAnalysis.angleEvidence.curatedReferenceAngles,
+                ],
+              }
+            : {}),
+        }
+      : undefined;
 
   return {
     id: input.id ?? createActivityResultId(now),
@@ -117,10 +171,16 @@ export function createActivityResultSnapshot(
         ? undefined
         : {
             available: input.vseprAnalysis.status === 'supported',
+            scope: input.vseprAnalysis.scope,
+            selectedCenter,
             axeNotation: input.vseprAnalysis.axeNotation,
             electronGeometryKo: input.vseprAnalysis.electronDomainGeometryKo,
             molecularGeometryKo: input.vseprAnalysis.molecularShapeKo,
-            idealBondAngle: input.vseprAnalysis.idealBondAngles?.join(', '),
+            idealBondAngle:
+              vseprIdealAngles.length > 0
+                ? vseprIdealAngles.join(', ')
+                : undefined,
+            angleEvidence,
             confidence: input.vseprAnalysis.confidence,
             studentNote: cleanOptional(input.responses.vseprReflection),
           },

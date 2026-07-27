@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fetchPubChem3DSdf } from './pubchem3d';
+import { initializeRDKit } from './rdkitService';
 
 function createResponse(
   body: string,
@@ -13,7 +14,43 @@ function createResponse(
   } as Response;
 }
 
+async function createSdfFromSmiles(smiles: string): Promise<string> {
+  const rdkit = await initializeRDKit();
+  const molecule = rdkit.get_mol(smiles);
+
+  if (!molecule || !molecule.is_valid()) {
+    molecule?.delete();
+    throw new Error(`Could not create SDF test fixture from ${smiles}.`);
+  }
+
+  try {
+    return `${molecule.add_hs()}\n$$$$`;
+  } finally {
+    molecule.delete();
+  }
+}
+
 describe('fetchPubChem3DSdf', () => {
+  it('fails before requesting PubChem when the current RDKit canonical key is missing', async () => {
+    const fetchImpl = vi.fn();
+
+    const result = await fetchPubChem3DSdf(
+      {
+        cid: 702,
+        label: '에탄올',
+        expectedCanonicalSmiles: '   ',
+      },
+      fetchImpl,
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe('error');
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(result.developerLogs).toContain(
+      'current RDKit canonical SMILES was missing before PubChem request.',
+    );
+  });
+
   it('returns a PubChem-labeled Molecule3DInput for a successful 3D SDF response', async () => {
     const sdf = `water PubChem 3D
   PubChem
@@ -29,7 +66,12 @@ $$$$`;
     const fetchImpl = vi.fn().mockResolvedValue(createResponse(sdf, { ok: true, status: 200 }));
 
     const result = await fetchPubChem3DSdf(
-      { cid: 962, label: '물', pubchemName: 'Water' },
+      {
+        cid: 962,
+        label: '물',
+        pubchemName: 'Water',
+        expectedCanonicalSmiles: 'O',
+      },
       fetchImpl,
     );
 
@@ -68,7 +110,14 @@ $$$$`;
         }),
       );
 
-    const result = await fetchPubChem3DSdf({ cid: 123, label: '테스트' }, fetchImpl);
+    const result = await fetchPubChem3DSdf(
+      {
+        cid: 123,
+        label: '테스트',
+        expectedCanonicalSmiles: 'CCO',
+      },
+      fetchImpl,
+    );
 
     expect(result.ok).toBe(false);
     expect(result.status).toBe('noData');
@@ -83,7 +132,14 @@ $$$$`;
   it('returns error when the network request fails', async () => {
     const fetchImpl = vi.fn().mockRejectedValue(new Error('network unavailable'));
 
-    const result = await fetchPubChem3DSdf({ cid: 702, label: '에탄올' }, fetchImpl);
+    const result = await fetchPubChem3DSdf(
+      {
+        cid: 702,
+        label: '에탄올',
+        expectedCanonicalSmiles: 'CCO',
+      },
+      fetchImpl,
+    );
 
     expect(result.ok).toBe(false);
     expect(result.status).toBe('error');
@@ -93,5 +149,132 @@ $$$$`;
       'CID: 702',
       'fetch error message: network unavailable',
     ]);
+  });
+
+  it('blocks a valid SDF whose RDKit canonical structure differs from the current structure', async () => {
+    const dimethylEtherSdf = `dimethyl ether
+  PubChem
+
+  3  2  0  0  0  0  0  0  0  0999 V2000
+    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    1.4000    0.0000    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+    2.8000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  1  0
+  2  3  1  0
+M  END
+$$$$`;
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(createResponse(dimethylEtherSdf, { ok: true, status: 200 }));
+
+    const result = await fetchPubChem3DSdf(
+      {
+        cid: 999,
+        label: '에탄올 후보',
+        expectedCanonicalSmiles: 'CCO',
+      },
+      fetchImpl,
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe('error');
+    expect(result.studentMessage).toContain('현재 확인한 2D 구조와 일치하지 않아');
+    expect(result.developerLogs).toContain(
+      'PubChem 3D SDF structure verification failed: canonical mismatch.',
+    );
+    expect(result.developerLogs).toContain('expected canonical SMILES: CCO');
+    expect(result.developerLogs).toContain('SDF canonical SMILES: COC');
+  });
+
+  it('preserves stereochemistry by blocking the opposite SDF stereoisomer', async () => {
+    const oppositeStereoisomerSdf = await createSdfFromSmiles(
+      'C[C@H](O)C(=O)O',
+    );
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(
+        createResponse(oppositeStereoisomerSdf, { ok: true, status: 200 }),
+      );
+
+    const result = await fetchPubChem3DSdf(
+      {
+        cid: 107689,
+        label: '젖산 입체 이성질체',
+        expectedCanonicalSmiles: 'C[C@@H](O)C(=O)O',
+      },
+      fetchImpl,
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe('error');
+    expect(result.studentMessage).toContain('현재 확인한 2D 구조와 일치하지 않아');
+    expect(result.developerLogs).toContain(
+      'PubChem 3D SDF structure verification failed: canonical mismatch.',
+    );
+    expect(result.developerLogs).toContain(
+      'expected canonical SMILES: C[C@@H](O)C(=O)O',
+    );
+    expect(result.developerLogs).toContain(
+      'SDF canonical SMILES: C[C@H](O)C(=O)O',
+    );
+  });
+
+  it('blocks a fake SDF that contains M END but cannot be parsed by RDKit', async () => {
+    const fakeSdf = `not a molecule
+M  END
+$$$$`;
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(createResponse(fakeSdf, { ok: true, status: 200 }));
+
+    const result = await fetchPubChem3DSdf(
+      {
+        cid: 1000,
+        label: '가짜 후보',
+        expectedCanonicalSmiles: 'CCO',
+      },
+      fetchImpl,
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe('error');
+    expect(result.studentMessage).toContain('구조 검증을 통과하지 못해');
+    expect(result.developerLogs).toContain(
+      'PubChem 3D SDF structure verification failed.',
+    );
+  });
+
+  it('blocks an otherwise matching SDF that contains an untrusted V2000 query property', async () => {
+    const querySdf = `water query
+  PubChem
+
+  3  2  0  0  0  0  0  0  0  0999 V2000
+    0.0000    0.0000    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+    0.9572    0.0000    0.0000 H   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.2390    0.9270    0.0000 H   0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  1  0
+  1  3  1  0
+M  SUB  1   1   2
+M  END
+$$$$`;
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(createResponse(querySdf, { ok: true, status: 200 }));
+
+    const result = await fetchPubChem3DSdf(
+      {
+        cid: 1001,
+        label: '질의 구조 후보',
+        expectedCanonicalSmiles: 'O',
+      },
+      fetchImpl,
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe('error');
+    expect(result.studentMessage).toContain('구조 검증을 통과하지 못해');
+    expect(result.developerLogs.join('\n')).toContain(
+      'RDKit validation blocked V2000 query property M SUB.',
+    );
   });
 });

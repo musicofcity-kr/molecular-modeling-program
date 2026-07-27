@@ -105,4 +105,20 @@ describe('saveSubmissionWithTrustedEndpoint', () => {
       'saveSubmission membership missing',
     );
   });
+
+  it('keeps retry input session-only when the trusted endpoint is unreachable', async () => {
+    const result = await saveSubmissionWithTrustedEndpoint({
+      submission,
+      idToken: 'student-id-token',
+      fetchImpl: vi.fn().mockRejectedValue(new Error('offline')) as never,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.studentMessage).toContain('현재 화면에만');
+    expect(result.studentMessage).toContain('새로고침하면 사라집니다');
+    expect(result.studentMessage).not.toContain('브라우저 제출함');
+    expect(result.developerLogs.join('\n')).toContain(
+      'saveSubmission endpoint fetch failed: offline',
+    );
+  });
 });

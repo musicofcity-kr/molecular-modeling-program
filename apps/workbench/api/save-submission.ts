@@ -9,6 +9,7 @@ type SaveSubmissionApiStatus =
   | 'unauthorized'
   | 'classroom_not_found'
   | 'membership_required'
+  | 'submission_conflict'
   | 'server_error';
 
 type ActivitySubmissionPayload = {
@@ -44,11 +45,21 @@ type SaveSubmissionDependencies = {
   verifyIdToken: (idToken: string) => Promise<VerifiedStudentToken>;
   classroomExists: (classCode: string) => Promise<boolean>;
   membershipExists: (classCode: string, uid: string) => Promise<boolean>;
-  writeSubmission: (
+  writeSubmissionSafely: (
     classCode: string,
     submissionId: string,
     document: FirestoreSubmissionDocument,
-  ) => Promise<void>;
+  ) => Promise<SafeSubmissionWriteResult>;
+};
+
+type SafeSubmissionWriteStatus =
+  | 'created'
+  | 'owned_update'
+  | 'ownership_conflict'
+  | 'feedback_locked';
+
+type SafeSubmissionWriteResult = {
+  status: SafeSubmissionWriteStatus;
 };
 
 type FirestoreSubmissionDocument = {
@@ -230,7 +241,30 @@ export async function handleSaveSubmissionBody(
       firebaseUid: decodedToken.uid,
     });
 
-    await dependencies.writeSubmission(classCode, request.submission.id, document);
+    const writeResult = await dependencies.writeSubmissionSafely(
+      classCode,
+      request.submission.id,
+      document,
+    );
+
+    if (
+      writeResult.status === 'ownership_conflict' ||
+      writeResult.status === 'feedback_locked'
+    ) {
+      return jsonResponse(
+        {
+          ok: false,
+          status: 'submission_conflict',
+          classCode,
+          studentMessage:
+            writeResult.status === 'ownership_conflict'
+              ? '같은 제출 식별자가 다른 학생 자료에 이미 사용되어 서버에 저장하지 않았습니다. 새로 제출해 주세요.'
+              : '교사 피드백이 시작된 제출 자료는 학생 재제출로 덮어쓸 수 없습니다. 새 제출로 다시 보내 주세요.',
+          developerMessage: `saveSubmission conflict: classCode=${classCode}, submission=${request.submission.id}, uid=${decodedToken.uid}, reason=${writeResult.status}`,
+        },
+        409,
+      );
+    }
 
     return jsonResponse(
       {
@@ -319,6 +353,29 @@ export function buildFirestoreSubmissionDocument(input: {
   };
 }
 
+export function getSafeSubmissionWriteDecision(
+  existingDocument: Record<string, unknown> | null,
+  incomingDocument: FirestoreSubmissionDocument,
+): SafeSubmissionWriteStatus {
+  if (!existingDocument) {
+    return 'created';
+  }
+
+  if (existingDocument.studentUid !== incomingDocument.studentUid) {
+    return 'ownership_conflict';
+  }
+
+  const hasTeacherFeedback =
+    Object.prototype.hasOwnProperty.call(existingDocument, 'teacherFeedback') ||
+    Object.prototype.hasOwnProperty.call(existingDocument, 'feedbackReturnedAt');
+
+  if (existingDocument.status !== 'submitted' || hasTeacherFeedback) {
+    return 'feedback_locked';
+  }
+
+  return 'owned_update';
+}
+
 function createFirebaseAdminDependencies(): SaveSubmissionDependencies {
   const app = getFirebaseAdminApp();
   const auth = getAuth(app);
@@ -339,13 +396,28 @@ function createFirebaseAdminDependencies(): SaveSubmissionDependencies {
         .get();
       return snapshot.exists;
     },
-    writeSubmission: async (classCode, submissionId, document) => {
-      await db
+    writeSubmissionSafely: async (classCode, submissionId, document) => {
+      const submissionRef = db
         .collection('classrooms')
         .doc(classCode)
         .collection('submissions')
-        .doc(submissionId)
-        .set(document);
+        .doc(submissionId);
+
+      return db.runTransaction(async (transaction) => {
+        const snapshot = await transaction.get(submissionRef);
+        const decision = getSafeSubmissionWriteDecision(
+          snapshot.exists ? (snapshot.data() ?? {}) : null,
+          document,
+        );
+
+        if (decision === 'created') {
+          transaction.create(submissionRef, document);
+        } else if (decision === 'owned_update') {
+          transaction.set(submissionRef, document);
+        }
+
+        return { status: decision };
+      });
     },
   };
 }

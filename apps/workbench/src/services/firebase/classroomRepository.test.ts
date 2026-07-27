@@ -269,7 +269,8 @@ describe('Firestore submission persistence', () => {
 
     expect(result.ok).toBe(false);
     expect(result.studentMessage).toBe(FIRESTORE_SUBMISSION_TIMEOUT_MESSAGE);
-    expect(result.studentMessage).toContain('브라우저 제출함');
+    expect(result.studentMessage).toContain('현재 화면에만');
+    expect(result.studentMessage).toContain('새로고침하면 사라집니다');
     expect(result.studentMessage).not.toContain('Firestore');
     expect(result.developerLogs.join('\n')).toContain(
       'saveSubmission timed out after 5ms',
