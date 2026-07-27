@@ -295,13 +295,21 @@ test.describe('UX redesign evidence', () => {
       'data-editor-mode',
       'simple',
     );
-    await page.getByTestId('student-confirm-structure-button').click();
+    const analyzeButton = page.getByTestId('student-confirm-structure-button');
+
+    await analyzeButton.click();
+    await expect(analyzeButton).toBeDisabled();
+    await expect(analyzeButton).toBeEnabled({ timeout: 90_000 });
     await expect(page.getByTestId('student-activity-shell')).toHaveAttribute(
       'data-validation-status',
       'valid',
       { timeout: 90_000 },
     );
     await expect(page.getByTestId('student-formula-output')).toHaveText('H2O');
+    await expect(page.getByTestId('student-activity-shell')).toHaveAttribute(
+      'data-active-step',
+      '3',
+    );
 
     await page.getByTestId('learning-step-4').click();
     await expect(page.getByTestId('student-activity-shell')).toHaveAttribute(
