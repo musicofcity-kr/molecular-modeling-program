@@ -48,9 +48,9 @@ describe('Molecule3DViewer', () => {
 
     expect(markup).toContain('물의 교육용 3D 자료를 표시합니다.');
     expect(markup).toContain('표현 방식');
-    expect(markup).toContain('Ball-and-stick');
+    expect(markup).toContain('공-막대 모형');
     expect(markup).toContain('원자 라벨 표시');
-    expect(markup).toContain('처음 보기로');
+    expect(markup).toContain('초기 방향');
     expect(markup).toContain('화면에 맞추기');
     expect(markup).toContain(
       '3D 구조 보기가 자료를 준비하는 중입니다. 준비가 끝나면 측정 도구를 사용할 수 있습니다.',

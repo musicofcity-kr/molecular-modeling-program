@@ -3,6 +3,12 @@
 작성일: 2026-07-01  
 상태: 수업 시연 가능한 MVP 프로토타입 완료, 배포/운영 안정화 전 단계
 
+> **SUPERSEDED 안내 (2026-07-27):** 이 문서는 2026-07-01 배포 전환
+> 스냅샷이다. 현재 trusted Firebase 수업방·제출·피드백 경계와 브라우저 저장
+> 정책은 `AUTH_FIREBASE_PREP.md`, `FIRESTORE_SECURITY_RULES_DESIGN.md`,
+> `PRIVACY_POLICY.md`를 기준으로 한다. 아래의 "서버 저장 미구현" 및
+> localStorage 제출 fallback 설명을 현재 동작으로 사용하지 않는다.
+
 ## 1. 문서 목적
 
 이 문서는 현재 `Molecule Modeling Workbench` 프로젝트를 ChatGPT 프로젝트에 전달하여, GitHub/Vercel/Firebase 배포 단계의 작업 프롬프트를 생성하기 위한 기준 문서이다.

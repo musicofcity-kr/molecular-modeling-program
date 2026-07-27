@@ -68,10 +68,10 @@ export const FIRESTORE_NOT_CONFIGURED_MESSAGE =
   'Firebase 설정이 없어 서버 제출함을 사용할 수 없습니다.';
 
 export const FIRESTORE_MEMBERSHIP_REQUIRED_MESSAGE =
-  '서버 제출함은 수업방 입장 확인이 끝난 학생만 사용할 수 있습니다. 현재 활동 결과는 브라우저 제출함에 보관됩니다.';
+  '서버 제출함은 수업방 입장 확인이 끝난 학생만 사용할 수 있습니다. 입력 내용은 현재 화면에만 남아 있으며 새로고침하면 사라집니다.';
 
 export const FIRESTORE_SUBMISSION_TIMEOUT_MESSAGE =
-  '서버 제출함 응답이 지연되고 있습니다. 현재 활동 결과는 브라우저 제출함에 보관했습니다. 네트워크 또는 수업방 입장 확인을 점검한 뒤 다시 제출해 주세요.';
+  '서버 제출함 응답이 지연되고 있습니다. 입력 내용은 현재 화면에만 남아 있으며 새로고침하면 사라집니다. 네트워크 또는 수업방 입장 확인을 점검한 뒤 다시 제출해 주세요.';
 
 export const DEFAULT_FIRESTORE_WRITE_TIMEOUT_MS = 8000;
 

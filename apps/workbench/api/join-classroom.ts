@@ -1,6 +1,7 @@
 import { cert, getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
+import { createHash } from 'node:crypto';
 import {
   buildJoinCodeHash,
   buildLegacyJoinCodeHash,
@@ -58,10 +59,15 @@ type ClassroomRecord = {
   activityTemplateIds?: unknown;
 };
 
-type JoinAttemptCounter = {
-  failedCount: number;
+export type JoinAttemptCounter = {
+  attemptCount: number;
   windowStartedAtMs: number;
   updatedAt: string;
+};
+
+export type JoinAttemptSlotResult = {
+  allowed: boolean;
+  counter: JoinAttemptCounter;
 };
 
 type JoinClassroomDependencies = {
@@ -72,12 +78,12 @@ type JoinClassroomDependencies = {
     uid: string,
     document: StudentMembershipDocument,
   ) => Promise<void>;
-  getJoinAttemptCounter?: (classCode: string) => Promise<JoinAttemptCounter | null>;
-  writeJoinAttemptCounter?: (
+  consumeJoinAttemptSlot: (
     classCode: string,
-    counter: JoinAttemptCounter,
-  ) => Promise<void>;
-  resetJoinAttemptCounter?: (classCode: string) => Promise<void>;
+    uid: string,
+    nowMs: number,
+    updatedAt: string,
+  ) => Promise<JoinAttemptSlotResult>;
   now: () => string;
   nowMs?: () => number;
 };
@@ -111,7 +117,7 @@ const corsHeaders = {
 const SERVER_NOT_CONFIGURED_MESSAGE =
   '서버 수업코드 확인 설정이 아직 준비되지 않았습니다. 현재 브라우저에서 활동을 계속할 수 있습니다.';
 const JOIN_ATTEMPT_WINDOW_MS = 10 * 60 * 1000;
-const JOIN_ATTEMPT_MAX_FAILURES = 30;
+const JOIN_ATTEMPT_MAX_ATTEMPTS = 30;
 
 export default {
   async fetch(request: Request): Promise<Response> {
@@ -245,13 +251,14 @@ export async function handleJoinClassroomBody(
     }
 
     const nowMs = dependencies.nowMs?.() ?? Date.now();
-    const joinAttemptLimit = await getJoinAttemptLimitState(
+    const joinAttemptSlot = await dependencies.consumeJoinAttemptSlot(
       request.classCode,
-      dependencies,
+      decodedToken.uid,
       nowMs,
+      dependencies.now(),
     );
 
-    if (joinAttemptLimit.blocked) {
+    if (!joinAttemptSlot.allowed) {
       return jsonResponse(
         {
           ok: false,
@@ -259,33 +266,13 @@ export async function handleJoinClassroomBody(
           classCode: request.classCode,
           studentMessage:
             '입장 확인코드 오류가 여러 번 발생했습니다. 잠시 후 다시 시도하거나 교사에게 확인해 주세요.',
-          developerMessage: `joinClassroom rate limited before code check: classCode=${request.classCode}, failedCount=${joinAttemptLimit.failedCount}`,
+          developerMessage: `joinClassroom rate limited before code check: classCode=${request.classCode}, uid=${decodedToken.uid}, attemptCount=${joinAttemptSlot.counter.attemptCount}`,
         },
         429,
       );
     }
 
     if (!isJoinCodeAccepted(classroom, request)) {
-      const updatedCounter = await recordFailedJoinAttempt(
-        request.classCode,
-        dependencies,
-        nowMs,
-      );
-
-      if (updatedCounter.failedCount > JOIN_ATTEMPT_MAX_FAILURES) {
-        return jsonResponse(
-          {
-            ok: false,
-            status: 'rate_limited',
-            classCode: request.classCode,
-            studentMessage:
-              '입장 확인코드 오류가 여러 번 발생했습니다. 잠시 후 다시 시도하거나 교사에게 확인해 주세요.',
-            developerMessage: `joinClassroom rate limited after failed code: classCode=${request.classCode}, failedCount=${updatedCounter.failedCount}`,
-          },
-          429,
-        );
-      }
-
       return jsonResponse(
         {
           ok: false,
@@ -315,7 +302,6 @@ export async function handleJoinClassroomBody(
       decodedToken.uid,
       membership,
     );
-    await resetJoinAttemptCounter(request.classCode, dependencies);
 
     return jsonResponse(
       {
@@ -472,20 +458,28 @@ function createFirebaseAdminDependencies(): JoinClassroomDependencies {
         .doc(uid)
         .set(document, { merge: true });
     },
-    getJoinAttemptCounter: async (classCode) => {
-      const snapshot = await db.collection('joinAttempts').doc(classCode).get();
+    consumeJoinAttemptSlot: async (classCode, uid, nowMs, updatedAt) => {
+      const counterRef = db
+        .collection('joinAttempts')
+        .doc(buildJoinAttemptCounterDocumentId(classCode, uid));
 
-      if (!snapshot.exists) {
-        return null;
-      }
+      return db.runTransaction(async (transaction) => {
+        const snapshot = await transaction.get(counterRef);
+        const existingCounter = snapshot.exists
+          ? normalizeJoinAttemptCounter(snapshot.data())
+          : null;
+        const result = consumeJoinAttemptCounterSlot(
+          existingCounter,
+          nowMs,
+          updatedAt,
+        );
 
-      return normalizeJoinAttemptCounter(snapshot.data());
-    },
-    writeJoinAttemptCounter: async (classCode, counter) => {
-      await db.collection('joinAttempts').doc(classCode).set(counter, { merge: true });
-    },
-    resetJoinAttemptCounter: async (classCode) => {
-      await db.collection('joinAttempts').doc(classCode).delete();
+        if (result.allowed) {
+          transaction.set(counterRef, result.counter);
+        }
+
+        return result;
+      });
     },
     now: () => new Date().toISOString(),
     nowMs: () => Date.now(),
@@ -532,53 +526,46 @@ function isJoinCodeAccepted(
   });
 }
 
-async function getJoinAttemptLimitState(
+export function buildJoinAttemptCounterDocumentId(
   classCode: string,
-  dependencies: JoinClassroomDependencies,
-  nowMs: number,
-): Promise<{ blocked: boolean; failedCount: number }> {
-  const counter = await dependencies.getJoinAttemptCounter?.(classCode);
+  uid: string,
+): string {
+  const normalizedClassCode = normalizeJoinClassCode(classCode);
 
-  if (!counter || isJoinAttemptWindowExpired(counter, nowMs)) {
-    return { blocked: false, failedCount: 0 };
-  }
-
-  return {
-    blocked: counter.failedCount > JOIN_ATTEMPT_MAX_FAILURES,
-    failedCount: counter.failedCount,
-  };
+  return `join-attempt-v2-${createHash('sha256')
+    .update(JSON.stringify([normalizedClassCode, uid]), 'utf8')
+    .digest('hex')}`;
 }
 
-async function recordFailedJoinAttempt(
-  classCode: string,
-  dependencies: JoinClassroomDependencies,
+export function consumeJoinAttemptCounterSlot(
+  existingCounter: JoinAttemptCounter | null,
   nowMs: number,
-): Promise<JoinAttemptCounter> {
-  const existingCounter = await dependencies.getJoinAttemptCounter?.(classCode);
+  updatedAt: string,
+): JoinAttemptSlotResult {
   const baseCounter =
     existingCounter && !isJoinAttemptWindowExpired(existingCounter, nowMs)
       ? existingCounter
       : {
-          failedCount: 0,
+          attemptCount: 0,
           windowStartedAtMs: nowMs,
-          updatedAt: dependencies.now(),
+          updatedAt,
         };
-  const updatedCounter = {
-    failedCount: baseCounter.failedCount + 1,
-    windowStartedAtMs: baseCounter.windowStartedAtMs,
-    updatedAt: dependencies.now(),
+
+  if (baseCounter.attemptCount >= JOIN_ATTEMPT_MAX_ATTEMPTS) {
+    return {
+      allowed: false,
+      counter: baseCounter,
+    };
+  }
+
+  return {
+    allowed: true,
+    counter: {
+      attemptCount: baseCounter.attemptCount + 1,
+      windowStartedAtMs: baseCounter.windowStartedAtMs,
+      updatedAt,
+    },
   };
-
-  await dependencies.writeJoinAttemptCounter?.(classCode, updatedCounter);
-
-  return updatedCounter;
-}
-
-async function resetJoinAttemptCounter(
-  classCode: string,
-  dependencies: JoinClassroomDependencies,
-): Promise<void> {
-  await dependencies.resetJoinAttemptCounter?.(classCode);
 }
 
 function isJoinAttemptWindowExpired(
@@ -594,8 +581,12 @@ function normalizeJoinAttemptCounter(value: unknown): JoinAttemptCounter | null 
   }
 
   const candidate = value as Record<string, unknown>;
-  const failedCount =
-    typeof candidate.failedCount === 'number' ? candidate.failedCount : 0;
+  const attemptCount =
+    typeof candidate.attemptCount === 'number' &&
+    Number.isSafeInteger(candidate.attemptCount) &&
+    candidate.attemptCount >= 0
+      ? candidate.attemptCount
+      : 0;
   const windowStartedAtMs =
     typeof candidate.windowStartedAtMs === 'number'
       ? candidate.windowStartedAtMs
@@ -604,7 +595,7 @@ function normalizeJoinAttemptCounter(value: unknown): JoinAttemptCounter | null 
     typeof candidate.updatedAt === 'string' ? candidate.updatedAt : '';
 
   return {
-    failedCount,
+    attemptCount,
     windowStartedAtMs,
     updatedAt,
   };

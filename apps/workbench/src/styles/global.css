@@ -1000,11 +1000,6 @@ select {
   }
 }
 
-.ketcher-host button[title="3D Viewer"],
-.ketcher-host button[data-testid="3D Viewer button"] {
-  display: none !important;
-}
-
 .log-panel p {
   margin: 0;
   color: #5b6f75;
@@ -3219,6 +3214,654 @@ select {
   }
 }
 
+/* 2026-07 UX redesign: five-stage classroom flow and mobile-first controls */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.app-shell,
+.student-activity-shell,
+.student-activity-shell > *,
+.workspace-panel,
+.viewer-content,
+.viewer-content > *,
+.ketcher-host {
+  min-width: 0;
+}
+
+.primary-action,
+.secondary-action,
+.mode-action,
+.example-picker select,
+.viewer-control-group select,
+.activity-template-button,
+.student-step-tab {
+  min-height: 44px;
+}
+
+:where(button, input, select, textarea, summary):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--phase-build) 55%, white);
+  outline-offset: 2px;
+}
+
+.destructive-action {
+  border-color: color-mix(in srgb, var(--error) 58%, var(--line));
+  color: var(--error);
+}
+
+.destructive-action:hover,
+.destructive-action:focus-visible {
+  border-color: var(--error);
+  background: color-mix(in srgb, var(--error) 8%, white);
+}
+
+.editor-heading,
+.editor-mode-control,
+.student-feedback-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.editor-mode-control {
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-dim);
+  padding: 12px;
+}
+
+.editor-mode-control strong,
+.editor-mode-control p {
+  margin: 0;
+}
+
+.editor-mode-control p {
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.editor-mode-recovery {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-dim);
+  padding: 11px 12px;
+}
+
+.editor-mode-recovery.is-actionable {
+  border-color: color-mix(in srgb, var(--error) 48%, var(--line));
+  background: color-mix(in srgb, var(--error) 7%, white);
+  color: #8a2f2f;
+}
+
+.editor-mode-recovery p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.editor-mode-buttons,
+.vsepr-view-mode-buttons,
+.vsepr-model-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.student-editor-guidance,
+.viewer-gesture-hint,
+.student-feedback-empty,
+.student-feedback-status {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.direct-chain-drawing-guide,
+.molecule-graph-summary {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-dim);
+  padding: 11px 12px;
+}
+
+.direct-chain-drawing-guide {
+  margin: 10px 0 0;
+}
+
+.direct-chain-drawing-guide summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.direct-chain-drawing-guide ol {
+  margin: 10px 0 6px;
+  padding-left: 22px;
+}
+
+.direct-chain-drawing-guide p,
+.molecule-graph-summary p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.molecule-graph-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.molecule-graph-summary.single-component {
+  border-color: color-mix(in srgb, var(--ok) 42%, var(--line));
+  background: color-mix(in srgb, var(--ok) 7%, white);
+}
+
+.molecule-graph-summary.multiple-components-blocked {
+  border-color: color-mix(in srgb, var(--retry) 48%, var(--line));
+  background: color-mix(in srgb, var(--retry) 8%, white);
+}
+
+.molecule-graph-summary dl {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+}
+
+.molecule-graph-summary dl > div {
+  min-width: 62px;
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 7px 9px;
+  text-align: center;
+}
+
+.molecule-graph-summary dt {
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.molecule-graph-summary dd {
+  margin: 2px 0 0;
+  color: var(--ink);
+  font-weight: 850;
+}
+
+.structure-analysis-alert,
+.student-system-status-badge {
+  display: grid;
+  gap: 4px;
+  border: 1px solid color-mix(in srgb, var(--error) 48%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--error) 7%, white);
+  color: #8a2f2f;
+  padding: 11px 12px;
+}
+
+.student-chemistry-warning {
+  display: grid;
+  gap: 5px;
+  border: 1px solid color-mix(in srgb, var(--retry) 42%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--retry) 8%, white);
+  color: var(--ink);
+  margin-bottom: 12px;
+  padding: 11px 12px;
+}
+
+.student-chemistry-warning ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.structure-analysis-alert p,
+.student-system-status-badge p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.student-analysis-stage,
+.student-reflection-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.student-analysis-stage {
+  scroll-margin-top: 190px;
+}
+
+.student-reflection-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.student-secondary-details {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.student-secondary-details summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--phase-build);
+  font-weight: 800;
+  padding: 9px 12px;
+}
+
+.student-secondary-details[open] summary {
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-dim);
+}
+
+.student-secondary-details dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+}
+
+.student-secondary-details dl > div {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.student-secondary-details dt {
+  color: var(--ink-soft);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.student-secondary-details dd {
+  margin: 4px 0 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.mobile-viewer-switch,
+.student-mobile-step-nav {
+  display: none;
+}
+
+.mobile-viewer-switch {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mobile-viewer-switch button {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--phase-build);
+  cursor: pointer;
+  font-weight: 800;
+  padding: 8px 10px;
+}
+
+.mobile-viewer-switch button.active {
+  border-color: var(--phase-build);
+  background: var(--phase-build);
+  color: #ffffff;
+}
+
+.structure-comparison-prompts {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.75fr) minmax(0, 1.25fr);
+  gap: 14px;
+  border: 1px solid color-mix(in srgb, var(--phase-reflect) 42%, var(--line));
+  border-radius: 12px;
+  background: var(--phase-reflect-soft);
+  padding: 14px;
+}
+
+.structure-comparison-prompts h3,
+.structure-comparison-prompts p,
+.structure-comparison-prompts ul {
+  margin: 0;
+}
+
+.structure-comparison-prompts ul {
+  padding-left: 20px;
+}
+
+.student-returned-feedback {
+  display: grid;
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--phase-reflect) 35%, var(--line));
+  border-radius: 10px;
+  background: var(--phase-reflect-soft);
+  padding: 14px;
+}
+
+.student-returned-feedback h3,
+.student-returned-feedback p {
+  margin: 0;
+}
+
+.student-feedback-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.student-feedback-list li {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 11px;
+}
+
+.student-feedback-list small {
+  color: var(--ink-soft);
+}
+
+.viewer-3d-host {
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+
+.viewer-gesture-hint {
+  border-left: 3px solid var(--phase-build);
+  background: var(--surface-dim);
+  padding: 8px 10px;
+}
+
+.vsepr-model-toolbar {
+  display: grid;
+  gap: 10px;
+}
+
+.vsepr-model-toolbar > p {
+  margin: 0;
+}
+
+.vsepr-label-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.vsepr-label-toggle input,
+.viewer-checkbox-control input {
+  width: 20px;
+  height: 20px;
+}
+
+.learning-step.not-started {
+  border-color: var(--line);
+  background: var(--surface);
+}
+
+.learning-step.review {
+  --step-color: var(--retry);
+  border-color: color-mix(in srgb, var(--retry) 52%, var(--line));
+  background: color-mix(in srgb, var(--retry) 9%, white);
+}
+
+.learning-step.error {
+  --step-color: var(--error);
+  border-color: color-mix(in srgb, var(--error) 58%, var(--line));
+  background: color-mix(in srgb, var(--error) 8%, white);
+}
+
+.learning-step.review .learning-step-state,
+.learning-step.error .learning-step-state,
+.learning-step.not-started .learning-step-state {
+  color: var(--step-color);
+}
+
+@media (max-width: 768px) {
+  .app-shell {
+    padding: 10px 10px calc(86px + env(safe-area-inset-bottom));
+  }
+
+  .student-activity-shell.direct-workbench {
+    gap: 12px;
+  }
+
+  .learning-progress-rail {
+    top: 0;
+    padding: 10px 12px;
+  }
+
+  .learning-progress-summary {
+    display: grid;
+    gap: 4px;
+  }
+
+  .learning-progress-summary > p {
+    display: block;
+    max-width: none;
+    font-size: 0.82rem;
+  }
+
+  .student-mobile-step-nav {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 60;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+    border-top: 1px solid var(--line);
+    background: color-mix(in srgb, var(--surface) 96%, transparent);
+    box-shadow: 0 -8px 22px rgba(27, 36, 48, 0.14);
+    padding: 7px 6px calc(7px + env(safe-area-inset-bottom));
+    backdrop-filter: blur(12px);
+  }
+
+  .student-mobile-step-nav button {
+    display: grid;
+    place-items: center;
+    gap: 1px;
+    min-width: 0;
+    min-height: 52px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-weight: 900;
+    padding: 4px 2px;
+  }
+
+  .student-mobile-step-nav button.current {
+    border-color: var(--phase-build);
+    background: var(--phase-build-soft);
+    color: #176e68;
+  }
+
+  .student-mobile-step-nav button.completed {
+    color: var(--ok);
+  }
+
+  .student-mobile-step-nav button.review {
+    color: var(--retry);
+  }
+
+  .student-mobile-step-nav button.error {
+    color: var(--error);
+  }
+
+  .student-mobile-step-nav small {
+    width: 100%;
+    overflow: hidden;
+    font-size: clamp(0.62rem, 2.6vw, 0.74rem);
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .student-activity-shell.direct-workbench > #student-step-1,
+  .student-activity-shell.direct-workbench > #student-step-2,
+  .student-activity-shell.direct-workbench > .student-analysis-stage,
+  .student-activity-shell.direct-workbench > #student-step-4,
+  .student-activity-shell.direct-workbench > #student-step-5 {
+    display: none;
+  }
+
+  .student-activity-shell.direct-workbench[data-active-step="1"] > #student-step-1,
+  .student-activity-shell.direct-workbench[data-active-step="2"] > #student-step-2,
+  .student-activity-shell.direct-workbench[data-active-step="3"] > .student-analysis-stage,
+  .student-activity-shell.direct-workbench[data-active-step="4"] > #student-step-4,
+  .student-activity-shell.direct-workbench[data-active-step="5"] > #student-step-5 {
+    display: grid;
+  }
+
+  .student-activity-shell.direct-workbench[data-active-step="3"] > .student-analysis-stage {
+    gap: 12px;
+  }
+
+  .student-step,
+  .workspace-panel {
+    padding: 14px;
+  }
+
+  .student-drawing-actions,
+  .editor-heading,
+  .editor-mode-control,
+  .editor-mode-recovery,
+  .student-feedback-heading,
+  .structure-comparison-prompts {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .student-drawing-actions > *,
+  .student-drawing-actions .example-picker,
+  .student-drawing-actions .example-picker select,
+  .editor-mode-buttons,
+  .editor-mode-buttons > *,
+  .editor-mode-recovery > *,
+  .student-feedback-heading .secondary-action {
+    width: 100%;
+    max-width: none;
+  }
+
+  .example-picker {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ketcher-host,
+  .ketcher-host > div,
+  .ketcher-host [data-ketcher-editor] {
+    min-height: 520px;
+    max-width: 100%;
+  }
+
+  .student-result-grid,
+  .student-reflection-grid,
+  .student-secondary-details dl {
+    grid-template-columns: 1fr;
+  }
+
+  .molecule-graph-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .molecule-graph-summary dl {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .student-result-card {
+    min-height: 104px;
+  }
+
+  .mobile-viewer-switch {
+    display: grid;
+  }
+
+  .shape-viewer-grid[data-mobile-viewer="vsepr"] .reference-viewer-column,
+  .shape-viewer-grid[data-mobile-viewer="reference"] .vsepr-viewer-column {
+    display: none;
+  }
+
+  .shape-viewer-grid,
+  .viewer-content,
+  .viewer-control-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .viewer-content,
+  .viewer-3d-host {
+    min-height: 360px;
+  }
+
+  .viewer-button-row > *,
+  .vsepr-view-mode-buttons > * {
+    flex: 1 1 150px;
+  }
+
+  #student-step-1,
+  #student-step-2,
+  #student-step-3,
+  #student-step-4,
+  #student-step-5 {
+    scroll-margin-top: 120px;
+  }
+}
+
+@media (max-width: 420px) {
+  body {
+    font-size: 16px;
+  }
+
+  .app-header,
+  .student-step,
+  .workspace-panel,
+  .learning-progress-rail {
+    border-radius: 12px;
+  }
+
+  .student-result-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .viewer-button-row,
+  .vsepr-view-mode-buttons {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+}
+
 @media print {
   body {
     background: #ffffff;
@@ -3236,7 +3879,9 @@ select {
   .viewer-panel,
   .log-panel,
   .activity-result-actions,
-  .saved-result-list {
+  .saved-result-list,
+  .student-mobile-step-nav,
+  .mobile-viewer-switch {
     display: none !important;
   }
 

@@ -27,6 +27,17 @@ const snapshot: ActivityResultSnapshot = {
     canonicalSmiles: 'O',
     molecularFormula: 'H2O',
     molecularWeight: 18.015,
+    structureIntent: 'single-molecule',
+    graphSummary: {
+      atomCount: 3,
+      bondCount: 2,
+      componentCount: 1,
+      componentAtomCounts: [3],
+      isSingleComponent: true,
+      isolatedAtomCount: 0,
+    },
+    connectivityStatus: 'single-component',
+    warnings: ['전체 형식전하가 0인 전하 분리 구조는 교사와 함께 검토해 주세요.'],
   },
   threeDObservation: {
     has3DStructure: true,
@@ -45,10 +56,20 @@ const snapshot: ActivityResultSnapshot = {
   ],
   vseprResult: {
     available: true,
+    scope: 'local-center',
+    selectedCenter: {
+      atomId: '1',
+      atomSymbol: 'O',
+      atomLabel: 'O1',
+    },
     axeNotation: 'AX2E2',
     electronGeometryKo: '정사면체',
     molecularGeometryKo: '굽은형',
     idealBondAngle: '약 109.5°보다 작음',
+    angleEvidence: {
+      vseprIdealAngles: ['<109.5°'],
+      generatedCoordinateMeasurements: [104.5],
+    },
     confidence: 'high',
     studentNote: '비공유 전자쌍 때문에 굽은형이다.',
   },
@@ -88,13 +109,27 @@ describe('activity result export', () => {
 
     expect(markdown).toContain('# 분자구조 모델링 활동 결과');
     expect(markdown).toContain('## 3. 구조 확인 결과');
+    expect(markdown).toContain('- 구조 의도: 단일 분자');
+    expect(markdown).toContain(
+      '- 연결 근거: 원자 3개 · 결합 2개 · 연결 성분 1개 · 하나의 연결된 구조',
+    );
+    expect(markdown).toContain(
+      '- 구조 확인 참고: 전체 형식전하가 0인 전하 분리 구조는 교사와 함께 검토해 주세요.',
+    );
     expect(markdown).toContain('## 5. 측정 결과');
+    expect(markdown).toContain('- 선택 중심 원자: O1');
+    expect(markdown).toContain('- 분석 범위: 선택 중심 원자 주변의 국소 VSEPR 예측');
+    expect(markdown).toContain('- 선택 중심 주변 분자 모양: 굽은형');
+    expect(markdown).toContain('- VSEPR 이상각(이론): <109.5°');
     expect(markdown).toContain(
       '- 확인 후 수정한 생각: 예상과 검증값을 비교한 뒤 생각이 바뀌었다.',
     );
     expect(markdown).toContain('- 최종 소감: 구조 검증이 먼저 필요하다.');
     expect(markdown).toContain('입체 구조 예상은 전자쌍 반발 이론에 따른 교육용 예측 모형입니다.');
     expect(txt).toContain('분자구조 모델링 활동 결과');
+    expect(txt).toContain(
+      '연결 근거: 원자 3개 · 결합 2개 · 연결 성분 1개 · 하나의 연결된 구조',
+    );
     expect(txt).toContain('이 결과는 수업 활동 기록용입니다.');
   });
 

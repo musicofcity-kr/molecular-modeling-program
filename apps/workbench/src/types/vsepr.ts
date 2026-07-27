@@ -6,6 +6,19 @@ export type VseprStatus =
   | 'error';
 
 export type VseprConfidence = 'high' | 'medium' | 'low';
+export type VseprAnalysisScope = 'local-center';
+
+export interface CuratedReferenceAngle {
+  value: number;
+  unit: 'degree';
+  sourceLabel: string;
+}
+
+export interface GeometryAngleEvidence {
+  vseprIdealAngles: string[];
+  generatedCoordinateMeasurements?: number[];
+  curatedReferenceAngles?: CuratedReferenceAngle[];
+}
 
 export type VseprModelViewStatus =
   | 'not_requested'
@@ -25,8 +38,10 @@ export interface VseprCentralAtomCandidate {
 
 export interface VseprAnalysis {
   status: VseprStatus;
+  scope?: VseprAnalysisScope;
   centralAtomId?: string;
   centralAtomSymbol?: string;
+  centralAtomLabel?: string;
   centralAtomCandidates?: VseprCentralAtomCandidate[];
   bondedAtomCount?: number;
   lonePairCount?: number;
@@ -35,6 +50,7 @@ export interface VseprAnalysis {
   electronDomainGeometryKo?: string;
   molecularShapeKo?: string;
   idealBondAngles?: string[];
+  angleEvidence?: GeometryAngleEvidence;
   confidence: VseprConfidence;
   warnings: string[];
   studentMessage?: string;

@@ -19,6 +19,36 @@ const ethanolMolBlock = [
   'M  END',
 ].join('\n');
 
+function queryBondMolBlock(bondType: number): string {
+  return [
+    `query bond ${bondType}`,
+    '  Workbench',
+    '',
+    '  2  1  0  0  0  0            999 V2000',
+    '    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0',
+    '    1.5000    0.0000    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0',
+    `  1  2  ${bondType}  0  0  0  0`,
+    'M  END',
+  ].join('\n');
+}
+
+function queryPropertyMolBlock(
+  propertyLine: string,
+  header: { title?: string; comment?: string } = {},
+): string {
+  return [
+    header.title ?? 'query property',
+    '  Workbench',
+    header.comment ?? '',
+    '  2  1  0  0  0  0            999 V2000',
+    '    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0',
+    '    1.5000    0.0000    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0',
+    '  1  2  1  0  0  0  0',
+    propertyLine,
+    'M  END',
+  ].join('\n');
+}
+
 const documentedClassroomFixtures = [
   {
     name: 'water',
@@ -83,9 +113,23 @@ describe('validateMoleculeInput', () => {
     expect(result.molecularWeight).toBeUndefined();
     expect(result.canonicalSmiles).toBeUndefined();
     expect(result.studentMessage).toContain(
-      '현재 구조는 계산에 사용할 수 있는 분자 구조로 검증되지 않았습니다',
+      '현재 구조는 계산에 사용할 수 있는 분자 구조로 확인되지 않았습니다',
     );
+    expect(result.studentMessage).toContain('다시 2D 구조 분석하기');
     expect(result.developerLogs[0]).toContain('empty molecule input');
+    expect(result.structureIntent).toBe('single-molecule');
+    expect(result.graphSummary).toEqual({
+      atomCount: 0,
+      bondCount: 0,
+      componentCount: 0,
+      componentAtomCounts: [],
+      isSingleComponent: false,
+      isolatedAtomCount: 0,
+    });
+    expect(result.connectivityDecision).toMatchObject({
+      status: 'empty',
+      allowed: false,
+    });
   });
 
   it('fails invalid SMILES without chemistry output', async () => {
@@ -150,11 +194,11 @@ describe('validateMoleculeInput', () => {
     },
   );
 
-  it('validates a V2000 MOL block and prefers it over SMILES when present', async () => {
+  it('validates matching V2000 MOL and SMILES data using the MOL block as source', async () => {
     const result = await validateMoleculeInput({
       source: 'ketcher',
       validationStatus: 'unvalidated',
-      smiles: 'C',
+      smiles: 'CCO',
       molBlock: ethanolMolBlock,
     });
 
@@ -164,6 +208,315 @@ describe('validateMoleculeInput', () => {
     expect(result.molecularFormula).toBe('C2H6O');
     expect(result.molecularWeight).toBeCloseTo(46.069, 3);
     expect(result.molecularWeight).not.toBeCloseTo(46.04186, 3);
+  });
+
+  it('validates beryllium chloride and displays its molecular formula', async () => {
+    const result = await validateMoleculeInput({
+      source: 'example',
+      validationStatus: 'unvalidated',
+      smiles: 'Cl[Be]Cl',
+    });
+
+    expect(result.ok).toBe(true);
+
+    if (result.ok) {
+      expect(result.molecularFormula).toBe('BeCl2');
+      expect(result.canonicalSmiles).toBe('[Cl][Be][Cl]');
+    }
+  });
+
+  it('blocks mismatched Ketcher SMILES and MOL data for human review', async () => {
+    const result = await validateMoleculeInput({
+      source: 'ketcher',
+      validationStatus: 'unvalidated',
+      smiles: 'C',
+      molBlock: ethanolMolBlock,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.validationStatus).toBe('invalid');
+
+    if (!result.ok) {
+      expect(result.studentMessage).toContain('구조 검토가 필요합니다');
+      expect(result.developerLogs.join('\n')).toContain(
+        'Ketcher structure mismatch',
+      );
+    }
+  });
+
+  it.each([
+    {
+      label: 'ozone',
+      smiles: '[O-][O+]=O',
+      expectedFormula: 'O3',
+      expectedCanonicalSmiles: 'O=[O+][O-]',
+    },
+    {
+      label: 'nitromethane',
+      smiles: 'C[N+](=O)[O-]',
+      expectedFormula: 'CH3NO2',
+      expectedCanonicalSmiles: 'C[N+](=O)[O-]',
+    },
+  ])(
+    'allows neutral charge-separated $label with an explicit warning',
+    async ({ smiles, expectedFormula, expectedCanonicalSmiles }) => {
+      const result = await validateMoleculeInput({
+        source: 'example',
+        validationStatus: 'unvalidated',
+        smiles,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(result.molecularFormula).toBe(expectedFormula);
+      expect(result.canonicalSmiles).toBe(expectedCanonicalSmiles);
+      expect(result.warnings.join('\n')).toContain('전체 형식전하가 0');
+      expect(result.warnings.join('\n')).toContain('전하 분리');
+      expect(result.developerLogs.join('\n')).toContain(
+        'neutral charge-separated structure',
+      );
+    },
+  );
+
+  it.each([
+    { label: 'positive ammonium ion', smiles: '[NH4+]', netCharge: 1 },
+    { label: 'negative chloride ion', smiles: '[Cl-]', netCharge: -1 },
+  ])('fails closed for $label with nonzero net charge', async ({
+    smiles,
+    netCharge,
+  }) => {
+    const result = await validateMoleculeInput({
+      source: 'example',
+      validationStatus: 'unvalidated',
+      smiles,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.validationStatus).toBe('invalid');
+    expect(result.canonicalSmiles).toBeUndefined();
+    expect(result.molecularFormula).toBeUndefined();
+    expect(result.molecularWeight).toBeUndefined();
+    expect(result.studentMessage).toContain('현재 교육용 계산 범위');
+    expect(result.developerLogs.join('\n')).toContain(
+      `net formal charge ${netCharge}`,
+    );
+  });
+
+  it.each([
+    { label: 'isotopic water', smiles: '[2H]O[2H]' },
+    { label: 'carbon-13 methane', smiles: '[13CH4]' },
+    { label: 'radical oxygen', smiles: '[O]' },
+  ])('continues to fail closed for $label', async ({ smiles }) => {
+    const result = await validateMoleculeInput({
+      source: 'example',
+      validationStatus: 'unvalidated',
+      smiles,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.validationStatus).toBe('invalid');
+    expect(result.canonicalSmiles).toBeUndefined();
+    expect(result.molecularFormula).toBeUndefined();
+    expect(result.molecularWeight).toBeUndefined();
+    expect(result.studentMessage).toContain('현재 교육용 계산 범위');
+    expect(result.developerLogs.join('\n')).toContain(
+      'unsupported atom annotation',
+    );
+  });
+
+  it.each([5, 6, 7, 8])(
+    'blocks V2000 query or ambiguous bond type %s',
+    async (bondType) => {
+      const result = await validateMoleculeInput({
+        source: 'import',
+        validationStatus: 'unvalidated',
+        molBlock: queryBondMolBlock(bondType),
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.canonicalSmiles).toBeUndefined();
+      expect(result.molecularFormula).toBeUndefined();
+      expect(result.studentMessage).toContain('질의 또는 모호한 구조');
+      expect(result.developerLogs.join('\n')).toContain(
+        `V2000 query bond type ${bondType}`,
+      );
+    },
+  );
+
+  it.each([
+    ['SUB', 'M  SUB  1   1   2'],
+    ['UNS', 'M  UNS  1   1   1'],
+    ['RBC', 'M  RBC  1   1   2'],
+  ])(
+    'blocks V2000 M %s query properties before calculating chemistry results',
+    async (propertyTag, propertyLine) => {
+      const result = await validateMoleculeInput({
+        source: 'import',
+        validationStatus: 'unvalidated',
+        molBlock: queryPropertyMolBlock(propertyLine),
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.canonicalSmiles).toBeUndefined();
+      expect(result.molecularFormula).toBeUndefined();
+      expect(result.molecularWeight).toBeUndefined();
+      expect(result.studentMessage).toContain('질의 또는 모호한 구조');
+      expect(result.developerLogs.join('\n')).toContain(
+        `V2000 query property M ${propertyTag}`,
+      );
+    },
+  );
+
+  it.each([
+    ['title text', { title: 'V2000 bypass title' }],
+    [
+      'counts-shaped comment',
+      { comment: ' 99 99  0  0  0  0            999 V2000' },
+    ],
+  ])(
+    'uses only the standard counts-line position when %s also contains V2000',
+    async (_headerCase, header) => {
+      const result = await validateMoleculeInput({
+        source: 'import',
+        validationStatus: 'unvalidated',
+        molBlock: queryPropertyMolBlock('M  SUB  1   1   2', header),
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.canonicalSmiles).toBeUndefined();
+      expect(result.molecularFormula).toBeUndefined();
+      expect(result.molecularWeight).toBeUndefined();
+      expect(result.studentMessage).toContain('질의 또는 모호한 구조');
+      expect(result.developerLogs.join('\n')).toContain(
+        'V2000 query property M SUB',
+      );
+    },
+  );
+
+  it('blocks canonical query/dummy atoms instead of calculating a formula', async () => {
+    const result = await validateMoleculeInput({
+      source: 'example',
+      validationStatus: 'unvalidated',
+      smiles: '*',
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.canonicalSmiles).toBeUndefined();
+    expect(result.molecularFormula).toBeUndefined();
+    expect(result.studentMessage).toContain('질의 또는 모호한 구조');
+    expect(result.developerLogs.join('\n')).toContain(
+      'unsupported canonical query feature',
+    );
+  });
+
+  it('blocks a canonical any-bond marker even without a V2000 source', async () => {
+    const result = await validateMoleculeInput({
+      source: 'example',
+      validationStatus: 'unvalidated',
+      smiles: 'C~O',
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.canonicalSmiles).toBeUndefined();
+    expect(result.molecularFormula).toBeUndefined();
+    expect(result.studentMessage).toContain('질의 또는 모호한 구조');
+    expect(result.developerLogs.join('\n')).toContain(
+      'unsupported canonical query feature: C~O',
+    );
+  });
+
+  it('blocks disconnected fragments instead of presenting one combined formula', async () => {
+    const result = await validateMoleculeInput({
+      source: 'example',
+      validationStatus: 'unvalidated',
+      smiles: 'O.O',
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.canonicalSmiles).toBeUndefined();
+    expect(result.molecularFormula).toBeUndefined();
+    expect(result.studentMessage).toContain('여러 조각');
+    expect(result.developerLogs.join('\n')).toContain(
+      'disconnected molecular fragments',
+    );
+  });
+
+  it('reports four isolated carbon components and blocks single-molecule output', async () => {
+    const result = await validateMoleculeInput({
+      source: 'example',
+      validationStatus: 'unvalidated',
+      smiles: 'C.C.C.C',
+      structureIntent: 'single-molecule',
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.graphSummary).toEqual({
+      atomCount: 4,
+      bondCount: 0,
+      componentCount: 4,
+      componentAtomCounts: [1, 1, 1, 1],
+      isSingleComponent: false,
+      isolatedAtomCount: 4,
+    });
+    expect(result.connectivityDecision).toMatchObject({
+      intent: 'single-molecule',
+      status: 'multiple-components-blocked',
+      allowed: false,
+    });
+    expect(result.molecularFormula).toBeUndefined();
+    expect(result.molecularWeight).toBeUndefined();
+    expect(result.studentMessage).toContain('원자 사이를 결합으로 연결');
+  });
+
+  it('reports one connected component for a linear four-carbon chain', async () => {
+    const result = await validateMoleculeInput({
+      source: 'example',
+      validationStatus: 'unvalidated',
+      smiles: 'CCCC',
+      structureIntent: 'single-molecule',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.graphSummary).toEqual({
+      atomCount: 4,
+      bondCount: 3,
+      componentCount: 1,
+      componentAtomCounts: [4],
+      isSingleComponent: true,
+      isolatedAtomCount: 0,
+    });
+    expect(result.connectivityDecision).toMatchObject({
+      intent: 'single-molecule',
+      status: 'single-component',
+      allowed: true,
+    });
+    expect(result.molecularFormula).toBe('C4H10');
+  });
+
+  it('allows ionic connectivity explicitly but blocks misleading combined calculation output', async () => {
+    const result = await validateMoleculeInput({
+      source: 'example',
+      validationStatus: 'unvalidated',
+      smiles: '[Na+].[Cl-]',
+      structureIntent: 'ionic-compound',
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.graphSummary).toEqual({
+      atomCount: 2,
+      bondCount: 0,
+      componentCount: 2,
+      componentAtomCounts: [1, 1],
+      isSingleComponent: false,
+      isolatedAtomCount: 2,
+    });
+    expect(result.connectivityDecision).toMatchObject({
+      intent: 'ionic-compound',
+      status: 'multiple-components-allowed',
+      allowed: true,
+    });
+    expect(result.molecularFormula).toBeUndefined();
+    expect(result.molecularWeight).toBeUndefined();
+    expect(result.studentMessage).toContain('하나의 분자식과 분자량으로 계산하지 않습니다');
   });
 
   it('reuses a single RDKit initialization for repeated validation', async () => {

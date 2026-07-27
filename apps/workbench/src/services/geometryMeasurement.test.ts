@@ -46,6 +46,23 @@ describe('geometryMeasurement', () => {
     ]);
   });
 
+  it('ignores V2000 text in the title and reads coordinates from the standard counts line', () => {
+    const atoms = parseAtomsFromMolecule3DInput({
+      format: 'sdf',
+      data: waterSdf.replace(
+        'water static 3D example',
+        'V2000 title is not a counts line',
+      ),
+      label: '물',
+      sourceType: 'static-example',
+      coordinateDimension: '3d',
+      coordinateSource: '예제 내장 3D 구조',
+    });
+
+    expect(atoms).toHaveLength(3);
+    expect(atoms.map((item) => item.element)).toEqual(['O', 'H', 'H']);
+  });
+
   it('parses XYZ atom coordinates', () => {
     const atoms = parseAtomsFromMolecule3DInput({
       format: 'xyz',

@@ -77,7 +77,7 @@ export async function saveSubmissionWithTrustedEndpoint(
       ok: false,
       data: input.submission,
       studentMessage:
-        '서버 제출함 요청을 보내지 못했습니다. 현재 활동 결과는 브라우저 제출함에 보관됩니다.',
+        '서버 제출함 요청을 보내지 못했습니다. 입력 내용은 현재 화면에만 남아 있으며 새로고침하면 사라집니다.',
       developerLogs: [
         `saveSubmission endpoint fetch failed: ${getErrorMessage(error)}`,
       ],

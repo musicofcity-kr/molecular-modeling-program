@@ -111,6 +111,15 @@ const corsHeaders = {
 
 const SERVER_NOT_CONFIGURED_MESSAGE =
   '서버 피드백 초안 생성 설정이 아직 준비되지 않았습니다. 교사용 로컬 피드백은 계속 유지됩니다.';
+const EXPLICIT_PII_REDACTION = '[개인정보 삭제]';
+const COMPACT_KOREAN_PHONE_PATTERN =
+  /^(?:(?:82(?:0)?(?:1[016789]|2|[3-8]\d))|(?:01[016789]|0(?:2|[3-8]\d)))\d{7,8}$/;
+const EXPLICIT_STUDENT_PII_PATTERNS = [
+  /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/giu,
+  /(?<!\d)\d{6}[-.\s]?[1-8]\d{6}(?!\d)/g,
+  /(?<!\d)(?:(?:(?:\+|00)?82[-.\s]*(?:\(0\)|0)?[-.\s]*(?:1[016789]|2|[3-8]\d))|(?:\((?:01[016789]|0(?:2|[3-8]\d))\)|(?:01[016789]|0(?:2|[3-8]\d))))[-.\s]?\d{3,4}[-.\s]?\d{4}(?!\d)/g,
+  /(?:학번|학생\s*번호)\s*(?:(?:[:：=＝]|은|는)\s*)?[A-Z0-9_-]{2,20}/giu,
+] as const;
 
 export default {
   async fetch(request: Request): Promise<Response> {
@@ -343,6 +352,18 @@ export function parseCreateFeedbackDraftRequest(
 
 function buildFeedbackRequestPayload(submission: ActivitySubmission) {
   const snapshot = submission.snapshot;
+  const providerSubmission = redactProviderPayloadValue({
+    id: submission.id,
+    activityTitle: snapshot.activityTitle,
+    moleculeName: snapshot.moleculeName,
+    prediction: snapshot.studentPrediction,
+    validation: snapshot.rdkitValidation,
+    threeDObservation: snapshot.threeDObservation,
+    vseprResult: snapshot.vseprResult,
+    comparisonObservation: snapshot.comparisonObservation,
+    answers: snapshot.activityAnswers,
+    finalReflection: snapshot.finalReflection,
+  });
 
   return {
     guardrails: {
@@ -353,21 +374,11 @@ function buildFeedbackRequestPayload(submission: ActivitySubmission) {
       avoidPersonalData: true,
       avoidPersonalityJudgment: true,
       avoidUnverifiedChemistryClaims: true,
+      vseprLocalCenterOnly: true,
       focus:
-        '분자 구조 확인 결과, 3D 구조 관찰, VSEPR 예측의 출처와 한계를 구분하도록 돕는 형성 피드백',
+        '분자 구조 확인 결과, 3D 구조 관찰, 선택한 중심 원자 주변의 국소 VSEPR 예측과 그 한계를 구분하도록 돕는 형성 피드백',
     },
-    submission: {
-      id: submission.id,
-      activityTitle: snapshot.activityTitle,
-      moleculeName: snapshot.moleculeName,
-      prediction: snapshot.studentPrediction,
-      validation: snapshot.rdkitValidation,
-      threeDObservation: snapshot.threeDObservation,
-      vseprResult: snapshot.vseprResult,
-      comparisonObservation: snapshot.comparisonObservation,
-      answers: snapshot.activityAnswers,
-      finalReflection: snapshot.finalReflection,
-    },
+    submission: providerSubmission,
     requiredResponseShape: {
       summary: 'string',
       strengths: ['string'],
@@ -543,17 +554,26 @@ async function createExternalEndpointFeedbackDraft(
     });
 
     if (!response.ok) {
-      const responseText = await safeReadResponseText(response);
-
       return {
         feedback: buildLocalGuardrailFeedback(submission, now),
         studentMessage:
           'AI 피드백 서버에서 초안을 만들지 못해 교사용 로컬 검토 초안을 만들었습니다.',
-        developerMessage: `AI feedback endpoint returned HTTP ${response.status}: ${responseText.slice(0, 500)}`,
+        developerMessage: `AI feedback endpoint returned HTTP ${response.status}.`,
       };
     }
 
-    const data = (await response.json()) as ExternalFeedbackResponse;
+    let data: ExternalFeedbackResponse;
+
+    try {
+      data = (await response.json()) as ExternalFeedbackResponse;
+    } catch {
+      return {
+        feedback: buildLocalGuardrailFeedback(submission, now),
+        studentMessage:
+          'AI 피드백 서버 응답을 확인하지 못해 교사용 로컬 검토 초안을 만들었습니다.',
+        developerMessage: 'AI feedback endpoint returned invalid JSON.',
+      };
+    }
 
     return {
       feedback: parseExternalFeedback(data, now),
@@ -566,7 +586,7 @@ async function createExternalEndpointFeedbackDraft(
       feedback: buildLocalGuardrailFeedback(submission, now),
       studentMessage:
         'AI 피드백 서버에 연결하지 못해 교사용 로컬 검토 초안을 만들었습니다.',
-      developerMessage: `AI feedback endpoint fetch failed: ${getErrorMessage(error)}`,
+      developerMessage: `AI feedback endpoint fetch failed: ${sanitizeProviderErrorMessage(error, endpoint)}`,
     };
   }
 }
@@ -592,18 +612,27 @@ async function createGeminiFeedbackDraft(
     });
 
     if (!response.ok) {
-      const responseText = await safeReadResponseText(response);
-
       return {
         feedback: buildLocalGuardrailFeedback(submission, now),
         studentMessage:
           'AI 피드백 서버에서 초안을 만들지 못해 교사용 로컬 검토 초안을 만들었습니다.',
-        developerMessage: `Gemini feedback returned HTTP ${response.status}: ${responseText.slice(0, 500)}`,
+        developerMessage: `Gemini feedback returned HTTP ${response.status}.`,
       };
     }
 
-    const data = (await response.json()) as Record<string, unknown>;
-    const parsed = parseGeminiFeedbackResponse(data);
+    let parsed: ExternalFeedbackResponse;
+
+    try {
+      const data = (await response.json()) as Record<string, unknown>;
+      parsed = parseGeminiFeedbackResponse(data);
+    } catch {
+      return {
+        feedback: buildLocalGuardrailFeedback(submission, now),
+        studentMessage:
+          'AI 피드백 서버 응답을 확인하지 못해 교사용 로컬 검토 초안을 만들었습니다.',
+        developerMessage: 'Gemini feedback returned invalid JSON.',
+      };
+    }
 
     return {
       feedback: parseExternalFeedback(parsed, now),
@@ -617,7 +646,7 @@ async function createGeminiFeedbackDraft(
       feedback: buildLocalGuardrailFeedback(submission, now),
       studentMessage:
         'AI 피드백 서버에 연결하지 못해 교사용 로컬 검토 초안을 만들었습니다.',
-      developerMessage: `Gemini feedback fetch failed: ${redactSecret(getErrorMessage(error), apiKey)}`,
+      developerMessage: `Gemini feedback fetch failed: ${sanitizeProviderErrorMessage(error, apiKey)}`,
     };
   }
 }
@@ -849,11 +878,7 @@ function isAssignedTeacher(
 }
 
 function getServerFeedbackEndpoint(): string {
-  return (
-    process.env.AI_FEEDBACK_ENDPOINT?.trim() ||
-    process.env.VITE_AI_FEEDBACK_ENDPOINT?.trim() ||
-    ''
-  );
+  return process.env.AI_FEEDBACK_ENDPOINT?.trim() || '';
 }
 
 function getGeminiApiKey(): string {
@@ -879,24 +904,68 @@ function buildGeminiGenerateContentEndpoint(apiKey: string): string {
   return `${baseUrl}/${modelPath}:generateContent?key=${encodeURIComponent(apiKey)}`;
 }
 
-async function safeReadResponseText(response: Response): Promise<string> {
-  try {
-    return await response.text();
-  } catch {
-    return '';
-  }
-}
-
 function sanitizeString(value: unknown, maxLength: number): string {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
 }
 
 function sanitizeFeedbackText(value: unknown, fallback: string): string {
   if (typeof value !== 'string') {
-    return fallback;
+    return redactExplicitStudentPii(fallback);
   }
 
-  return value.replace(/\s+/g, ' ').trim().slice(0, 1400) || fallback;
+  return (
+    redactExplicitStudentPii(value).replace(/\s+/g, ' ').trim().slice(0, 1400) ||
+    redactExplicitStudentPii(fallback)
+  );
+}
+
+export function redactExplicitStudentPii(value: string): string {
+  return EXPLICIT_STUDENT_PII_PATTERNS.reduce(
+    (redacted, pattern) => redacted.replace(pattern, EXPLICIT_PII_REDACTION),
+    value,
+  );
+}
+
+function redactProviderPayloadValue<T>(value: T): T {
+  if (typeof value === 'string') {
+    return redactExplicitStudentPii(value) as T;
+  }
+
+  if (typeof value === 'number' && isNumericKoreanPhone(value)) {
+    return EXPLICIT_PII_REDACTION as T;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => redactProviderPayloadValue(item)) as T;
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, itemValue]) => [
+      redactExplicitStudentPii(key),
+      redactProviderPayloadValue(itemValue),
+    ]),
+  ) as T;
+}
+
+function isNumericKoreanPhone(value: number): boolean {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    return false;
+  }
+
+  const digits = String(value);
+
+  if (digits.length < 8 || digits.length > 13) {
+    return false;
+  }
+
+  return (
+    COMPACT_KOREAN_PHONE_PATTERN.test(digits) ||
+    COMPACT_KOREAN_PHONE_PATTERN.test(`0${digits}`)
+  );
 }
 
 function extractJsonObjectText(value: string): string {
@@ -920,6 +989,12 @@ function extractJsonObjectText(value: string): string {
 
 function redactSecret(value: string, secret: string): string {
   return secret ? value.split(secret).join('[redacted]') : value;
+}
+
+function sanitizeProviderErrorMessage(error: unknown, secret: string): string {
+  return redactExplicitStudentPii(
+    redactSecret(getErrorMessage(error), secret),
+  ).slice(0, 500);
 }
 
 function sanitizeFeedbackTextArray(value: unknown, fallback: string[]): string[] {

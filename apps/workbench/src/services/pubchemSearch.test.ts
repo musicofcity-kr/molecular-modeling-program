@@ -179,7 +179,7 @@ describe('evaluatePubChemCandidateForCurrentStructure', () => {
     expect(result.developerLogs).toContain('candidate allowed: verified.');
   });
 
-  it('marks formula-compatible but different canonical SMILES candidates as not comparison-verified', () => {
+  it('blocks formula-compatible candidates with different canonical SMILES', () => {
     const result = evaluatePubChemCandidateForCurrentStructure(
       {
         cid: 999,
@@ -203,9 +203,259 @@ describe('evaluatePubChemCandidateForCurrentStructure', () => {
       },
     );
 
-    expect(result.canLoad3D).toBe(true);
-    expect(result.structureMatchStatus).toBe('formula-compatible');
+    expect(result.canLoad3D).toBe(false);
+    expect(result.structureMatchStatus).toBeUndefined();
+    expect(result.studentMessage).toContain('현재 구조와 일치하지 않아');
     expect(result.warnings.join('\n')).toContain('PubChem SMILES 표기');
+    expect(result.developerLogs).toContain(
+      'candidate blocked: canonical SMILES mismatch.',
+    );
+  });
+
+  it('blocks a canonical SMILES mismatch even when the candidate formula is missing', () => {
+    const result = evaluatePubChemCandidateForCurrentStructure(
+      {
+        cid: 998,
+        title: 'Formula-missing mismatch',
+        canonicalSmiles: 'COC',
+        source: 'pubchem',
+      },
+      {
+        ok: true,
+        validationStatus: 'valid',
+        source: 'smiles',
+        smiles: 'CCO',
+        canonicalSmiles: 'CCO',
+        molecularFormula: 'C2H6O',
+        molecularWeight: 46.069,
+        warnings: [],
+        errors: [],
+        developerLogs: [],
+      },
+    );
+
+    expect(result.canLoad3D).toBe(false);
+    expect(result.structureMatchStatus).toBeUndefined();
+    expect(result.studentMessage).toContain('현재 구조와 일치하지 않아');
+    expect(result.developerLogs).toContain(
+      'candidate blocked: canonical SMILES mismatch.',
+    );
+  });
+
+  it('blocks candidates without formula or canonical SMILES verification evidence', () => {
+    const result = evaluatePubChemCandidateForCurrentStructure(
+      {
+        cid: 997,
+        title: 'Unverifiable candidate',
+        source: 'pubchem',
+      },
+      {
+        ok: true,
+        validationStatus: 'valid',
+        source: 'smiles',
+        smiles: 'CCO',
+        canonicalSmiles: 'CCO',
+        molecularFormula: 'C2H6O',
+        molecularWeight: 46.069,
+        warnings: [],
+        errors: [],
+        developerLogs: [],
+      },
+    );
+
+    expect(result.canLoad3D).toBe(false);
+    expect(result.structureMatchStatus).toBeUndefined();
+    expect(result.studentMessage).toContain('일치 여부를 확인할 근거가 없어');
+    expect(result.developerLogs).toContain(
+      'candidate blocked: formula and canonical SMILES not provided.',
+    );
+  });
+
+  it('blocks formula-only candidates without canonical or isomeric identifiers', () => {
+    const result = evaluatePubChemCandidateForCurrentStructure(
+      {
+        cid: 995,
+        title: 'Formula-only candidate',
+        molecularFormula: 'C2H6O',
+        molecularWeight: '46.069',
+        source: 'pubchem',
+      },
+      {
+        ok: true,
+        validationStatus: 'valid',
+        source: 'smiles',
+        smiles: 'CCO',
+        canonicalSmiles: 'CCO',
+        molecularFormula: 'C2H6O',
+        molecularWeight: 46.069,
+        warnings: [],
+        errors: [],
+        developerLogs: [],
+      },
+    );
+
+    expect(result.canLoad3D).toBe(false);
+    expect(result.structureMatchStatus).toBeUndefined();
+    expect(result.studentMessage).toContain('구조 식별값');
+    expect(result.developerLogs).toContain(
+      'candidate blocked: canonical and isomeric SMILES not provided.',
+    );
+  });
+
+  it('blocks an isomeric-only identifier that does not match the current structure', () => {
+    const result = evaluatePubChemCandidateForCurrentStructure(
+      {
+        cid: 994,
+        title: 'Isomeric-only mismatch',
+        molecularFormula: 'C2H6O',
+        molecularWeight: '46.069',
+        isomericSmiles: 'COC',
+        source: 'pubchem',
+      },
+      {
+        ok: true,
+        validationStatus: 'valid',
+        source: 'smiles',
+        smiles: 'CCO',
+        canonicalSmiles: 'CCO',
+        molecularFormula: 'C2H6O',
+        molecularWeight: 46.069,
+        warnings: [],
+        errors: [],
+        developerLogs: [],
+      },
+    );
+
+    expect(result.canLoad3D).toBe(false);
+    expect(result.structureMatchStatus).toBeUndefined();
+    expect(result.studentMessage).toContain('구조 식별값이 현재 구조와 일치하지 않아');
+    expect(result.developerLogs).toContain(
+      'candidate blocked: structure identifiers did not verify current structure.',
+    );
+  });
+
+  it('allows a canonical-only exact match as verified while warning that formula is missing', () => {
+    const result = evaluatePubChemCandidateForCurrentStructure(
+      {
+        cid: 996,
+        title: 'Canonical-only match',
+        canonicalSmiles: 'CCO',
+        source: 'pubchem',
+      },
+      {
+        ok: true,
+        validationStatus: 'valid',
+        source: 'smiles',
+        smiles: 'CCO',
+        canonicalSmiles: 'CCO',
+        molecularFormula: 'C2H6O',
+        molecularWeight: 46.069,
+        warnings: [],
+        errors: [],
+        developerLogs: [],
+      },
+    );
+
+    expect(result.canLoad3D).toBe(true);
+    expect(result.structureMatchStatus).toBe('verified');
+    expect(result.warnings.join('\n')).toContain('분자식이 제공되지 않았습니다');
+    expect(result.developerLogs).toContain(
+      'candidate allowed: canonical SMILES verified without formula.',
+    );
+  });
+
+  it('blocks an explicitly stereochemical PubChem candidate for an unspecified current structure', () => {
+    const result = evaluatePubChemCandidateForCurrentStructure(
+      {
+        cid: 612,
+        title: 'Lactic acid stereoisomer',
+        molecularFormula: 'C3H6O3',
+        canonicalSmiles: 'CC(O)C(=O)O',
+        isomericSmiles: 'C[C@@H](O)C(=O)O',
+        source: 'pubchem',
+      },
+      {
+        ok: true,
+        validationStatus: 'valid',
+        source: 'smiles',
+        smiles: 'CC(O)C(=O)O',
+        canonicalSmiles: 'CC(O)C(=O)O',
+        molecularFormula: 'C3H6O3',
+        molecularWeight: 90.078,
+        warnings: [],
+        errors: [],
+        developerLogs: [],
+      },
+    );
+
+    expect(result.canLoad3D).toBe(false);
+    expect(result.structureMatchStatus).toBeUndefined();
+    expect(result.studentMessage).toContain('입체화학');
+    expect(result.developerLogs).toContain(
+      'candidate blocked: stereochemistry mismatch.',
+    );
+  });
+
+  it('allows a candidate whose isomeric SMILES exactly matches the current stereochemistry', () => {
+    const stereochemicalSmiles = 'C[C@@H](O)C(=O)O';
+    const result = evaluatePubChemCandidateForCurrentStructure(
+      {
+        cid: 107689,
+        title: 'L-lactic acid',
+        molecularFormula: 'C3H6O3',
+        canonicalSmiles: 'CC(O)C(=O)O',
+        isomericSmiles: stereochemicalSmiles,
+        source: 'pubchem',
+      },
+      {
+        ok: true,
+        validationStatus: 'valid',
+        source: 'smiles',
+        smiles: stereochemicalSmiles,
+        canonicalSmiles: stereochemicalSmiles,
+        molecularFormula: 'C3H6O3',
+        molecularWeight: 90.078,
+        warnings: [],
+        errors: [],
+        developerLogs: [],
+      },
+    );
+
+    expect(result.canLoad3D).toBe(true);
+    expect(result.structureMatchStatus).toBe('verified');
+    expect(result.developerLogs).toContain('candidate allowed: verified.');
+  });
+
+  it('blocks different explicit stereochemical strings even when both specify stereo', () => {
+    const result = evaluatePubChemCandidateForCurrentStructure(
+      {
+        cid: 107689,
+        title: 'Opposite lactic acid stereoisomer',
+        molecularFormula: 'C3H6O3',
+        canonicalSmiles: 'CC(O)C(=O)O',
+        isomericSmiles: 'C[C@@H](O)C(=O)O',
+        source: 'pubchem',
+      },
+      {
+        ok: true,
+        validationStatus: 'valid',
+        source: 'smiles',
+        smiles: 'C[C@H](O)C(=O)O',
+        canonicalSmiles: 'C[C@H](O)C(=O)O',
+        molecularFormula: 'C3H6O3',
+        molecularWeight: 90.078,
+        warnings: [],
+        errors: [],
+        developerLogs: [],
+      },
+    );
+
+    expect(result.canLoad3D).toBe(false);
+    expect(result.structureMatchStatus).toBeUndefined();
+    expect(result.studentMessage).toContain('입체화학');
+    expect(result.developerLogs).toContain(
+      'candidate blocked: stereochemistry mismatch.',
+    );
   });
 
   it('blocks PubChem 3D loading when the candidate formula conflicts with RDKit', () => {
@@ -215,7 +465,7 @@ describe('evaluatePubChemCandidateForCurrentStructure', () => {
         title: 'Wrong candidate',
         molecularFormula: 'C2H6O',
         molecularWeight: '46.069',
-        canonicalSmiles: 'CCO',
+        canonicalSmiles: 'O',
         source: 'pubchem',
       },
       {

@@ -20,8 +20,9 @@ export function buildFeedbackRequestPayload(submission: ActivitySubmission) {
       avoidPersonalData: true,
       avoidPersonalityJudgment: true,
       avoidUnverifiedChemistryClaims: true,
+      vseprLocalCenterOnly: true,
       focus:
-        '분자 구조 확인 결과, 3D 구조 관찰, VSEPR 예측의 출처와 한계를 구분하도록 돕는 형성 피드백',
+        '분자 구조 확인 결과, 3D 구조 관찰, 선택한 중심 원자 주변의 국소 VSEPR 예측과 그 한계를 구분하도록 돕는 형성 피드백',
     },
     submission: {
       id: submission.id,

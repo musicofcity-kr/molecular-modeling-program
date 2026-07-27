@@ -30,6 +30,7 @@ import { LegalFooter } from '../components/legal/LegalFooter';
 import { StudentActivityShell } from '../components/student/StudentActivityShell';
 import { MoleculeDrawingStep } from '../components/student/MoleculeDrawingStep';
 import { ShapeViewerSection } from '../components/student/ShapeViewerSection';
+import { StudentReturnedFeedback } from '../components/student/StudentReturnedFeedback';
 import { ValidationResultCards } from '../components/student/ValidationResultCards';
 import type {
   ChemicalEditorHandle,
@@ -64,10 +65,9 @@ import {
   saveActivityResult,
 } from '../services/activityResultStorage';
 import {
+  cacheActivitySubmissionForSession,
+  clearLegacyActivitySubmissionStorage,
   createActivitySubmission,
-  loadActivitySubmissions,
-  saveActivitySubmission,
-  updateActivitySubmissionFeedback,
 } from '../services/activitySubmissionStorage';
 import {
   updateSubmissionFeedbackInFirestore,
@@ -103,6 +103,7 @@ import type { StructureComparisonObservation } from '../types/structureCompariso
 import type { ActivityResultSnapshot } from '../types/activityResult';
 import {
   isTeacherAuthorized,
+  normalizeClassCode,
   type AppRoute,
   type StudentSession,
   type UserSession,
@@ -163,6 +164,284 @@ const INITIAL_STRUCTURE_COMPARISON_OBSERVATION = {
   observedDifferences: '',
   studentReflection: '',
 };
+const EMPTY_ACTIVITY_RESPONSES_BY_ID: Record<string, ActivityResponseState> = {};
+const ACTIVITY_SUBMISSION_CONTENT_KEY_VERSION = 3;
+
+type ActivityResponseDraftState = {
+  scopeKey: string;
+  responsesById: Record<string, ActivityResponseState>;
+};
+
+type StudentSubmissionCacheState = {
+  scopeKey: string | null;
+  submissions: ActivitySubmission[];
+};
+
+type CompletedStudentSubmission = {
+  submissionId: string;
+  snapshotId: string;
+  contentKey: string;
+  deliveryPolicy: 'trusted-server';
+};
+
+export type TeacherSubmissionIdentity = {
+  teacherUid: string;
+  idToken: string;
+};
+
+export type TeacherSubmissionRequestScope = TeacherSubmissionIdentity & {
+  classCode: string;
+  requestId: number;
+};
+
+type TeacherServerSubmissionState = TeacherSubmissionRequestScope & {
+  submissions: ActivitySubmission[];
+};
+
+export function getTrustedTeacherSubmissionIdentity(
+  session: UserSession | null | undefined,
+): TeacherSubmissionIdentity | null {
+  if (
+    session?.role !== 'teacher' ||
+    !isTeacherAuthorized(session) ||
+    session.isEmergencyAccess === true ||
+    !session.uid ||
+    !session.idToken
+  ) {
+    return null;
+  }
+
+  return {
+    teacherUid: session.uid,
+    idToken: session.idToken,
+  };
+}
+
+export function isTeacherSubmissionRequestScopeCurrent(
+  scope: TeacherSubmissionRequestScope,
+  identity: TeacherSubmissionIdentity | null,
+  currentRequestId: number,
+): boolean {
+  return (
+    identity !== null &&
+    scope.teacherUid === identity.teacherUid &&
+    scope.idToken === identity.idToken &&
+    scope.requestId === currentRequestId
+  );
+}
+
+export function getActivitySubmissionContentKey(
+  snapshot: ActivityResultSnapshot,
+): string {
+  const normalizedMeasurements = snapshot.measurements
+    .map((measurement) => ({
+      type: measurement.type,
+      label: normalizeContentKeyText(measurement.label),
+      value: Number.isFinite(measurement.value) ? measurement.value : null,
+      unit: measurement.unit,
+      sourceNote: normalizeContentKeyText(measurement.sourceNote),
+    }))
+    .sort((left, right) =>
+      JSON.stringify(left).localeCompare(JSON.stringify(right)),
+    );
+  const normalizedAnswers = snapshot.activityAnswers
+    .map((answer) => ({
+      questionId: normalizeContentKeyText(answer.questionId),
+      answer: normalizeContentKeyText(answer.answer),
+    }))
+    .sort((left, right) => {
+      const questionOrder = (left.questionId ?? '').localeCompare(
+        right.questionId ?? '',
+      );
+
+      return questionOrder !== 0
+        ? questionOrder
+        : (left.answer ?? '').localeCompare(right.answer ?? '');
+    });
+  const normalizedValidationWarnings = (
+    snapshot.rdkitValidation.warnings ?? []
+  )
+    .map((warning) => normalizeContentKeyText(warning))
+    .filter((warning): warning is string => warning !== null)
+    .sort((left, right) => left.localeCompare(right));
+  const normalizedGraphSummary = snapshot.rdkitValidation.graphSummary
+    ? {
+        atomCount: Number.isFinite(
+          snapshot.rdkitValidation.graphSummary.atomCount,
+        )
+          ? snapshot.rdkitValidation.graphSummary.atomCount
+          : null,
+        bondCount: Number.isFinite(
+          snapshot.rdkitValidation.graphSummary.bondCount,
+        )
+          ? snapshot.rdkitValidation.graphSummary.bondCount
+          : null,
+        componentCount: Number.isFinite(
+          snapshot.rdkitValidation.graphSummary.componentCount,
+        )
+          ? snapshot.rdkitValidation.graphSummary.componentCount
+          : null,
+        componentAtomCounts:
+          snapshot.rdkitValidation.graphSummary.componentAtomCounts.map(
+            (count) => (Number.isFinite(count) ? count : null),
+          ),
+        isSingleComponent:
+          snapshot.rdkitValidation.graphSummary.isSingleComponent,
+        isolatedAtomCount: Number.isFinite(
+          snapshot.rdkitValidation.graphSummary.isolatedAtomCount,
+        )
+          ? snapshot.rdkitValidation.graphSummary.isolatedAtomCount
+          : null,
+      }
+    : null;
+  const content = {
+    schemaVersion: ACTIVITY_SUBMISSION_CONTENT_KEY_VERSION,
+    context: {
+      appMode: snapshot.appMode,
+      userMode: snapshot.userMode,
+      activityId: normalizeContentKeyText(snapshot.activityId),
+      activityTitle: normalizeContentKeyText(snapshot.activityTitle),
+      moleculeName: normalizeContentKeyText(snapshot.moleculeName),
+    },
+    studentPrediction: {
+      predictedFormula: normalizeContentKeyText(
+        snapshot.studentPrediction.predictedFormula,
+      ),
+      predictedMolecularWeight: normalizeContentKeyText(
+        snapshot.studentPrediction.predictedMolecularWeight,
+      ),
+      drawingReason: normalizeContentKeyText(
+        snapshot.studentPrediction.drawingReason,
+      ),
+    },
+    rdkitValidation: {
+      isValid: snapshot.rdkitValidation.isValid,
+      canonicalSmiles: normalizeContentKeyText(
+        snapshot.rdkitValidation.canonicalSmiles,
+      ),
+      molecularFormula: normalizeContentKeyText(
+        snapshot.rdkitValidation.molecularFormula,
+      ),
+      molecularWeight: Number.isFinite(snapshot.rdkitValidation.molecularWeight)
+        ? snapshot.rdkitValidation.molecularWeight
+        : null,
+      structureIntent: normalizeContentKeyText(
+        snapshot.rdkitValidation.structureIntent,
+      ),
+      graphSummary: normalizedGraphSummary,
+      connectivityStatus: normalizeContentKeyText(
+        snapshot.rdkitValidation.connectivityStatus,
+      ),
+      warnings: normalizedValidationWarnings,
+    },
+    threeDObservation: {
+      has3DStructure: snapshot.threeDObservation.has3DStructure,
+      sourceLabel: normalizeContentKeyText(snapshot.threeDObservation.sourceLabel),
+      sourceNote: normalizeContentKeyText(snapshot.threeDObservation.sourceNote),
+      studentObservation: normalizeContentKeyText(
+        snapshot.threeDObservation.studentObservation,
+      ),
+    },
+    measurements: normalizedMeasurements,
+    vseprResult: snapshot.vseprResult
+      ? {
+          available: snapshot.vseprResult.available,
+          scope: normalizeContentKeyText(snapshot.vseprResult.scope),
+          selectedCenter: snapshot.vseprResult.selectedCenter
+            ? {
+                atomId: normalizeContentKeyText(
+                  snapshot.vseprResult.selectedCenter.atomId,
+                ),
+                atomSymbol: normalizeContentKeyText(
+                  snapshot.vseprResult.selectedCenter.atomSymbol,
+                ),
+                atomLabel: normalizeContentKeyText(
+                  snapshot.vseprResult.selectedCenter.atomLabel,
+                ),
+              }
+            : null,
+          axeNotation: normalizeContentKeyText(snapshot.vseprResult.axeNotation),
+          electronGeometryKo: normalizeContentKeyText(
+            snapshot.vseprResult.electronGeometryKo,
+          ),
+          molecularGeometryKo: normalizeContentKeyText(
+            snapshot.vseprResult.molecularGeometryKo,
+          ),
+          idealBondAngle: normalizeContentKeyText(
+            snapshot.vseprResult.idealBondAngle,
+          ),
+          angleEvidence: snapshot.vseprResult.angleEvidence
+            ? {
+                vseprIdealAngles:
+                  snapshot.vseprResult.angleEvidence.vseprIdealAngles.map(
+                    (angle) => normalizeContentKeyText(angle),
+                  ),
+                generatedCoordinateMeasurements:
+                  snapshot.vseprResult.angleEvidence.generatedCoordinateMeasurements?.map(
+                    (angle) => (Number.isFinite(angle) ? angle : null),
+                  ) ?? [],
+                curatedReferenceAngles:
+                  snapshot.vseprResult.angleEvidence.curatedReferenceAngles?.map(
+                    (angle) => ({
+                      value: Number.isFinite(angle.value) ? angle.value : null,
+                      unit: angle.unit,
+                      sourceLabel: normalizeContentKeyText(angle.sourceLabel),
+                    }),
+                  ) ?? [],
+              }
+            : null,
+          confidence: normalizeContentKeyText(snapshot.vseprResult.confidence),
+          studentNote: normalizeContentKeyText(snapshot.vseprResult.studentNote),
+        }
+      : null,
+    comparisonObservation: snapshot.comparisonObservation
+      ? {
+          available: snapshot.comparisonObservation.available,
+          observedSimilarities: normalizeContentKeyText(
+            snapshot.comparisonObservation.observedSimilarities,
+          ),
+          observedDifferences: normalizeContentKeyText(
+            snapshot.comparisonObservation.observedDifferences,
+          ),
+          studentReflection: normalizeContentKeyText(
+            snapshot.comparisonObservation.studentReflection,
+          ),
+        }
+      : null,
+    activityAnswers: normalizedAnswers,
+    afterValidationReflection: normalizeContentKeyText(
+      snapshot.afterValidationReflection,
+    ),
+    finalReflection: normalizeContentKeyText(snapshot.finalReflection),
+  };
+
+  return `activity-submission-content:v${ACTIVITY_SUBMISSION_CONTENT_KEY_VERSION}:${JSON.stringify(
+    content,
+  )}`;
+}
+
+function normalizeContentKeyText(value: string | undefined): string | null {
+  const normalized = value?.trim();
+
+  return normalized ? normalized : null;
+}
+
+export function getActivityDraftScopeKey(
+  session: UserSession | null | undefined,
+): string {
+  if (session?.role === 'student') {
+    const studentIdentity =
+      session.firebaseUid?.trim() || session.anonymousStudentId.trim();
+
+    return `student:${normalizeClassCode(session.classCode)}:${studentIdentity}`;
+  }
+
+  if (session?.role === 'teacher') {
+    return `teacher:${session.uid}`;
+  }
+
+  return 'signed-out';
+}
 
 export function EditorLoadingFallback() {
   return (
@@ -242,6 +521,20 @@ function buildExample3DInput(example: ExampleMolecule): Molecule3DInput | null {
   };
 }
 
+export function getStudentStructureAnalysisErrorMessage(error: unknown): string {
+  const message = normalizeKetcherError(error, '');
+
+  if (/구조를 먼저|empty molecule|비어/i.test(message)) {
+    return '분석할 구조가 비어 있습니다. 원자와 결합을 먼저 그리거나 예시 구조를 불러온 뒤 다시 2D 구조 분석하기를 눌러 주세요.';
+  }
+
+  if (/아직 준비|not ready/i.test(message)) {
+    return '분자 그리기 도구가 아직 준비되지 않았습니다. 준비됨 표시가 나타난 뒤 다시 시도해 주세요.';
+  }
+
+  return '분자 구조를 읽지 못했습니다. 원자와 결합이 편집 영역에 보이는지 확인한 뒤 다시 2D 구조 분석하기를 눌러 주세요.';
+}
+
 export function shouldAutoLoadPubChem3DForExample(
   example: ExampleMolecule | null | undefined,
 ): example is ExampleMolecule & { pubchemCid: number } {
@@ -250,6 +543,14 @@ export function shouldAutoLoadPubChem3DForExample(
     typeof example.pubchemCid === 'number' &&
     !example.structure3D
   );
+}
+
+export function resolvePubChem3DExpectedCanonicalSmiles(
+  validationKey: string | null | undefined,
+): string | null {
+  const canonicalSmiles = validationKey?.trim();
+
+  return canonicalSmiles || null;
 }
 
 function formatStudentExternal3DMessage(message: string): string {
@@ -500,9 +801,26 @@ function WorkbenchApp({
   initialEthicsGateAccepted: boolean;
 }) {
   const { session, clearSession } = useUserSession();
+  const activityDraftScopeKey = getActivityDraftScopeKey(session);
+  const studentSubmissionScopeKey =
+    session?.role === 'student' ? activityDraftScopeKey : null;
+  const trustedTeacherSubmissionIdentity =
+    getTrustedTeacherSubmissionIdentity(session);
+  const currentTeacherSubmissionIdentityRef =
+    useRef<TeacherSubmissionIdentity | null>(
+      trustedTeacherSubmissionIdentity,
+    );
+  currentTeacherSubmissionIdentityRef.current =
+    trustedTeacherSubmissionIdentity;
   const editorRef = useRef<ChemicalEditorHandle | null>(null);
   const hasLoggedEditorReadyRef = useRef(false);
   const validationKeyRef = useRef<string | null>(null);
+  const structureAnalysisRequestIdRef = useRef(0);
+  const activitySubmissionRequestIdRef = useRef(0);
+  const isActivitySubmissionPendingRef = useRef(false);
+  const teacherSubmissionRequestIdRef = useRef(0);
+  const feedbackReturnRequestIdRef = useRef(0);
+  const isFeedbackReturnPendingRef = useRef(false);
   const pubChem3DRequestIdRef = useRef(0);
   const autoLoadedPubChemExampleIdRef = useRef<string | null>(null);
   const pubChemCandidateRequestIdRef = useRef(0);
@@ -521,9 +839,15 @@ function WorkbenchApp({
   const [selectedActivityId, setSelectedActivityId] = useState(
     activityTemplates[0]?.id ?? '',
   );
-  const [activityResponsesById, setActivityResponsesById] = useState<
-    Record<string, ActivityResponseState>
-  >({});
+  const [activityResponseDraftState, setActivityResponseDraftState] =
+    useState<ActivityResponseDraftState>(() => ({
+      scopeKey: activityDraftScopeKey,
+      responsesById: {},
+    }));
+  const activityResponsesById =
+    activityResponseDraftState.scopeKey === activityDraftScopeKey
+      ? activityResponseDraftState.responsesById
+      : EMPTY_ACTIVITY_RESPONSES_BY_ID;
   const [selectedExampleId, setSelectedExampleId] = useState(
     exampleMolecules[0]?.id ?? '',
   );
@@ -531,6 +855,10 @@ function WorkbenchApp({
     useState<ExtractedStructureData | null>(null);
   const [validationResult, setValidationResult] =
     useState<MoleculeValidationResult | null>(null);
+  const [isStructureAnalysisPending, setIsStructureAnalysisPending] =
+    useState(false);
+  const [structureAnalysisErrorMessage, setStructureAnalysisErrorMessage] =
+    useState('');
   const [vseprAnalysis, setVseprAnalysis] = useState<VseprAnalysis>(
     INITIAL_VSEPR_ANALYSIS,
   );
@@ -551,12 +879,23 @@ function WorkbenchApp({
   const [measurementResults, setMeasurementResults] = useState<
     GeometryMeasurementResult[]
   >([]);
+  const [hasVisitedCurrent3DStep, setHasVisitedCurrent3DStep] = useState(false);
   const [savedActivityResults, setSavedActivityResults] = useState<
     ActivityResultSnapshot[]
   >([]);
-  const [activitySubmissions, setActivitySubmissions] = useState<
-    ActivitySubmission[]
-  >([]);
+  const [studentSubmissionCacheState, setStudentSubmissionCacheState] =
+    useState<StudentSubmissionCacheState>(() => ({
+      scopeKey: studentSubmissionScopeKey,
+      submissions: [],
+    }));
+  const activitySubmissions =
+    studentSubmissionCacheState.scopeKey === studentSubmissionScopeKey
+      ? studentSubmissionCacheState.submissions
+      : [];
+  const [teacherServerSubmissionState, setTeacherServerSubmissionState] =
+    useState<TeacherServerSubmissionState | null>(null);
+  const teacherServerSubmissionStateRef =
+    useRef<TeacherServerSubmissionState | null>(null);
   const [previewActivityResultId, setPreviewActivityResultId] =
     useState<string | null>(null);
   const [activityResultStatusMessage, setActivityResultStatusMessage] =
@@ -565,6 +904,8 @@ function WorkbenchApp({
     useState<string>('');
   const [isActivitySubmissionPending, setIsActivitySubmissionPending] =
     useState(false);
+  const [completedStudentSubmission, setCompletedStudentSubmission] =
+    useState<CompletedStudentSubmission | null>(null);
   const [teacherFeedbackStatusMessage, setTeacherFeedbackStatusMessage] =
     useState<string>('');
   const [teacherClassroomStatusMessage, setTeacherClassroomStatusMessage] =
@@ -589,6 +930,15 @@ function WorkbenchApp({
       'Ketcher에서 구조를 추출한 뒤 RDKit.js 검증을 실행합니다.',
     ),
   ]);
+  const teacherServerSubmissions =
+    teacherServerSubmissionState &&
+    isTeacherSubmissionRequestScopeCurrent(
+      teacherServerSubmissionState,
+      trustedTeacherSubmissionIdentity,
+      teacherSubmissionRequestIdRef.current,
+    )
+      ? teacherServerSubmissionState.submissions
+      : [];
   const studentActivityTemplates = useMemo(() => {
     const activityTemplateIds =
       session?.role === 'student' ? session.activityTemplateIds : undefined;
@@ -624,6 +974,35 @@ function WorkbenchApp({
     }
   }, [currentActivityTemplates, selectedActivityId]);
 
+  const commitTeacherServerSubmissionState = useCallback(
+    (nextState: TeacherServerSubmissionState | null) => {
+      teacherServerSubmissionStateRef.current = nextState;
+      setTeacherServerSubmissionState(nextState);
+    },
+    [],
+  );
+
+  const resetTeacherSubmissionSessionState = useCallback(() => {
+    teacherSubmissionRequestIdRef.current += 1;
+    feedbackReturnRequestIdRef.current += 1;
+    isFeedbackReturnPendingRef.current = false;
+    commitTeacherServerSubmissionState(null);
+    setSelectedSubmissionId(null);
+    setAiFeedbackDraftStatus('idle');
+    setTeacherFeedbackStatusMessage('');
+    setTeacherClassroomStatusMessage('');
+    setTeacherClassroomStatusTone('info');
+    setTeacherClassroomDeveloperLogs([]);
+  }, [commitTeacherServerSubmissionState]);
+
+  useEffect(() => {
+    resetTeacherSubmissionSessionState();
+  }, [
+    resetTeacherSubmissionSessionState,
+    trustedTeacherSubmissionIdentity?.idToken,
+    trustedTeacherSubmissionIdentity?.teacherUid,
+  ]);
+
   const appendLog = (entry: WorkbenchLogEntry) => {
     setLogs((currentLogs) => [entry, ...currentLogs].slice(0, 6));
   };
@@ -643,27 +1022,6 @@ function WorkbenchApp({
     }
   }, []);
 
-  const handleUserModeChange = useCallback(
-    (nextMode: UserMode) => {
-      navigateToRoute(nextMode === 'teacher' ? 'teacher' : 'student');
-    },
-    [navigateToRoute],
-  );
-
-  const handleStudentEntered = useCallback(() => {
-    setAppMode('activity');
-    navigateToRoute('student-workbench');
-  }, [navigateToRoute]);
-
-  const handleTeacherSignOut = useCallback(() => {
-    clearSession();
-    setTeacherClassroomStatusMessage('');
-    setTeacherClassroomStatusTone('info');
-    setTeacherClassroomDeveloperLogs([]);
-    setTeacherFeedbackStatusMessage('');
-    navigateToRoute('teacher');
-  }, [clearSession, navigateToRoute]);
-
   const resetPubChem3DState = () => {
     pubChem3DRequestIdRef.current += 1;
     autoLoadedPubChemExampleIdRef.current = null;
@@ -682,7 +1040,13 @@ function WorkbenchApp({
   };
 
   const resetCurrentStructureState = () => {
+    structureAnalysisRequestIdRef.current += 1;
+    activitySubmissionRequestIdRef.current += 1;
     validationKeyRef.current = null;
+    isActivitySubmissionPendingRef.current = false;
+    setIsStructureAnalysisPending(false);
+    setIsActivitySubmissionPending(false);
+    setHasVisitedCurrent3DStep(false);
     setMolecule3DInput(null);
     setValidatedExampleId(null);
     resetPubChem3DState();
@@ -690,13 +1054,103 @@ function WorkbenchApp({
     resetStructureComparison();
     setExtractedStructure(null);
     setValidationResult(null);
+    setStructureAnalysisErrorMessage('');
+    setActivitySubmissionStatusMessage('');
+    setCompletedStudentSubmission(null);
     resetVseprAnalysis();
     setMeasurementResults([]);
+  };
+
+  const handleEditorStructureChange = () => {
+    const hadDerivedStructureState =
+      isStructureAnalysisPending ||
+      extractedStructure !== null ||
+      validationResult !== null ||
+      molecule3DInput !== null ||
+      completedStudentSubmission !== null;
+
+    resetCurrentStructureState();
+
+    if (hadDerivedStructureState) {
+      appendLog(
+        createLog(
+          'info',
+          '편집기 구조가 바뀌어 이전 분석·3D·제출 완료 상태를 초기화했습니다. 현재 구조를 다시 분석해 주세요.',
+        ),
+      );
+    }
   };
 
   const resetStructureComparison = () => {
     setIsStructureComparisonOpen(false);
     setStructureComparisonObservationText(INITIAL_STRUCTURE_COMPARISON_OBSERVATION);
+  };
+
+  const previousActivityDraftScopeKeyRef = useRef(activityDraftScopeKey);
+
+  useEffect(() => {
+    if (previousActivityDraftScopeKeyRef.current === activityDraftScopeKey) {
+      return;
+    }
+
+    previousActivityDraftScopeKeyRef.current = activityDraftScopeKey;
+    resetCurrentStructureState();
+    setActivityResponseDraftState({
+      scopeKey: activityDraftScopeKey,
+      responsesById: {},
+    });
+    setStudentSubmissionCacheState({
+      scopeKey: studentSubmissionScopeKey,
+      submissions: [],
+    });
+    setPreviewActivityResultId(null);
+    setActivityResultStatusMessage('');
+  }, [activityDraftScopeKey, studentSubmissionScopeKey]);
+
+  const handleStudentEntered = () => {
+    resetCurrentStructureState();
+    setActivityResponseDraftState({
+      scopeKey: activityDraftScopeKey,
+      responsesById: {},
+    });
+    setStudentSubmissionCacheState({
+      scopeKey: studentSubmissionScopeKey,
+      submissions: [],
+    });
+    setPreviewActivityResultId(null);
+    setActivityResultStatusMessage('');
+    setAppMode('activity');
+    navigateToRoute('student-workbench');
+  };
+
+  const handleTeacherSignOut = () => {
+    resetCurrentStructureState();
+    setActivityResponseDraftState({
+      scopeKey: 'signed-out',
+      responsesById: {},
+    });
+    setStudentSubmissionCacheState({
+      scopeKey: null,
+      submissions: [],
+    });
+    setPreviewActivityResultId(null);
+    setActivityResultStatusMessage('');
+    resetTeacherSubmissionSessionState();
+    clearSession();
+    navigateToRoute('teacher');
+  };
+
+  const handleUserModeChange = (nextMode: UserMode) => {
+    resetCurrentStructureState();
+    navigateToRoute(nextMode === 'teacher' ? 'teacher' : 'student');
+  };
+
+  const handleAppModeChange = (nextMode: AppMode) => {
+    if (nextMode !== appMode) {
+      resetCurrentStructureState();
+    }
+
+    setAppMode(nextMode);
   };
 
   const handle3DDeveloperLog = useCallback((message: string) => {
@@ -709,6 +1163,7 @@ function WorkbenchApp({
     }
 
     const handlePopState = () => {
+      resetCurrentStructureState();
       const nextRoute = getInitialAppRoute();
       setAppRoute(nextRoute);
       setUserMode(getUserModeForRoute(nextRoute));
@@ -738,13 +1193,10 @@ function WorkbenchApp({
   }, []);
 
   useEffect(() => {
-    const result = loadActivitySubmissions();
-
-    setActivitySubmissions(result.data);
-    setSelectedSubmissionId(result.data[0]?.id ?? null);
+    const result = clearLegacyActivitySubmissionStorage();
 
     if (!result.ok) {
-      setTeacherFeedbackStatusMessage(result.studentMessage);
+      setActivitySubmissionStatusMessage(result.studentMessage);
       console.info('[Activity submission storage]', result.developerLogs);
     }
   }, []);
@@ -771,9 +1223,15 @@ function WorkbenchApp({
       console.info('[Student feedback]', result.developerLogs);
 
       if (result.ok && result.data.length > 0) {
-        setActivitySubmissions((currentSubmissions) =>
-          mergeActivitySubmissions(currentSubmissions, result.data),
-        );
+        setStudentSubmissionCacheState((currentCache) => ({
+          scopeKey: studentSubmissionScopeKey,
+          submissions: mergeActivitySubmissions(
+            currentCache.scopeKey === studentSubmissionScopeKey
+              ? currentCache.submissions
+              : [],
+            result.data,
+          ),
+        }));
         setActivitySubmissionStatusMessage(result.studentMessage);
       }
     });
@@ -786,6 +1244,7 @@ function WorkbenchApp({
     session?.role === 'student' ? session.classCode : undefined,
     session?.role === 'student' ? session.classroomJoinStatus : undefined,
     session?.role === 'student' ? session.idToken : undefined,
+    studentSubmissionScopeKey,
   ]);
 
   useEffect(() => {
@@ -812,16 +1271,26 @@ function WorkbenchApp({
 
   const extractAndValidateCurrentStructure = async (
     example?: ExampleMolecule,
+    requestId = structureAnalysisRequestIdRef.current,
   ): Promise<boolean> => {
+    setStructureAnalysisErrorMessage('');
     const structure = await editorRef.current?.extractStructure();
+
+    if (requestId !== structureAnalysisRequestIdRef.current) {
+      return false;
+    }
 
     if (!structure) {
       throw new Error('분자 그리기 도구가 아직 준비되지 않았습니다.');
     }
 
+    const structureIntent =
+      appMode === 'activity'
+        ? (selectedActivity?.structureIntent ?? 'single-molecule')
+        : 'single-molecule';
     const labeledStructure = example
-      ? { ...structure, label: example.nameKo }
-      : structure;
+      ? { ...structure, label: example.nameKo, structureIntent }
+      : { ...structure, structureIntent };
     const previousValidationKey = validationKeyRef.current;
     const previous3DInput = molecule3DInput;
 
@@ -843,9 +1312,15 @@ function WorkbenchApp({
     );
 
     const result = await validateMoleculeInput(labeledStructure);
+
+    if (requestId !== structureAnalysisRequestIdRef.current) {
+      return false;
+    }
+
     setValidationResult(result);
 
     if (result.ok) {
+      setStructureAnalysisErrorMessage('');
       const initialVseprAnalysis = analyzeVseprFromMolBlock({
         molBlock: labeledStructure.molBlock,
       });
@@ -920,17 +1395,32 @@ function WorkbenchApp({
     } else {
       console.info('[RDKit validation]', result.developerLogs);
       appendLog(createLog('error', result.studentMessage));
+      setStructureAnalysisErrorMessage(
+        result.validationStatus === 'error' ? result.studentMessage : '',
+      );
       setValidatedExampleId(null);
       setMolecule3DInput(null);
       resetVseprAnalysis();
-      return false;
+      return result.validationStatus === 'invalid';
     }
   };
 
   const handleExtractAndValidate = async (): Promise<boolean> => {
+    if (isStructureAnalysisPending) {
+      return false;
+    }
+
+    const requestId = structureAnalysisRequestIdRef.current + 1;
+    structureAnalysisRequestIdRef.current = requestId;
+    setIsStructureAnalysisPending(true);
+    setStructureAnalysisErrorMessage('');
     try {
-      return await extractAndValidateCurrentStructure();
+      return await extractAndValidateCurrentStructure(undefined, requestId);
     } catch (error) {
+      if (requestId !== structureAnalysisRequestIdRef.current) {
+        return false;
+      }
+
       setMolecule3DInput(null);
       setValidatedExampleId(null);
       resetPubChem3DState();
@@ -938,6 +1428,7 @@ function WorkbenchApp({
       resetStructureComparison();
       setExtractedStructure(null);
       setValidationResult(null);
+      setStructureAnalysisErrorMessage(getStudentStructureAnalysisErrorMessage(error));
       resetVseprAnalysis();
       appendLog(
         createLog(
@@ -946,6 +1437,10 @@ function WorkbenchApp({
         ),
       );
       return false;
+    } finally {
+      if (requestId === structureAnalysisRequestIdRef.current) {
+        setIsStructureAnalysisPending(false);
+      }
     }
   };
 
@@ -1040,15 +1535,54 @@ function WorkbenchApp({
     );
   };
 
+  const handleClearStructure = async () => {
+    resetCurrentStructureState();
+
+    try {
+      await editorRef.current?.clear();
+      appendLog(
+        createLog(
+          'info',
+          '분자 구조를 초기화했습니다. 원자와 결합을 다시 그린 뒤 분석해 보세요.',
+        ),
+      );
+    } catch (error) {
+      appendLog(
+        createLog(
+          'error',
+          normalizeKetcherError(error, '구조를 초기화하지 못했습니다.'),
+        ),
+      );
+    }
+  };
+
   const loadPubChem3DByCid = async (input: {
   cid: number;
   label: string;
   pubchemName?: string;
   structureMatchStatus?: Molecule3DStructureMatchStatus;
   requestLogMessage: string;
-}) => {
+  }) => {
     const requestId = pubChem3DRequestIdRef.current + 1;
     const requestValidationKey = validationKeyRef.current;
+    const expectedCanonicalSmiles =
+      resolvePubChem3DExpectedCanonicalSmiles(requestValidationKey);
+
+    if (!expectedCanonicalSmiles) {
+      const studentMessage =
+        '현재 확인된 2D 구조 식별값이 없어 외부 3D 자료를 불러오지 않았습니다. 구조를 다시 분석해 주세요.';
+
+      setPubChem3DState({
+        status: 'error',
+        studentMessage,
+      });
+      appendLog(createLog('warning', studentMessage));
+      console.info('[PubChem 3D]', [
+        'PubChem 3D SDF request blocked: missing current RDKit canonical SMILES.',
+        `CID: ${input.cid}`,
+      ]);
+      return;
+    }
 
     pubChem3DRequestIdRef.current = requestId;
     setPubChem3DState({
@@ -1062,6 +1596,7 @@ function WorkbenchApp({
       label: input.label,
       pubchemName: input.pubchemName,
       structureMatchStatus: input.structureMatchStatus,
+      expectedCanonicalSmiles,
     });
 
     console.info('[PubChem 3D]', result.developerLogs);
@@ -1254,6 +1789,14 @@ function WorkbenchApp({
   };
 
   const handleLoadExample = async () => {
+    if (isStructureAnalysisPending) {
+      return;
+    }
+
+    const requestId = structureAnalysisRequestIdRef.current + 1;
+    structureAnalysisRequestIdRef.current = requestId;
+    setIsStructureAnalysisPending(true);
+    setStructureAnalysisErrorMessage('');
     try {
       const example = findSelectedExample();
 
@@ -1266,14 +1809,23 @@ function WorkbenchApp({
       }
 
       await editorRef.current.setMolecule({ smiles: example.smiles });
+
+      if (requestId !== structureAnalysisRequestIdRef.current) {
+        return;
+      }
+
       appendLog(
         createLog(
           'info',
           `${example.nameKo} 예제를 Ketcher 편집기에 불러왔습니다.`,
         ),
       );
-      await extractAndValidateCurrentStructure(example);
+      await extractAndValidateCurrentStructure(example, requestId);
     } catch (error) {
+      if (requestId !== structureAnalysisRequestIdRef.current) {
+        return;
+      }
+
       setMolecule3DInput(null);
       setValidatedExampleId(null);
       resetPubChem3DState();
@@ -1281,6 +1833,7 @@ function WorkbenchApp({
       resetStructureComparison();
       setExtractedStructure(null);
       setValidationResult(null);
+      setStructureAnalysisErrorMessage(getStudentStructureAnalysisErrorMessage(error));
       resetVseprAnalysis();
       appendLog(
         createLog(
@@ -1288,20 +1841,48 @@ function WorkbenchApp({
           normalizeKetcherError(error, '예제 분자를 불러오는 중 오류가 발생했습니다.'),
         ),
       );
+    } finally {
+      if (requestId === structureAnalysisRequestIdRef.current) {
+        setIsStructureAnalysisPending(false);
+      }
     }
   };
 
   const handleActivityResponseChange = (questionId: string, value: string) => {
-    setActivityResponsesById((currentResponses) => ({
-      ...currentResponses,
-      [selectedActivityId]: {
-        ...(currentResponses[selectedActivityId] ?? {}),
-        [questionId]: value,
-      },
-    }));
+    if (isActivitySubmissionPendingRef.current) {
+      return;
+    }
+
+    activitySubmissionRequestIdRef.current += 1;
+    setActivitySubmissionStatusMessage('');
+    setCompletedStudentSubmission(null);
+    setActivityResponseDraftState((currentDraft) => {
+      const currentResponses =
+        currentDraft.scopeKey === activityDraftScopeKey
+          ? currentDraft.responsesById
+          : EMPTY_ACTIVITY_RESPONSES_BY_ID;
+
+      return {
+        scopeKey: activityDraftScopeKey,
+        responsesById: {
+          ...currentResponses,
+          [selectedActivityId]: {
+            ...(currentResponses[selectedActivityId] ?? {}),
+            [questionId]: value,
+          },
+        },
+      };
+    });
   };
 
   const handleSelectVseprCentralAtom = (atomId: string) => {
+    if (isActivitySubmissionPendingRef.current) {
+      return;
+    }
+
+    activitySubmissionRequestIdRef.current += 1;
+    setActivitySubmissionStatusMessage('');
+    setCompletedStudentSubmission(null);
     setSelectedVseprCentralAtomId(atomId);
 
     if (validationResult?.ok !== true || !extractedStructure?.molBlock) {
@@ -1325,7 +1906,7 @@ function WorkbenchApp({
       appendLog(
         createLog(
           'info',
-          `선택한 중심 원자 ${nextAnalysis.centralAtomSymbol}${nextAnalysis.centralAtomId}의 VSEPR 예측: ${nextAnalysis.axeNotation}, ${nextAnalysis.molecularShapeKo}`,
+          `선택한 중심 원자 ${nextAnalysis.centralAtomLabel ?? `${nextAnalysis.centralAtomSymbol}${nextAnalysis.centralAtomId}`}의 VSEPR 예측: ${nextAnalysis.axeNotation}, ${nextAnalysis.molecularShapeKo}`,
         ),
       );
       appendLog(
@@ -1399,8 +1980,13 @@ function WorkbenchApp({
   );
   const currentActivityResponses = activityResponsesById[selectedActivityId] ?? {};
   const currentStudentThought = currentActivityResponses.vseprReflection ?? '';
+  const canVisitCurrent3DStep =
+    validationResult?.ok === true &&
+    vseprAnalysis.status === 'supported' &&
+    molecule3DInput?.coordinateDimension === '3d';
   const canSubmitStudentThought = Boolean(
     validationResult?.ok === true &&
+      hasVisitedCurrent3DStep &&
       currentStudentThought.trim() &&
       session?.role === 'student' &&
       session.classroomJoinStatus === 'joined' &&
@@ -1410,6 +1996,12 @@ function WorkbenchApp({
   const thoughtSubmissionAvailabilityMessage = (() => {
     if (validationResult?.ok !== true) {
       return '구조 확인을 완료하면 제출할 수 있습니다.';
+    }
+
+    if (!hasVisitedCurrent3DStep) {
+      return canVisitCurrent3DStep
+        ? '3D 비교 단계에 방문해 두 모형을 확인하면 제출할 수 있습니다.'
+        : '3D 비교 자료가 준비된 뒤 두 모형을 확인하면 제출할 수 있습니다.';
     }
 
     if (!currentStudentThought.trim()) {
@@ -1473,6 +2065,11 @@ function WorkbenchApp({
       vseprAnalysis,
     ],
   );
+  const isCurrentStudentThoughtSubmitted = Boolean(
+    completedStudentSubmission?.deliveryPolicy === 'trusted-server' &&
+      completedStudentSubmission.contentKey ===
+        getActivitySubmissionContentKey(currentActivityResultSnapshot),
+  );
   const returnedStudentFeedbacks = useMemo(() => {
     return getReturnedStudentFeedbacksForSession(
       activitySubmissions,
@@ -1501,9 +2098,15 @@ function WorkbenchApp({
     console.info('[Student feedback]', result.developerLogs);
 
     if (result.ok) {
-      setActivitySubmissions((currentSubmissions) =>
-        mergeActivitySubmissions(currentSubmissions, result.data),
-      );
+      setStudentSubmissionCacheState((currentCache) => ({
+        scopeKey: studentSubmissionScopeKey,
+        submissions: mergeActivitySubmissions(
+          currentCache.scopeKey === studentSubmissionScopeKey
+            ? currentCache.submissions
+            : [],
+          result.data,
+        ),
+      }));
     }
 
     setActivitySubmissionStatusMessage(result.studentMessage);
@@ -1512,6 +2115,7 @@ function WorkbenchApp({
     session?.role === 'student' ? session.classCode : undefined,
     session?.role === 'student' ? session.classroomJoinStatus : undefined,
     session?.role === 'student' ? session.idToken : undefined,
+    studentSubmissionScopeKey,
   ]);
   const previewActivityResult =
     savedActivityResults.find((result) => result.id === previewActivityResultId) ??
@@ -1599,6 +2203,13 @@ function WorkbenchApp({
       return;
     }
 
+    if (!hasVisitedCurrent3DStep) {
+      setActivitySubmissionStatusMessage(
+        '3D 비교 단계에 방문해 두 모형을 확인한 뒤 제출해 주세요.',
+      );
+      return;
+    }
+
     if (!currentStudentThought.trim()) {
       setActivitySubmissionStatusMessage('나의 생각을 작성한 뒤 제출해 주세요.');
       return;
@@ -1615,10 +2226,13 @@ function WorkbenchApp({
       return;
     }
 
-    if (isActivitySubmissionPending) {
+    if (isActivitySubmissionPendingRef.current) {
       return;
     }
 
+    const submissionRequestId = activitySubmissionRequestIdRef.current + 1;
+    activitySubmissionRequestIdRef.current = submissionRequestId;
+    isActivitySubmissionPendingRef.current = true;
     setIsActivitySubmissionPending(true);
 
     try {
@@ -1637,13 +2251,18 @@ function WorkbenchApp({
         snapshot,
         studentSession: session,
       });
-      const result = saveActivitySubmission(submission);
+      const result = cacheActivitySubmissionForSession(
+        activitySubmissions,
+        submission,
+      );
       const developerLogs = [...result.developerLogs];
       const statusMessages = [result.studentMessage];
 
       if (result.ok) {
-        setActivitySubmissions(result.data);
-        setSelectedSubmissionId(submission.id);
+        setStudentSubmissionCacheState({
+          scopeKey: studentSubmissionScopeKey,
+          submissions: result.data,
+        });
       }
 
       setActivitySubmissionStatusMessage(
@@ -1658,10 +2277,27 @@ function WorkbenchApp({
       developerLogs.push(...remoteResult.developerLogs);
       statusMessages.push(remoteResult.studentMessage);
 
+      if (submissionRequestId !== activitySubmissionRequestIdRef.current) {
+        console.info('[Activity submission storage]', developerLogs);
+        return;
+      }
+
+      if (remoteResult.ok) {
+        setCompletedStudentSubmission({
+          submissionId: remoteResult.data.id,
+          snapshotId: remoteResult.data.snapshot.id,
+          contentKey: getActivitySubmissionContentKey(remoteResult.data.snapshot),
+          deliveryPolicy: 'trusted-server',
+        });
+      }
+
       setActivitySubmissionStatusMessage(statusMessages.join(' '));
       console.info('[Activity submission storage]', developerLogs);
     } finally {
-      setIsActivitySubmissionPending(false);
+      if (submissionRequestId === activitySubmissionRequestIdRef.current) {
+        isActivitySubmissionPendingRef.current = false;
+        setIsActivitySubmissionPending(false);
+      }
     }
   };
   const handleCreateFirestoreClassroom = async (draft: ClassroomDraft) => {
@@ -1675,28 +2311,133 @@ function WorkbenchApp({
     setTeacherClassroomDeveloperLogs(result.developerLogs);
     console.info('[Firestore classroom]', result.developerLogs);
   };
+  const isTeacherSubmissionScopeActive = (
+    scope: TeacherSubmissionRequestScope,
+  ) => {
+    const activeState = teacherServerSubmissionStateRef.current;
+
+    return (
+      isTeacherSubmissionRequestScopeCurrent(
+        scope,
+        currentTeacherSubmissionIdentityRef.current,
+        teacherSubmissionRequestIdRef.current,
+      ) &&
+      activeState?.teacherUid === scope.teacherUid &&
+      activeState.idToken === scope.idToken &&
+      activeState.classCode === scope.classCode &&
+      activeState.requestId === scope.requestId
+    );
+  };
+  const isSubmissionResponseForScope = (
+    submission: ActivitySubmission,
+    scope: TeacherSubmissionRequestScope,
+    submissionId: string,
+    expectedStatus: ActivitySubmission['status'],
+  ) =>
+    submission.id === submissionId &&
+    normalizeClassCode(submission.classCode ?? '') === scope.classCode &&
+    submission.status === expectedStatus;
+  const commitTeacherSubmissionForScope = (
+    scope: TeacherSubmissionRequestScope,
+    submission: ActivitySubmission,
+  ) => {
+    if (!isTeacherSubmissionScopeActive(scope)) {
+      return false;
+    }
+
+    const activeState = teacherServerSubmissionStateRef.current;
+
+    if (!activeState) {
+      return false;
+    }
+
+    commitTeacherServerSubmissionState({
+      ...activeState,
+      submissions: mergeActivitySubmissions(activeState.submissions, [submission]),
+    });
+    return true;
+  };
   const handleLoadFirestoreSubmissions = async (classCode: string) => {
-    const result = await loadClassroomSubmissionsWithTrustedEndpoint({
-      classCode,
-      idToken: session?.role === 'teacher' ? session.idToken : undefined,
+    const identity = currentTeacherSubmissionIdentityRef.current;
+    const normalizedClassCode = normalizeClassCode(classCode);
+
+    if (!identity || !normalizedClassCode) {
+      resetTeacherSubmissionSessionState();
+      setTeacherClassroomStatusMessage(
+        identity
+          ? '제출 자료를 불러올 수업코드를 입력해 주세요.'
+          : '교사 인증을 다시 확인한 뒤 제출 자료를 불러와 주세요.',
+      );
+      setTeacherClassroomStatusTone('warning');
+      return;
+    }
+
+    const requestId = teacherSubmissionRequestIdRef.current + 1;
+    const scope: TeacherSubmissionRequestScope = {
+      ...identity,
+      classCode: normalizedClassCode,
+      requestId,
+    };
+
+    teacherSubmissionRequestIdRef.current = requestId;
+    feedbackReturnRequestIdRef.current += 1;
+    isFeedbackReturnPendingRef.current = false;
+    setSelectedSubmissionId(null);
+    setAiFeedbackDraftStatus('idle');
+    setTeacherFeedbackStatusMessage('');
+    setTeacherClassroomStatusMessage('서버 제출 자료를 불러오는 중입니다.');
+    setTeacherClassroomStatusTone('info');
+    setTeacherClassroomDeveloperLogs([]);
+    commitTeacherServerSubmissionState({
+      ...scope,
+      submissions: [],
     });
 
+    const result = await loadClassroomSubmissionsWithTrustedEndpoint({
+      classCode: normalizedClassCode,
+      idToken: identity.idToken,
+    });
+
+    if (!isTeacherSubmissionScopeActive(scope)) {
+      console.info('[Firestore submissions]', [
+        'Ignored a stale teacher submission response after the teacher session or request scope changed.',
+      ]);
+      return;
+    }
+
+    const scopedSubmissions = result.data.filter(
+      (submission) =>
+        normalizeClassCode(submission.classCode ?? '') === normalizedClassCode,
+    );
+    const didDiscardOutOfScopeSubmissions =
+      scopedSubmissions.length !== result.data.length;
+    const developerLogs = didDiscardOutOfScopeSubmissions
+      ? [
+          ...result.developerLogs,
+          `Discarded ${result.data.length - scopedSubmissions.length} out-of-scope submission(s) from the trusted endpoint response.`,
+        ]
+      : result.developerLogs;
+
     setTeacherClassroomStatusMessage(result.studentMessage);
-    setTeacherClassroomStatusTone(result.ok ? 'success' : 'warning');
-    setTeacherClassroomDeveloperLogs(result.developerLogs);
-    console.info('[Firestore submissions]', result.developerLogs);
+    setTeacherClassroomStatusTone(
+      result.ok && !didDiscardOutOfScopeSubmissions ? 'success' : 'warning',
+    );
+    setTeacherClassroomDeveloperLogs(developerLogs);
+    console.info('[Firestore submissions]', developerLogs);
 
     if (result.ok) {
-      setActivitySubmissions((currentSubmissions) =>
-        mergeActivitySubmissions(currentSubmissions, result.data),
-      );
-      setSelectedSubmissionId((currentId) => currentId ?? result.data[0]?.id ?? null);
+      commitTeacherServerSubmissionState({
+        ...scope,
+        submissions: scopedSubmissions,
+      });
+      setSelectedSubmissionId(scopedSubmissions[0]?.id ?? null);
     }
   };
   const handleCreateFeedbackDraft = async (submissionId: string) => {
-    const submission = activitySubmissions.find((item) => item.id === submissionId);
+    const scope = teacherServerSubmissionStateRef.current;
+    const submission = scope?.submissions.find((item) => item.id === submissionId);
 
-    if (!submission) {
+    if (!scope || !isTeacherSubmissionScopeActive(scope) || !submission) {
       setTeacherFeedbackStatusMessage('선택한 제출 자료를 찾지 못했습니다.');
       return;
     }
@@ -1706,11 +2447,21 @@ function WorkbenchApp({
 
     const serverDraftResult = await createFeedbackDraftWithTrustedEndpoint({
       submission,
-      idToken: session?.role === 'teacher' ? session.idToken : undefined,
+      idToken: scope.idToken,
     });
+
+    if (!isTeacherSubmissionScopeActive(scope)) {
+      return;
+    }
+
     const result = serverDraftResult.ok
       ? serverDraftResult
       : await createTeacherFeedbackDraft(submission, { endpoint: '' });
+
+    if (!isTeacherSubmissionScopeActive(scope)) {
+      return;
+    }
+
     setAiFeedbackDraftStatus(result.status);
     setTeacherFeedbackStatusMessage(result.studentMessage);
     console.info('[AI feedback draft]', [
@@ -1722,64 +2473,88 @@ function WorkbenchApp({
       return;
     }
 
-    const saveResult = updateActivitySubmissionFeedback(
-      activitySubmissions,
-      submissionId,
-      result.feedback,
-      'feedback_draft',
+    setTeacherFeedbackStatusMessage(
+      `${result.studentMessage} 서버에 초안을 저장하는 중입니다.`,
     );
+    const remoteResult = await updateFeedbackWithTrustedEndpoint({
+      submission,
+      feedback: result.feedback,
+      status: 'feedback_draft',
+      idToken: scope.idToken,
+    });
 
-    setTeacherFeedbackStatusMessage(saveResult.studentMessage);
-    console.info('[Activity submission feedback]', saveResult.developerLogs);
-
-    if (saveResult.ok) {
-      setActivitySubmissions(saveResult.data);
-      setSelectedSubmissionId(submissionId);
-
-      const updatedSubmission = saveResult.data.find(
-        (item) => item.id === submissionId,
-      );
-
-      if (updatedSubmission) {
-        const remoteResult = await updateFeedbackWithTrustedEndpoint({
-          submission: updatedSubmission,
-          feedback: result.feedback,
-          status: 'feedback_draft',
-          idToken: session?.role === 'teacher' ? session.idToken : undefined,
-        });
-        const finalRemoteResult = remoteResult.ok
-          ? remoteResult
-          : await updateSubmissionFeedbackInFirestore(
-              updatedSubmission,
-              result.feedback,
-              'feedback_draft',
-            );
-
-        setTeacherFeedbackStatusMessage(
-          `${saveResult.studentMessage} ${finalRemoteResult.studentMessage}`,
-        );
-        console.info('[Firestore feedback]', [
-          ...remoteResult.developerLogs,
-          ...(finalRemoteResult === remoteResult
-            ? []
-            : finalRemoteResult.developerLogs),
-        ]);
-
-        if (finalRemoteResult.ok) {
-          setActivitySubmissions((currentSubmissions) =>
-            mergeActivitySubmissions(currentSubmissions, [finalRemoteResult.data]),
-          );
-        }
-      }
+    if (!isTeacherSubmissionScopeActive(scope)) {
+      return;
     }
+
+    const isTrustedResultUsable =
+      remoteResult.ok &&
+      isSubmissionResponseForScope(
+        remoteResult.data,
+        scope,
+        submissionId,
+        'feedback_draft',
+      );
+    const finalRemoteResult = isTrustedResultUsable
+      ? remoteResult
+      : await updateSubmissionFeedbackInFirestore(
+          submission,
+          result.feedback,
+          'feedback_draft',
+        );
+
+    if (!isTeacherSubmissionScopeActive(scope)) {
+      return;
+    }
+
+    console.info('[Firestore feedback]', [
+      ...remoteResult.developerLogs,
+      ...(finalRemoteResult === remoteResult
+        ? []
+        : finalRemoteResult.developerLogs),
+    ]);
+
+    if (
+      !finalRemoteResult.ok ||
+      !isSubmissionResponseForScope(
+        finalRemoteResult.data,
+        scope,
+        submissionId,
+        'feedback_draft',
+      )
+    ) {
+      setAiFeedbackDraftStatus('error');
+      setTeacherFeedbackStatusMessage(
+        `${result.studentMessage} ${finalRemoteResult.studentMessage} 서버에 저장되지 않아 교사 제출 목록에는 반영하지 않았습니다.`,
+      );
+      return;
+    }
+
+    commitTeacherSubmissionForScope(scope, finalRemoteResult.data);
+    setSelectedSubmissionId(submissionId);
+    setTeacherFeedbackStatusMessage(
+      `${result.studentMessage} ${finalRemoteResult.studentMessage}`,
+    );
   };
   const handleReturnFeedback = async (
     submissionId: string,
     studentMessage: string,
   ) => {
-    const submission = activitySubmissions.find((item) => item.id === submissionId);
+    if (isFeedbackReturnPendingRef.current) {
+      setTeacherFeedbackStatusMessage(
+        '이미 피드백 전달 요청을 처리 중입니다.',
+      );
+      return;
+    }
 
-    if (!submission?.teacherFeedback) {
+    const scope = teacherServerSubmissionStateRef.current;
+    const submission = scope?.submissions.find((item) => item.id === submissionId);
+
+    if (
+      !scope ||
+      !isTeacherSubmissionScopeActive(scope) ||
+      !submission?.teacherFeedback
+    ) {
       setTeacherFeedbackStatusMessage(
         '학생에게 전달할 피드백 초안이 아직 없습니다.',
       );
@@ -1790,54 +2565,86 @@ function WorkbenchApp({
       ...submission.teacherFeedback,
       studentMessage,
     };
-    const result = updateActivitySubmissionFeedback(
-      activitySubmissions,
-      submissionId,
-      feedback,
-      'feedback_returned',
+    const previousStatusLabel =
+      submission.status === 'feedback_draft'
+        ? '피드백 초안'
+        : submission.status === 'submitted'
+          ? '제출'
+          : '피드백 전달 완료';
+    const requestId = feedbackReturnRequestIdRef.current + 1;
+
+    feedbackReturnRequestIdRef.current = requestId;
+    isFeedbackReturnPendingRef.current = true;
+    setTeacherFeedbackStatusMessage(
+      '교사 피드백을 학생에게 전달하는 중입니다.',
     );
 
-    setTeacherFeedbackStatusMessage(result.studentMessage);
-    console.info('[Activity submission feedback]', result.developerLogs);
+    try {
+      const remoteResult = await updateFeedbackWithTrustedEndpoint({
+        submission,
+        feedback,
+        status: 'feedback_returned',
+        idToken: scope.idToken,
+      });
 
-    if (result.ok) {
-      setActivitySubmissions(result.data);
-      setSelectedSubmissionId(submissionId);
+      if (
+        requestId !== feedbackReturnRequestIdRef.current ||
+        !isTeacherSubmissionScopeActive(scope)
+      ) {
+        return;
+      }
 
-      const updatedSubmission = result.data.find(
-        (item) => item.id === submissionId,
-      );
-
-      if (updatedSubmission) {
-        const remoteResult = await updateFeedbackWithTrustedEndpoint({
-          submission: updatedSubmission,
-          feedback,
-          status: 'feedback_returned',
-          idToken: session?.role === 'teacher' ? session.idToken : undefined,
-        });
-        const finalRemoteResult = remoteResult.ok
-          ? remoteResult
-          : await updateSubmissionFeedbackInFirestore(
-              updatedSubmission,
-              feedback,
-              'feedback_returned',
-            );
-
-        setTeacherFeedbackStatusMessage(
-          `${result.studentMessage} ${finalRemoteResult.studentMessage}`,
+      const isTrustedResultUsable =
+        remoteResult.ok &&
+        isSubmissionResponseForScope(
+          remoteResult.data,
+          scope,
+          submissionId,
+          'feedback_returned',
         );
-        console.info('[Firestore feedback]', [
-          ...remoteResult.developerLogs,
-          ...(finalRemoteResult === remoteResult
-            ? []
-            : finalRemoteResult.developerLogs),
-        ]);
-
-        if (finalRemoteResult.ok) {
-          setActivitySubmissions((currentSubmissions) =>
-            mergeActivitySubmissions(currentSubmissions, [finalRemoteResult.data]),
+      const finalRemoteResult = isTrustedResultUsable
+        ? remoteResult
+        : await updateSubmissionFeedbackInFirestore(
+            submission,
+            feedback,
+            'feedback_returned',
           );
-        }
+
+      if (
+        requestId !== feedbackReturnRequestIdRef.current ||
+        !isTeacherSubmissionScopeActive(scope)
+      ) {
+        return;
+      }
+
+      console.info('[Firestore feedback]', [
+        ...remoteResult.developerLogs,
+        ...(finalRemoteResult === remoteResult
+          ? []
+          : finalRemoteResult.developerLogs),
+      ]);
+
+      if (
+        !finalRemoteResult.ok ||
+        !isSubmissionResponseForScope(
+          finalRemoteResult.data,
+          scope,
+          submissionId,
+          'feedback_returned',
+        )
+      ) {
+        setTeacherFeedbackStatusMessage(
+          `피드백을 전달하지 못했습니다. 기존 ${previousStatusLabel} 상태를 유지했습니다. ${finalRemoteResult.studentMessage} 네트워크 또는 서버 상태를 확인한 뒤 다시 시도해 주세요.`,
+        );
+        return;
+      }
+
+      commitTeacherSubmissionForScope(scope, finalRemoteResult.data);
+      setSelectedSubmissionId(submissionId);
+      setTeacherFeedbackStatusMessage(finalRemoteResult.studentMessage);
+    } finally {
+      if (requestId === feedbackReturnRequestIdRef.current) {
+        isFeedbackReturnPendingRef.current = false;
       }
     }
   };
@@ -1915,6 +2722,8 @@ function WorkbenchApp({
     <Suspense fallback={<EditorLoadingFallback />}>
       <LazyKetcherEditor
         ref={editorRef}
+        isModeSwitchDisabled={isStructureAnalysisPending}
+        onStructureChange={handleEditorStructureChange}
         onReadyChange={(ready) => {
           if (ready && !hasLoggedEditorReadyRef.current) {
             hasLoggedEditorReadyRef.current = true;
@@ -1932,6 +2741,8 @@ function WorkbenchApp({
       <Suspense fallback={<EditorLoadingFallback />}>
         <LazyKetcherEditor
           ref={editorRef}
+          isModeSwitchDisabled={isStructureAnalysisPending}
+          onStructureChange={handleEditorStructureChange}
           onReadyChange={(ready) => {
             if (ready && !hasLoggedEditorReadyRef.current) {
               hasLoggedEditorReadyRef.current = true;
@@ -1949,37 +2760,42 @@ function WorkbenchApp({
       />
     </section>
   );
+  const vseprEvidencePanel = isVseprModuleVisible ? (
+    <VseprPanel
+      analysis={vseprAnalysis}
+      selectedCentralAtomId={selectedVseprCentralAtomId}
+      onSelectCentralAtom={handleSelectVseprCentralAtom}
+      canShowModel={
+        vseprAnalysis.status === 'supported' &&
+        hasVseprGeometryTemplate(vseprAnalysis.axeNotation)
+      }
+      modelStatus={vseprModelStatus}
+      modelButtonLabel="VSEPR 예상 모형 준비하기"
+      renderedModelButtonLabel="VSEPR 예상 모형 준비됨"
+      onShowModel={handleShowVseprModel}
+    />
+  ) : null;
+  const vseprModelViewerSection = isVseprModuleVisible ? (
+    <Suspense
+      fallback={
+        <ViewerLoadingFallback
+          label="VSEPR 예상 모형"
+          title="전자쌍 반발 이론에 따른 교육용 예측 모형"
+          message="VSEPR 예상 모형을 불러오는 중입니다."
+        />
+      }
+    >
+      <LazyVsepr3DModelViewer
+        analysis={vseprAnalysis}
+        modelStatus={vseprModelStatus}
+        onDeveloperLog={handle3DDeveloperLog}
+      />
+    </Suspense>
+  ) : null;
   const vseprPredictionSection = isVseprModuleVisible ? (
     <>
-      <VseprPanel
-        analysis={vseprAnalysis}
-        selectedCentralAtomId={selectedVseprCentralAtomId}
-        onSelectCentralAtom={handleSelectVseprCentralAtom}
-        canShowModel={
-          vseprAnalysis.status === 'supported' &&
-          hasVseprGeometryTemplate(vseprAnalysis.axeNotation)
-        }
-        modelStatus={vseprModelStatus}
-        modelButtonLabel="예상 입체 모형 보기"
-        renderedModelButtonLabel="예상 입체 모형 표시 중"
-        onShowModel={handleShowVseprModel}
-      />
-
-      <Suspense
-        fallback={
-          <ViewerLoadingFallback
-            label="입체 구조 예상"
-            title="예상 입체 모형 보기"
-            message="예상 입체 모형을 불러오는 중입니다."
-          />
-        }
-      >
-        <LazyVsepr3DModelViewer
-          analysis={vseprAnalysis}
-          modelStatus={vseprModelStatus}
-          onDeveloperLog={handle3DDeveloperLog}
-        />
-      </Suspense>
+      {vseprEvidencePanel}
+      {vseprModelViewerSection}
     </>
   ) : null;
   const actual3DViewerSection = (
@@ -1988,7 +2804,7 @@ function WorkbenchApp({
         coordinateData={molecule3DInput}
         hasValidatedStructure={validationResult?.ok === true}
         userMode={userMode}
-        showAdvancedControls={isTeacherOrAdvancedView}
+        showAdvancedControls={userMode === 'student' || isTeacherOrAdvancedView}
         showMeasurementControls={isTeacherOrAdvancedView || shouldShowStudentCoordinateTools}
         validatedStructureKey={
           validationResult?.ok === true ? validationResult.canonicalSmiles : undefined
@@ -2054,6 +2870,19 @@ function WorkbenchApp({
       onPrint={handlePrintActivityResult}
     />
   );
+  const studentReturnedFeedbackSection =
+    session?.role === 'student' ? (
+      <StudentReturnedFeedback
+        feedbacks={returnedStudentFeedbacks}
+        canRefresh={
+          session.classroomJoinStatus === 'joined' && Boolean(session.idToken)
+        }
+        statusMessage={activitySubmissionStatusMessage}
+        onRefresh={() => {
+          void handleRefreshReturnedFeedback();
+        }}
+      />
+    ) : null;
   const studentExternal3DSearchSection =
     validationResult?.ok === true ? (
       <PubChemCandidatePanel
@@ -2077,6 +2906,9 @@ function WorkbenchApp({
         drawingSlot={studentDrawingSlot}
         onSelectExample={handleSelectExample}
         onLoadExample={handleLoadExample}
+        onClearStructure={handleClearStructure}
+        isAnalyzing={isStructureAnalysisPending}
+        analysisErrorMessage={structureAnalysisErrorMessage}
         onConfirmStructure={handleExtractAndValidate}
       />
       <ValidationResultCards
@@ -2105,7 +2937,7 @@ function WorkbenchApp({
       appMode={appMode}
       userMode={userMode}
       teacherControlsEnabled={isTeacherAuthorizedSession}
-      onModeChange={setAppMode}
+      onModeChange={handleAppModeChange}
       onUserModeChange={handleUserModeChange}
       examples={exampleMolecules}
       selectedExampleId={selectedExampleId}
@@ -2254,7 +3086,7 @@ function WorkbenchApp({
           statusMessage={teacherClassroomStatusMessage}
           statusTone={teacherClassroomStatusTone}
           developerLogs={teacherClassroomDeveloperLogs}
-          submissions={activitySubmissions}
+          submissions={teacherServerSubmissions}
           selectedSubmissionId={selectedSubmissionId}
           onSignOut={handleTeacherSignOut}
           onCreateClassroom={
@@ -2285,20 +3117,32 @@ function WorkbenchApp({
           examples={exampleMolecules}
           selectedExampleId={selectedExampleId}
           drawingSlot={studentDrawingSlot}
-          predictionViewerSlot={vseprPredictionSection}
+          analysisSlot={vseprEvidencePanel}
+          predictionViewerSlot={vseprModelViewerSection}
           actual3DViewerSlot={actual3DViewerSection}
           external3DSearchSlot={studentExternal3DSearchSection}
+          feedbackSlot={studentReturnedFeedbackSection}
           thoughtValue={currentStudentThought}
           submissionStatusMessage={activitySubmissionStatusMessage}
+          isThoughtSubmitted={isCurrentStudentThoughtSubmitted}
+          hasVisitedCurrent3DStep={hasVisitedCurrent3DStep}
           canSubmitThought={canSubmitStudentThought}
           isSubmittingThought={isActivitySubmissionPending}
+          isAnalyzingStructure={isStructureAnalysisPending}
+          structureAnalysisErrorMessage={structureAnalysisErrorMessage}
           thoughtSubmissionAvailabilityMessage={
             thoughtSubmissionAvailabilityMessage
           }
           onSelectActivity={handleSelectActivity}
           onSelectExample={handleSelectExample}
           onLoadExample={handleLoadExample}
+          onClearStructure={handleClearStructure}
           onConfirmStructure={handleExtractAndValidate}
+          onVisitCurrent3DStep={() => {
+            if (canVisitCurrent3DStep) {
+              setHasVisitedCurrent3DStep(true);
+            }
+          }}
           onThoughtChange={(value) => {
             handleActivityResponseChange('vseprReflection', value);
           }}
@@ -2379,7 +3223,7 @@ function WorkbenchApp({
 
       {isTeacherOrAdvancedView ? (
         <TeacherFeedbackPanel
-          submissions={activitySubmissions}
+          submissions={teacherServerSubmissions}
           selectedSubmissionId={selectedSubmissionId}
           draftStatus={aiFeedbackDraftStatus}
           statusMessage={teacherFeedbackStatusMessage}

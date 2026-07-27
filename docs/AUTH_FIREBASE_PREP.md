@@ -11,12 +11,8 @@ Firebase ID token을 검증한 뒤 Firestore membership write를 담당한다.
 
 2026-07-02 추가 업데이트: 교사 권한이 확인된 세션에서 Firestore 수업방
 문서 생성, 공개 수업 정보 생성, published 활동 템플릿 생성, 수업방 제출 목록
-조회가 가능하도록 클라이언트 서비스 계층을 연결했다. 학생 제출은 기존
-localStorage 제출함에 먼저 저장하고, Firebase Anonymous UID와 Firestore
-멤버십 문서가 모두 준비된 경우에만 서버 제출함에도 저장을 시도한다. 멤버십이
-없거나 Firestore 권한이 맞지 않으면 학생 결과는 브라우저 제출함에 남고 서버
-동기화 실패 메시지만 표시한다. 배포 환경에서 Firestore 응답이 지연되는 경우도
-무기한 대기하지 않고 제한 시간 뒤 브라우저 제출함 보관 메시지로 수렴시킨다.
+조회가 가능하도록 클라이언트 서비스 계층을 연결했다. Firebase Anonymous UID와
+Firestore 멤버십 문서가 모두 준비된 경우에만 서버 제출을 시도한다.
 
 2026-07-02 추가 업데이트: Vercel Function 기반 `/api/create-classroom`과
 `/api/join-classroom`을 추가했다. `/api/create-classroom`은 교사 Firebase ID
@@ -32,6 +28,12 @@ fallback한다.
 포함해 생성한다. 기존 `server-join-code-v2` 및 legacy client v1 교실은
 호환 검증 전용으로 유지한다.
 
+2026-07-27 개인정보 업데이트: 학생 닉네임·익명 식별자·답변·구조 snapshot을
+origin-wide `localStorage` 제출함에 영속 저장하지 않는다. 제출 중 자료는 현재
+학생 세션 메모리에만 두며, trusted endpoint 성공 응답이 있어야 제출 완료로
+표시한다. 서버 실패 시 입력을 유지하고 재시도를 안내하며, 이전 버전의 제출
+저장 키는 앱 시작 시 정리한다.
+
 ## 목적
 
 `다양한 분자의 분자구조 모델링` 앱을 GitHub + Vercel + Firebase 기반 배포로 확장하기 전에 학생용 화면과 교사용 화면을 구조적으로 분리한다.
@@ -42,7 +44,8 @@ fallback한다.
 - 학생은 회원가입 없이 수업코드, 입장 확인코드, 수업용 닉네임 또는 익명 ID로 입장한다.
 - 교사는 Firebase Auth 기반 Google 로그인 또는 이메일 로그인을 사용할 수 있도록 UI와 권한 구조를 준비한다.
 - Firestore 저장은 Security Rules가 허용하는 문서 shape와 권한에서만 시도한다.
-- 기존 localStorage 기반 임시 저장은 유지한다.
+- 이용자가 명시적으로 저장하는 비제출 활동 결과의 localStorage 기능은
+  교사용/고급 보기에서만 별도로 유지한다.
 
 ## Firebase Auth 및 Firestore 연결 상태
 
@@ -67,13 +70,13 @@ fallback한다.
 - 학생 제출 snapshot을 `classrooms/{classCode}/submissions/{submissionId}`에 저장 시도
 - 교사용 수업코드 기반 제출 목록 조회
 - 교사 피드백 초안/전달 상태를 Firestore 제출 문서에 update 시도
-- Firestore 실패 또는 응답 지연 시 기존 브라우저 제출함/localStorage 흐름 유지
+- Firestore 실패 시 현재 세션 입력 유지와 재시도 안내
+- origin-wide 학생 제출 localStorage 제거와 legacy 키 정리
 
 다음은 아직 구현하지 않았다.
 
 - 입장 확인코드 자동 생성/회전 UI
 - Firebase Admin SDK 기반 teacher custom claim 관리 UI
-- 교사용 제출 목록의 서버 endpoint 동기화
 
 ## 구현된 구조
 
@@ -109,19 +112,20 @@ fallback한다.
   - teacher custom claim 판정 helper
 
 - `src/contexts/UserSessionContext.tsx`
-  - 학생 임시 세션 생성
-  - Firebase Anonymous Auth 성공 시 선택적으로 `firebaseUid` 보관
+  - 학생 입력 검증 뒤 Firebase Anonymous Auth와 trusted 수업방 입장 요청
+  - Firebase Anonymous Auth 성공 시 `firebaseUid`, ID token과 멤버십 상태 보관
   - 교사용 Google/email 로그인 성공 시 교사 세션 생성
   - 교사 권한은 Firebase ID token claim을 읽어 `authorized`,
     `pending_custom_claim`, `not_checked`로 표시
-  - 학생 수업코드 입장은 trusted endpoint 구현 전까지
-    `classroomJoinStatus`로 deferred/local 상태를 기록
-  - 서버 저장 없이 메모리 상태만 관리
+  - 명시적 서버 거절은 입장을 차단하고, bodyless 404/405·5xx·네트워크 장애는
+    `deferred_until_trusted_endpoint`로 구분
+  - 화면 세션은 메모리에 두되, joined 세션의 멤버십·제출·피드백은 trusted
+    endpoint를 통해 Firestore와 연결
 
 - `src/services/firebase/classroomJoinService.ts`
-  - 향후 trusted `joinClassroom` endpoint 연결 지점
-  - 현재는 서버 호출과 Firestore membership write를 하지 않고 deferred/local
-    상태만 반환
+  - trusted `/api/join-classroom` 호출
+  - 명시적 JSON 거절과 인프라/라우팅 장애를 분리
+  - 성공 응답의 published 활동 template id를 학생 세션에 전달
 
 - `src/components/auth/RoleGate.tsx`
   - 역할 기반 UI 게이트
@@ -174,11 +178,14 @@ fallback한다.
 
 ## 보안 원칙
 
-- 학생 실명/학번 저장 금지
-- 학생 제출 데이터 서버 저장 금지
+- 학생 실명/학번을 기본 입력으로 요구하지 않고 수업용 닉네임만 사용
+- 학생 제출은 Firebase UID·멤버십·문서 소유권 검증 뒤에만 서버 저장
+- 개인정보가 포함될 수 있는 제출 snapshot을 origin-wide localStorage에
+  영속 저장하지 않음
 - 공개 저장소에 service account, private token 저장 금지
 - Firebase config는 `.env.local` 또는 Vercel Environment Variables로 관리
-- Firestore Security Rules 설계 전까지 Firestore write 비활성
+- Firestore write는 emulator 회귀를 통과한 Security Rules 및 trusted endpoint
+  범위에서만 활성
 - Firebase Auth 로그인만으로 교사용 비공개 해설과 학생 제출 목록을 공개하지 않음
 - `teacher: true` 또는 `role: "teacher"` custom claim이 확인된 경우에만
   교사용 상세 패널을 활성화
@@ -187,14 +194,14 @@ fallback한다.
 
 | 데이터 | 현재 처리 | 서버 저장 여부 |
 |---|---|---|
-| 수업코드 | 학생 세션 메모리 상태 | 저장 안 함 |
-| 수업용 닉네임/익명 ID | 학생 세션 메모리 상태 | 저장 안 함 |
-| 활동 결과 임시 저장 | 기존 localStorage | 브라우저 저장 |
-| 교사 로그인 | Firebase Auth Google/email 연결, custom claim 상태 확인 | 세션만 메모리 저장 |
+| 수업코드 | 학생 세션 및 trusted endpoint 요청 | membership·submission 범위에서 저장 |
+| 수업용 닉네임/익명 ID | 학생 세션 및 멤버십·제출 문서 | endpoint 설정 시 저장 |
+| 명시적 활동 결과 저장 | 교사용/고급 보기의 기존 localStorage | 브라우저 저장 |
+| 교사 로그인 | Firebase Auth Google/email 연결, custom claim 상태 확인 | Firebase Auth 및 앱 세션 |
 | 수업코드 입장 | trusted joinClassroom endpoint 또는 local/deferred 표시 | endpoint 설정 시 membership 저장 |
 | 수업방 생성 | teacher claim 확인 후 trusted createClassroom endpoint 호출 | endpoint 설정 시 저장 |
-| 활동 결과 제출 | localStorage 우선 저장 후 Firestore write 시도 | 멤버십 있을 때 저장 |
-| 제출 목록 | 수업코드 기준 Firestore 조회 + localStorage 제출함 유지 | 권한 있을 때 조회 |
+| 활동 결과 제출 | 현재 세션 메모리에서 trusted endpoint write | 멤버십·소유권 확인 시 저장 |
+| 제출 목록 | 교사 UID·token·수업코드 범위의 서버 조회 | 권한 있을 때 조회 |
 
 ## 다음 단계
 
@@ -203,7 +210,8 @@ fallback한다.
 3. `/api/create-classroom`으로 테스트 수업방 문서 생성 QA
 4. 학생 anonymous Auth UID와 수업 멤버십 문서 연결 QA
 5. 입장 확인코드 최소 길이와 회전 절차를 운영 정책으로 고정
-6. 학생 제출 저장 기능을 beta 단계에서 제한적으로 운영 검증
+6. Firestore 학생 자료의 보유 기간·관리자 삭제 절차를 운영 정책으로 고정
+7. 학생 제출 저장 기능을 beta 단계에서 제한적으로 운영 검증
 
 ## Firestore 보안 설계 결정
 
@@ -211,7 +219,9 @@ fallback한다.
 - 수업방 생성, 수업코드와 입장 확인코드 검증, 학생 멤버십 문서 생성은 Firestore client write가 아니라 trusted server endpoint에서 처리한다.
 - 교사는 Firebase Auth 로그인 후 `teacher: true` 또는 `role: "teacher"` custom claim을 기준으로 접근한다.
 - custom claims에는 권한 판단 정보만 넣고, 교사 프로필이나 수업 목록은 넣지 않는다.
-- production Firestore write는 `firebase/firestore.rules` 초안이 emulator 기반 rules test를 통과한 뒤 활성화한다.
+- production Firestore write는 `firebase/firestore.rules`가 emulator 기반 rules
+  test를 통과하고, Firebase Admin 환경변수와 운영 보유·삭제 절차가 준비된
+  배포에서만 활성화한다.
 
 ## 검증 기준
 
@@ -223,5 +233,10 @@ fallback한다.
 - `/teacher/dashboard`는 교사 세션이 있을 때 대시보드 placeholder를 표시한다.
 - teacher custom claim이 없으면 교사용 상세 패널과 고급 로그를 표시하지 않는다.
 - 인증 전 교사용 비공개 패널은 표시되지 않는다.
-- Firestore 저장 함수는 아직 활성화되지 않는다.
+- 학생 A의 초안·제출 캐시·파생 상태는 학생 identity 전환 시 학생 B에게
+  보이지 않는다.
+- 학생 제출의 trusted 저장, 교사 제출 조회, 피드백 update는 현재 UID·token·
+  수업코드·요청 범위를 벗어난 응답을 반영하지 않는다.
+- 이전 `molecule-workbench-activity-submissions` localStorage 키는 읽지 않고
+  정리한다.
 - `npm run typecheck`, `npm test`, `npm run build`가 통과해야 한다.

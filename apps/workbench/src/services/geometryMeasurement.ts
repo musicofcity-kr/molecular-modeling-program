@@ -4,6 +4,7 @@ import type {
   Molecule3DInput,
   SelectedAtom3D,
 } from '../types/molecule';
+import { parseStrictV2000Layout } from '../chemistry/v2000MolBlock';
 
 const FLOAT_PATTERN = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[Ee][+-]?\d+)?$/;
 
@@ -151,19 +152,15 @@ function parseXyzAtoms(data: string): SelectedAtom3D[] {
 }
 
 function parseV2000MolAtoms(data: string): SelectedAtom3D[] {
-  const lines = data.split(/\r?\n/);
-  const countsLineIndex = lines.findIndex((line) => line.includes('V2000'));
+  const layout = parseStrictV2000Layout(data);
 
-  if (countsLineIndex < 0) {
+  if (!layout) {
     return [];
   }
 
-  const countsLine = lines[countsLineIndex];
-  const atomCount = Number(
-    countsLine.slice(0, 3).trim() || countsLine.trim().split(/\s+/)[0],
-  );
+  const { lines, countsLineIndex, atomCount } = layout;
 
-  if (!Number.isInteger(atomCount) || atomCount <= 0) {
+  if (atomCount <= 0) {
     return [];
   }
 

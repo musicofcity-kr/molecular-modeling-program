@@ -24,6 +24,17 @@ VSEPR analysis may run only after RDKit.js validation succeeds.
 The engine reads the Ketcher-exported V2000 MOL block after validation and parses atom/bond data into a local graph.
 It does not infer VSEPR structure from unvalidated SMILES text alone.
 
+RDKit validation distinguishes net charge from charge separation:
+
+- a connected structure whose formal charges sum to zero may pass with an
+  explicit charge-separation warning;
+- a structure whose net formal charge is not zero remains outside the current
+  calculation scope and does not enter the VSEPR path;
+- isotope and radical annotations remain blocked.
+
+This permits neutral representations such as ozone and nitromethane without
+silently treating ammonium, hydronium, or other ions as neutral molecules.
+
 ## Center Atom Policy
 
 Single-center molecules may be analyzed automatically when one supported center is clear.
@@ -61,10 +72,15 @@ The app should mark these as unsupported, low confidence, or review-needed inste
 - V3000/query/R-group structures
 - transition-metal centers
 - radicals
+- structures with nonzero net formal charge under the current validation scope
 - complex resonance-heavy structures
 - salts or disconnected structures where the chosen center is ambiguous
 - negative or non-integer lone-pair estimates
 - steric numbers outside the MVP AXE mapping table
+
+Neutral charge-separated structures are not rejected solely because individual
+atoms carry formal charge. They retain an RDKit warning, and the VSEPR result
+must still follow the local-center confidence and unsupported-case rules above.
 
 Repulsion-energy relaxation demos from external prototypes are not imported
 as the production VSEPR engine. The workbench uses deterministic classroom

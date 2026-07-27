@@ -39,10 +39,20 @@ const snapshot: ActivityResultSnapshot = {
   ],
   vseprResult: {
     available: true,
+    scope: 'local-center',
+    selectedCenter: {
+      atomId: '1',
+      atomSymbol: 'C',
+      atomLabel: 'C1',
+    },
     axeNotation: 'AX4',
     electronGeometryKo: '정사면체',
     molecularGeometryKo: '정사면체',
     idealBondAngle: '109.5°',
+    angleEvidence: {
+      vseprIdealAngles: ['109.5°'],
+      generatedCoordinateMeasurements: [109.47],
+    },
     confidence: 'high',
   },
   comparisonObservation: {
@@ -108,6 +118,11 @@ describe('ActivityResultPanel', () => {
     expect(markup).toContain('서버 제출 상태를 확인하는 중입니다.');
     expect(markup).toContain('role="status"');
     expect(markup).toContain('구조 확인 결과');
+    expect(markup).toContain('선택 중심 원자');
+    expect(markup).toContain('C1');
+    expect(markup).toContain('선택 중심 원자 주변의 국소 VSEPR 예측');
+    expect(markup).toContain('선택 중심 주변 분자 모양');
+    expect(markup).toContain('VSEPR 이상각(이론)');
     expect(markup).not.toContain('원자료 저장');
     expect(markup).not.toContain('텍스트로 저장');
     expect(markup).not.toContain('결과 복사하기');

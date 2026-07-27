@@ -1,4 +1,7 @@
-import type { MoleculeValidationResult } from './molecule';
+import type {
+  MoleculeValidationResult,
+  StructureIntent,
+} from './molecule';
 import type { ActivityComparisonModeConfig } from './structureComparison';
 import type { UserRole } from './session';
 
@@ -16,6 +19,7 @@ export interface ActivityTemplate {
   title: string;
   targetMoleculeName: string;
   targetSmiles?: string;
+  structureIntent?: StructureIntent;
   learningGoal: string;
   prompt: string;
   predictionQuestions: ActivityQuestion[];

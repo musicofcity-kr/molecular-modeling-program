@@ -73,6 +73,7 @@ const reflectionQuestions = [
 export const activityTemplates: ActivityTemplate[] = [
   {
     id: 'draw-water',
+    structureIntent: 'single-molecule',
     title: '물 분자 구조 그리기',
     targetMoleculeName: '물',
     targetSmiles: 'O',
@@ -107,6 +108,7 @@ export const activityTemplates: ActivityTemplate[] = [
   },
   {
     id: 'draw-methane',
+    structureIntent: 'single-molecule',
     title: '메테인 분자 구조 그리기',
     targetMoleculeName: '메테인',
     targetSmiles: 'C',
@@ -141,6 +143,7 @@ export const activityTemplates: ActivityTemplate[] = [
   },
   {
     id: 'draw-ammonia',
+    structureIntent: 'single-molecule',
     title: '암모니아 분자 구조 그리기',
     targetMoleculeName: '암모니아',
     targetSmiles: 'N',
@@ -175,6 +178,7 @@ export const activityTemplates: ActivityTemplate[] = [
   },
   {
     id: 'draw-carbon-dioxide',
+    structureIntent: 'single-molecule',
     title: '이산화탄소 분자 구조 그리기',
     targetMoleculeName: '이산화탄소',
     targetSmiles: 'O=C=O',
@@ -209,6 +213,7 @@ export const activityTemplates: ActivityTemplate[] = [
   },
   {
     id: 'draw-ethanol',
+    structureIntent: 'single-molecule',
     title: '에탄올 분자 구조 그리기',
     targetMoleculeName: '에탄올',
     targetSmiles: 'CCO',
@@ -242,6 +247,7 @@ export const activityTemplates: ActivityTemplate[] = [
   },
   {
     id: 'draw-benzene',
+    structureIntent: 'single-molecule',
     title: '벤젠 분자 구조 그리기',
     targetMoleculeName: '벤젠',
     targetSmiles: 'c1ccccc1',

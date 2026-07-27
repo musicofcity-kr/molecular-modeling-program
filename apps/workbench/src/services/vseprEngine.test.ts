@@ -8,14 +8,18 @@ function molBlock(input: {
   title: string;
   atoms: string[];
   bonds: Array<[number, number, number]>;
+  atomValences?: number[];
+  comment?: string;
   chargeLine?: string;
+  radicalLine?: string;
+  queryPropertyLine?: string;
 }): string {
   const atomLines = input.atoms.map(
-    (symbol) =>
+    (symbol, index) =>
       `    0.0000    0.0000    0.0000 ${symbol.padEnd(
         3,
         ' ',
-      )} 0  0  0  0  0  0  0  0  0  0  0  0`,
+      )} 0  0  0  0  0 ${input.atomValences?.[index] ?? 0}  0  0  0  0  0  0`,
   );
   const bondLines = input.bonds.map(
     ([from, to, order]) =>
@@ -26,14 +30,14 @@ function molBlock(input: {
 
   return `${input.title}
   Workbench
-
+${input.comment ?? ''}
 ${String(input.atoms.length).padStart(3, ' ')}${String(input.bonds.length).padStart(
     3,
     ' ',
   )}  0  0  0  0            999 V2000
 ${atomLines.join('\n')}
 ${bondLines.join('\n')}
-${input.chargeLine ? `${input.chargeLine}\n` : ''}M  END`;
+${input.chargeLine ? `${input.chargeLine}\n` : ''}${input.radicalLine ? `${input.radicalLine}\n` : ''}${input.queryPropertyLine ? `${input.queryPropertyLine}\n` : ''}M  END`;
 }
 
 describe('vseprEngine', () => {
@@ -61,7 +65,9 @@ describe('vseprEngine', () => {
     });
 
     expect(result.status).toBe('supported');
+    expect(result.scope).toBe('local-center');
     expect(result.centralAtomSymbol).toBe('O');
+    expect(result.centralAtomLabel).toBe('O1');
     expect(result.bondedAtomCount).toBe(2);
     expect(result.lonePairCount).toBe(2);
     expect(result.stericNumber).toBe(4);
@@ -69,6 +75,9 @@ describe('vseprEngine', () => {
     expect(result.electronDomainGeometryKo).toBe('정사면체');
     expect(result.molecularShapeKo).toBe('굽은형');
     expect(result.idealBondAngles).toEqual(['<109.5°']);
+    expect(result.angleEvidence).toEqual({
+      vseprIdealAngles: ['<109.5°'],
+    });
   });
 
   it('keeps explicit hydrogens as bonded atoms instead of subtracting them', () => {
@@ -126,11 +135,14 @@ describe('vseprEngine', () => {
           [2, 3, 2],
         ],
       }),
-      selectedCentralAtomId: '2',
     });
 
     expect(result.status).toBe('supported');
     expect(result.centralAtomSymbol).toBe('C');
+    expect(result.centralAtomLabel).toBe('C2');
+    expect(result.centralAtomCandidates?.map((item) => item.atomLabel)).toEqual([
+      'C2',
+    ]);
     expect(result.bondedAtomCount).toBe(2);
     expect(result.lonePairCount).toBe(0);
     expect(result.axeNotation).toBe('AX2');
@@ -158,6 +170,12 @@ describe('vseprEngine', () => {
     expect(result.electronDomainGeometryKo).toBe('삼각 평면');
     expect(result.molecularShapeKo).toBe('굽은형');
     expect(result.idealBondAngles).toEqual(['<120°']);
+    expect(result.centralAtomLabel).toBe('S2');
+    expect(result.centralAtomCandidates?.map((item) => item.atomLabel)).toEqual([
+      'S2',
+    ]);
+    expect(result.confidence).toBe('medium');
+    expect(result.warnings.join(' ')).toContain('공명');
   });
 
   it('requires user selection for ethanol-like multiple local centers', () => {
@@ -172,23 +190,40 @@ describe('vseprEngine', () => {
 
     const needsSelection = analyzeVseprFromMolBlock({ molBlock: ethanolMolBlock });
     expect(needsSelection.status).toBe('needs_central_atom');
+    expect(needsSelection.scope).toBe('local-center');
+    expect(needsSelection.axeNotation).toBeUndefined();
+    expect(needsSelection.molecularShapeKo).toBeUndefined();
+    expect(needsSelection.angleEvidence).toBeUndefined();
     expect(needsSelection.centralAtomCandidates?.map((item) => item.atomLabel)).toEqual([
       'C1',
       'C2',
       'O3',
     ]);
 
-    const oxygen = analyzeVseprFromMolBlock({
-      molBlock: ethanolMolBlock,
-      selectedCentralAtomId: '3',
-    });
+    const localCenterCases = [
+      { atomId: '1', atomLabel: 'C1', axeNotation: 'AX4' },
+      { atomId: '2', atomLabel: 'C2', axeNotation: 'AX4' },
+      { atomId: '3', atomLabel: 'O3', axeNotation: 'AX2E2' },
+    ] as const;
 
-    expect(oxygen.status).toBe('supported');
-    expect(oxygen.centralAtomSymbol).toBe('O');
-    expect(oxygen.axeNotation).toBe('AX2E2');
-    expect(oxygen.warnings).toContain(
-      '2D MOL block에서 생략된 수소를 일반 원자가 규칙으로 추정했습니다.',
-    );
+    for (const localCenterCase of localCenterCases) {
+      const result = analyzeVseprFromMolBlock({
+        molBlock: ethanolMolBlock,
+        selectedCentralAtomId: localCenterCase.atomId,
+      });
+
+      expect(result.status, localCenterCase.atomLabel).toBe('supported');
+      expect(result.scope, localCenterCase.atomLabel).toBe('local-center');
+      expect(result.centralAtomLabel, localCenterCase.atomLabel).toBe(
+        localCenterCase.atomLabel,
+      );
+      expect(result.axeNotation, localCenterCase.atomLabel).toBe(
+        localCenterCase.axeNotation,
+      );
+      expect(result.studentMessage, localCenterCase.atomLabel).toContain(
+        '중심 원자 주변',
+      );
+    }
   });
 
   it('auto-selects a clear center atom when all other heavy atoms are terminal ligands', () => {
@@ -207,8 +242,31 @@ describe('vseprEngine', () => {
     expect(result.status).toBe('supported');
     expect(result.centralAtomSymbol).toBe('B');
     expect(result.centralAtomId).toBe('1');
+    expect(result.centralAtomLabel).toBe('B1');
+    expect(result.centralAtomCandidates?.map((item) => item.atomLabel)).toEqual([
+      'B1',
+    ]);
     expect(result.axeNotation).toBe('AX3');
     expect(result.molecularShapeKo).toBe('삼각 평면');
+  });
+
+  it('blocks a disconnected atom graph before local VSEPR inference', () => {
+    const result = analyzeVseprFromMolBlock({
+      molBlock: molBlock({
+        title: 'disconnected carbon atoms',
+        atoms: ['C', 'C', 'C', 'C'],
+        bonds: [],
+      }),
+      selectedCentralAtomId: '1',
+    });
+
+    expect(result.status).toBe('unsupported');
+    expect(result.scope).toBe('local-center');
+    expect(result.confidence).toBe('low');
+    expect(result.centralAtomId).toBeUndefined();
+    expect(result.axeNotation).toBeUndefined();
+    expect(result.studentMessage).toContain('여러 조각');
+    expect(result.developerLogs?.join(' ')).toContain('componentCount=4');
   });
 
   it('covers Claude classroom presets for Be, B, P, S, Cl, Br, and Xe centers', () => {
@@ -360,4 +418,326 @@ describe('vseprEngine', () => {
     expect(oddElectron.status).toBe('unsupported');
     expect(oddElectron.warnings.join(' ')).toContain('비공유 전자쌍 수를 정수로 추정할 수 없습니다');
   });
+
+  it('blocks radical structures instead of presenting a confident VSEPR shape', () => {
+    const result = analyzeVseprFromMolBlock({
+      molBlock: molBlock({
+        title: 'methyl radical',
+        atoms: ['C'],
+        bonds: [],
+        radicalLine: 'M  RAD  1   1   2',
+      }),
+      selectedCentralAtomId: '1',
+    });
+
+    expect(result.status).toBe('unsupported');
+    expect(result.confidence).toBe('low');
+    expect(result.axeNotation).toBeUndefined();
+    expect(result.molecularShapeKo).toBeUndefined();
+    expect(result.studentMessage).toContain('현재 교육용 VSEPR 분석 범위 밖');
+  });
+
+  it.each(['O', 'Be'])(
+    'honors V2000 zero-valence on [%s] and does not invent implicit hydrogens',
+    (symbol) => {
+      const result = analyzeVseprFromMolBlock({
+        molBlock: molBlock({
+          title: `zero-valence ${symbol}`,
+          atoms: [symbol],
+          atomValences: [15],
+          bonds: [],
+        }),
+        selectedCentralAtomId: '1',
+      });
+
+      expect(result.status).toBe('unsupported');
+      expect(result.axeNotation).toBeUndefined();
+      expect(result.molecularShapeKo).toBeUndefined();
+      expect((result.developerLogs ?? []).join('\n')).toContain(
+        'declared zero valence',
+      );
+    },
+  );
+
+  it.each([5, 6, 7, 8])(
+    'blocks V2000 query or ambiguous bond type %s before VSEPR inference',
+    (bondType) => {
+      const result = analyzeVseprFromMolBlock({
+        molBlock: molBlock({
+          title: `query bond ${bondType}`,
+          atoms: ['C', 'O'],
+          bonds: [[1, 2, bondType]],
+        }),
+        selectedCentralAtomId: '1',
+      });
+
+      expect(result.status).toBe('unsupported');
+      expect(result.axeNotation).toBeUndefined();
+      expect(result.studentMessage).toContain('질의 또는 모호한');
+      expect((result.developerLogs ?? []).join('\n')).toContain(
+        `query bond type ${bondType}`,
+      );
+    },
+  );
+
+  it.each([
+    ['SUB', 'M  SUB  1   1   2'],
+    ['UNS', 'M  UNS  1   1   1'],
+    ['RBC', 'M  RBC  1   1   2'],
+  ])(
+    'blocks V2000 M %s query properties before VSEPR inference',
+    (propertyTag, queryPropertyLine) => {
+      const result = analyzeVseprFromMolBlock({
+        molBlock: molBlock({
+          title: `query property ${propertyTag}`,
+          atoms: ['C', 'O'],
+          bonds: [[1, 2, 1]],
+          queryPropertyLine,
+        }),
+        selectedCentralAtomId: '1',
+      });
+
+      expect(result.status).toBe('unsupported');
+      expect(result.confidence).toBe('low');
+      expect(result.axeNotation).toBeUndefined();
+      expect(result.molecularShapeKo).toBeUndefined();
+      expect(result.studentMessage).toContain('질의 또는 모호한');
+      expect((result.developerLogs ?? []).join('\n')).toContain(
+        `query property M ${propertyTag}`,
+      );
+    },
+  );
+
+  it.each([
+    ['title text', { title: 'V2000 bypass title' }],
+    [
+      'counts-shaped comment',
+      {
+        title: 'query property in hostile comment fixture',
+        comment: ' 99 99  0  0  0  0            999 V2000',
+      },
+    ],
+  ])(
+    'uses only the standard counts-line position when %s also contains V2000',
+    (_headerCase, header) => {
+      const result = analyzeVseprFromMolBlock({
+        molBlock: molBlock({
+          ...header,
+          atoms: ['C', 'O'],
+          bonds: [[1, 2, 1]],
+          queryPropertyLine: 'M  SUB  1   1   2',
+        }),
+        selectedCentralAtomId: '1',
+      });
+
+      expect(result.status).toBe('unsupported');
+      expect(result.confidence).toBe('low');
+      expect(result.axeNotation).toBeUndefined();
+      expect(result.molecularShapeKo).toBeUndefined();
+      expect(result.studentMessage).toContain('질의 또는 모호한');
+      expect((result.developerLogs ?? []).join('\n')).toContain(
+        'query property M SUB',
+      );
+    },
+  );
+
+  it('blocks dummy/query atoms before VSEPR inference', () => {
+    const result = analyzeVseprFromMolBlock({
+      molBlock: molBlock({
+        title: 'dummy atom',
+        atoms: ['C', '*'],
+        bonds: [[1, 2, 1]],
+      }),
+      selectedCentralAtomId: '1',
+    });
+
+    expect(result.status).toBe('unsupported');
+    expect(result.axeNotation).toBeUndefined();
+    expect(result.studentMessage).toContain('질의 또는 모호한');
+    expect((result.developerLogs ?? []).join('\n')).toContain(
+      'query atom symbol *',
+    );
+  });
+
+  it.each([
+    {
+      molecule: 'BeCl2',
+      atoms: ['Be', 'Cl', 'Cl'],
+      bonds: [
+        [1, 2, 1],
+        [1, 3, 1],
+      ] as Array<[number, number, number]>,
+      center: '1',
+      stericNumber: 2,
+      lonePairs: 0,
+      electronGeometry: '선형',
+      molecularShape: '선형',
+    },
+    {
+      molecule: 'CO2',
+      atoms: ['O', 'C', 'O'],
+      bonds: [
+        [1, 2, 2],
+        [2, 3, 2],
+      ] as Array<[number, number, number]>,
+      center: '2',
+      stericNumber: 2,
+      lonePairs: 0,
+      electronGeometry: '선형',
+      molecularShape: '선형',
+    },
+    {
+      molecule: 'HCN',
+      atoms: ['H', 'C', 'N'],
+      bonds: [
+        [1, 2, 1],
+        [2, 3, 3],
+      ] as Array<[number, number, number]>,
+      center: '2',
+      stericNumber: 2,
+      lonePairs: 0,
+      electronGeometry: '선형',
+      molecularShape: '선형',
+    },
+    {
+      molecule: 'BF3',
+      atoms: ['B', 'F', 'F', 'F'],
+      bonds: [
+        [1, 2, 1],
+        [1, 3, 1],
+        [1, 4, 1],
+      ] as Array<[number, number, number]>,
+      center: '1',
+      stericNumber: 3,
+      lonePairs: 0,
+      electronGeometry: '삼각 평면',
+      molecularShape: '삼각 평면',
+    },
+    {
+      molecule: 'BCl3',
+      atoms: ['B', 'Cl', 'Cl', 'Cl'],
+      bonds: [
+        [1, 2, 1],
+        [1, 3, 1],
+        [1, 4, 1],
+      ] as Array<[number, number, number]>,
+      center: '1',
+      stericNumber: 3,
+      lonePairs: 0,
+      electronGeometry: '삼각 평면',
+      molecularShape: '삼각 평면',
+    },
+    {
+      molecule: 'CH2O',
+      atoms: ['C', 'O'],
+      bonds: [[1, 2, 2]] as Array<[number, number, number]>,
+      center: '1',
+      stericNumber: 3,
+      lonePairs: 0,
+      electronGeometry: '삼각 평면',
+      molecularShape: '삼각 평면',
+    },
+    {
+      molecule: 'CH4',
+      atoms: ['C'],
+      bonds: [] as Array<[number, number, number]>,
+      center: '1',
+      stericNumber: 4,
+      lonePairs: 0,
+      electronGeometry: '정사면체',
+      molecularShape: '정사면체',
+    },
+    {
+      molecule: 'CCl4',
+      atoms: ['C', 'Cl', 'Cl', 'Cl', 'Cl'],
+      bonds: [
+        [1, 2, 1],
+        [1, 3, 1],
+        [1, 4, 1],
+        [1, 5, 1],
+      ] as Array<[number, number, number]>,
+      center: '1',
+      stericNumber: 4,
+      lonePairs: 0,
+      electronGeometry: '정사면체',
+      molecularShape: '정사면체',
+    },
+    {
+      molecule: 'CH3Cl',
+      atoms: ['C', 'Cl'],
+      bonds: [[1, 2, 1]] as Array<[number, number, number]>,
+      center: '1',
+      stericNumber: 4,
+      lonePairs: 0,
+      electronGeometry: '정사면체',
+      molecularShape: '정사면체',
+    },
+    {
+      molecule: 'NH3',
+      atoms: ['N'],
+      bonds: [] as Array<[number, number, number]>,
+      center: '1',
+      stericNumber: 4,
+      lonePairs: 1,
+      electronGeometry: '정사면체',
+      molecularShape: '삼각뿔형',
+    },
+    {
+      molecule: 'PCl3',
+      atoms: ['P', 'Cl', 'Cl', 'Cl'],
+      bonds: [
+        [1, 2, 1],
+        [1, 3, 1],
+        [1, 4, 1],
+      ] as Array<[number, number, number]>,
+      center: '1',
+      stericNumber: 4,
+      lonePairs: 1,
+      electronGeometry: '정사면체',
+      molecularShape: '삼각뿔형',
+    },
+    {
+      molecule: 'H2O',
+      atoms: ['O'],
+      bonds: [] as Array<[number, number, number]>,
+      center: '1',
+      stericNumber: 4,
+      lonePairs: 2,
+      electronGeometry: '정사면체',
+      molecularShape: '굽은형',
+    },
+    {
+      molecule: 'H2S',
+      atoms: ['S'],
+      bonds: [] as Array<[number, number, number]>,
+      center: '1',
+      stericNumber: 4,
+      lonePairs: 2,
+      electronGeometry: '정사면체',
+      molecularShape: '굽은형',
+    },
+  ])(
+    'matches the required classroom VSEPR result for $molecule',
+    ({
+      molecule,
+      atoms,
+      bonds,
+      center,
+      stericNumber,
+      lonePairs,
+      electronGeometry,
+      molecularShape,
+    }) => {
+      const result = analyzeVseprFromMolBlock({
+        molBlock: molBlock({ title: molecule, atoms, bonds }),
+        selectedCentralAtomId: center,
+      });
+
+      expect(result.status).toBe('supported');
+      expect(result.stericNumber).toBe(stericNumber);
+      expect(result.lonePairCount).toBe(lonePairs);
+      expect(result.electronDomainGeometryKo).toBe(electronGeometry);
+      expect(result.molecularShapeKo).toBe(molecularShape);
+    },
+  );
 });

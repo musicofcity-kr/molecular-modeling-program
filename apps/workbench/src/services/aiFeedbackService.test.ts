@@ -26,12 +26,37 @@ const submission: ActivitySubmission = {
       isValid: true,
       molecularFormula: 'H2O',
       molecularWeight: 18.015,
+      structureIntent: 'single-molecule',
+      graphSummary: {
+        atomCount: 3,
+        bondCount: 2,
+        componentCount: 1,
+        componentAtomCounts: [3],
+        isSingleComponent: true,
+        isolatedAtomCount: 0,
+      },
+      connectivityStatus: 'single-component',
+      warnings: ['중성 전하 분리 구조는 교사 검토가 필요합니다.'],
     },
     threeDObservation: {
       has3DStructure: true,
       sourceLabel: '예제 내장 3D 구조',
     },
     measurements: [],
+    vseprResult: {
+      available: true,
+      scope: 'local-center',
+      selectedCenter: {
+        atomId: '1',
+        atomSymbol: 'O',
+        atomLabel: 'O1',
+      },
+      axeNotation: 'AX2E2',
+      molecularGeometryKo: '굽은형',
+      angleEvidence: {
+        vseprIdealAngles: ['<109.5°'],
+      },
+    },
     comparisonObservation: {
       available: true,
       observedSimilarities: '둘 다 굽은형이다.',
@@ -87,7 +112,26 @@ describe('ai feedback service', () => {
 
     expect(payload.guardrails.noAutoGrade).toBe(true);
     expect(payload.guardrails.teacherReviewRequired).toBe(true);
+    expect(payload.guardrails.vseprLocalCenterOnly).toBe(true);
     expect(payload.submission.activityTitle).toBe('물 분자 구조 그리기');
+    expect(payload.submission.validation).toMatchObject({
+      structureIntent: 'single-molecule',
+      connectivityStatus: 'single-component',
+      graphSummary: {
+        atomCount: 3,
+        bondCount: 2,
+        componentCount: 1,
+      },
+      warnings: ['중성 전하 분리 구조는 교사 검토가 필요합니다.'],
+    });
+    expect(payload.submission.vseprResult).toMatchObject({
+      scope: 'local-center',
+      selectedCenter: {
+        atomId: '1',
+        atomSymbol: 'O',
+        atomLabel: 'O1',
+      },
+    });
     expect(result.ok).toBe(true);
 
     if (result.ok) {

@@ -1,10 +1,85 @@
 # TDD Draft — Technical Design for 다양한 분자의 분자구조 모델링
 
-> **2026-07-12 사용자 결정:** 학생 기본 화면은 7단계 위저드, 예측 입력,
-> 다중 성찰 입력, 단계 잠금, 결과 보고서 패널을 사용하지 않는다. 아래의 과거
-> activity prediction/reflection 설계는 레거시 데이터 호환 참고이며 신규 학생
-> UI 요구사항이 아니다. 현재 계약은 `분자 선택 → 구조 편집 → 검증 → 구조 보기
-> → 생각 정리 및 교사 제출`이며, 생각은 기존 `vseprReflection` 스냅샷 필드로 저장한다.
+> **2026-07-27 현재 설계 addendum:** 루트
+> `CODEX 분자구조모델링 메타프롬프트.md`의 UX·QA 계약이 현재 설계를
+> 우선한다. 학생 기본 화면은 잠금 없는
+> `분자 선택 → 구조 만들기 → 구조 분석 → 3D 비교 → 생각 정리·제출`
+> 5단계이며, 데스크톱 진행 레일과 모바일 5탭을 제공한다.
+>
+> **2026-07-12 사용자 결정 — SUPERSEDED 2026-07-27:** 단계 진행 UI가
+> 없는 직접 작업대와 단일 생각 입력을 현재 계약으로 삼았던 결정이다. 과거
+> activity prediction/reflection 타입과 함께 데이터 호환 및 설계 이력으로
+> 보존하지만 신규 학생 UI 요구사항이 아니다.
+
+현재 상태는 `unreleased release candidate / 로컬 QA 95점`이다. 이 문서는
+production 배포 완료 또는 학교 운영 승인을 선언하지 않는다.
+
+## 0. 2026-07-27 Current Implementation Addendum
+
+이 절은 아래의 역사적 phase 설명과 충돌할 때 우선한다.
+
+### Current student component flow
+
+```text
+StudentLearningProgress
+  -> 1. ActivityPicker: 분자 선택
+  -> 2. MoleculeDrawingStep + KetcherEditor: 구조 만들기
+  -> 3. ValidationResultCards + VseprPanel: 구조 분석
+  -> 4. ShapeViewerSection: VSEPR 예상 모형 / 참고 3D 구조 비교
+  -> 5. StudentThoughtSubmission + StudentReturnedFeedback:
+       생각 정리·제출 / 반환 피드백
+```
+
+- `StudentLearningProgress`는 `not-started`, `current`, `completed`,
+  `review`, `error` 상태를 실제 활동 상태에서 계산한다. 단계 잠금은 없고,
+  이동 후 대상 섹션으로 스크롤하고 포커스를 옮긴다.
+- 데스크톱은 5단계 진행 레일, 모바일은 `선택·그리기·분석·3D·기록`
+  축약 내비게이션을 사용한다.
+- `KetcherEditor`의 기본값은 `simple`이다. Ketcher `ButtonsConfig`로
+  초심자에게 불필요한 고급/반응 도구를 숨기며, `advanced`는 기존 편집기
+  인스턴스와 구조를 유지한 채 전체 도구를 연다.
+- 현재 학생 버튼 계약은 `예시 구조 불러오기`, `구조 초기화`,
+  `2D 구조 분석하기`(진행 중 `2D 구조 분석 중`),
+  `교사에게 제출하기`다.
+- `ValidationResultCards`는 구조 분석 성공 여부와 분자식, 중심 원자,
+  전체 전자 영역, 전자쌍 배열, 분자 구조를 우선 표시한다. 평균 분자량,
+  AXE 표기, 참고 3D 제공 여부는 `기타 정보`에 둔다.
+- `VseprPanel`은 `VSEPR 근거표`로 중심 원자, 결합 전자 영역 수,
+  비공유 전자쌍 수, 전체 전자 영역 수, 전자쌍 배열, 분자 구조,
+  VSEPR 예상 결합각을 분리해 표시한다.
+- `ShapeViewerSection`은 데스크톱에서 두 뷰어를 나란히 두고, 모바일에서는
+  `VSEPR 예상 모형`/`참고 3D 구조` 선택 버튼으로 전환한다. 공통점과
+  차이점을 묻는 비교 질문을 함께 제공한다.
+- `Vsepr3DModelViewer`는 `전자쌍 배열 보기`, `원자만 보기`,
+  `비공유 전자쌍 표시`, `초기 방향`, `화면에 맞추기`를 제공한다.
+- 학생 생각은 기존 `vseprReflection` 필드에 저장한다. 제출에는
+  RDKit 유효 구조, 비어 있지 않은 생각, `classroomJoinStatus: 'joined'`,
+  Firebase ID token, 비진행 상태가 모두 필요하다.
+- `StudentReturnedFeedback`는 같은 인증 학생에게 반환된 형성 피드백을
+  5단계에서 표시하며 `교사 피드백 확인하기`로 새로고침한다.
+
+### Current validation and recovery gates
+
+```text
+Ketcher structure
+  -> non-empty extraction
+  -> RDKit.js validation
+  -> validated formula / average molecular weight
+  -> center-local VSEPR analysis
+  -> source-labeled 3D visualization
+  -> reasoning + trusted classroom join + token
+  -> teacher submission / returned feedback
+```
+
+- RDKit.js가 실패하면 계산값과 확신형 VSEPR/3D 결과를 생성하지 않는다.
+- VSEPR 결과는 교육용 예측이며, 참고 3D 좌표나 실험·최적화 구조가 아니다.
+- 명시적인 trusted endpoint 4xx(`classroom_not_found`,
+  `join_disabled`, `rate_limited` 등)는 `ok: false`로 학생 입장을
+  차단하고 세션을 만들지 않는다.
+- trusted endpoint 5xx와 네트워크 실패는 현재 브라우저에서 활동을
+  계속할 수 있는 `deferred_until_trusted_endpoint` 복구 경계를 유지한다.
+- Firestore 제출/피드백 읽기는 정상 수업방 가입과 ID token이 있을 때만
+  활성화된다.
 
 ## 1. Architecture Summary
 
@@ -13,12 +88,15 @@ MVP should be frontend-first.
 ```text
 React/Vite App
  ├─ Ketcher Editor Component
+ ├─ Student Learning Progress (desktop rail / mobile tabs)
  ├─ Structure State Service
  ├─ RDKit Validation Service
  ├─ VSEPR Prediction Engine
+ ├─ VSEPR Evidence Panel
  ├─ VSEPR Prediction Model Viewer
  ├─ Molecule Result Panel
  ├─ Activity Panel
+ ├─ Student Thought / Returned Feedback
  ├─ Teacher Panel
  ├─ 3Dmol.js Viewer Shell
  ├─ Export Service
@@ -71,6 +149,11 @@ FastAPI Backend
    - returned SDF is converted only into `Molecule3DInput`
    - 3Dmol.js displays the coordinate-bearing SDF
 16. PubChem loading failure does not clear RDKit.js formula, average molecular weight, or canonical SMILES. The student sees a short failure message, while developer logs keep CID, HTTP status, response excerpt, or fetch error.
+
+> **Historical mode-matrix note:** 아래 17~25 및 29~31의 예측 입력·선택형
+> VSEPR 설명은 이전 phase 설계다. 현재 학생 UI와 Firebase 경계는 이 문서의
+> 2026-07-27 addendum 및 17.5절이 우선한다.
+
 17. The app has two independent UI mode axes:
    - `UserMode`: `student` or `teacher`
    - `AppMode`: `free_draw` or `activity`
@@ -432,6 +515,12 @@ The canonical TypeScript sources for these contracts are `apps/workbench/src/typ
 - Gate 16: comparison mode is enabled only when RDKit.js validation succeeds, actual/external 3D coordinate data is loaded, and VSEPR analysis is supported with medium or high confidence.
 - Gate 17: comparison mode must not treat VSEPR model vectors as measured PubChem/static 3D geometry, and it must not overwrite RDKit.js formula or canonical SMILES.
 - Gate 18: export uses current validated structure for chemistry-bearing export, while worksheet image export may use the visible editor drawing with an explicit validation label.
+- Gate 19: five-stage completion/review/error states are derived from the current validation, 3D, thought, and submission state; navigation itself is never locked.
+- Gate 20: simple/advanced Ketcher mode switching reuses the current editor instance and must not clear the current structure.
+- Gate 21: the VSEPR evidence table renders only after the RDKit-valid MOL path produces a supported center-local analysis; unsupported cases show a limitation instead of a guessed answer.
+- Gate 22: student submission requires a valid RDKit result, non-empty reasoning, trusted joined classroom status, Firebase ID token, and no submission already in progress.
+- Gate 23: explicit classroom-join 4xx responses block session creation; 5xx/network failures retain the local/deferred recovery contract.
+- Gate 24: returned feedback is read only for the authenticated joined student and must not expose another student's submission or teacher-only diagnostics.
 
 ## 5. Initial Dependencies
 
@@ -448,6 +537,15 @@ The canonical TypeScript sources for these contracts are `apps/workbench/src/typ
 
 ### Unit tests
 
+- Student learning progress renders all five unlocked desktop/mobile controls and state labels.
+- Student activity shell wires molecule selection, drawing, analysis, 3D comparison, thought submission, and returned feedback into five sections.
+- Ketcher simple/advanced mode controls use the supported button configuration without replacing the editor instance.
+- Student drawing actions use `예시 구조 불러오기`, `구조 초기화`, and `2D 구조 분석하기`, including the analyzing disabled state.
+- VSEPR evidence distinguishes bonding domains, lone pairs, total domains, electron geometry, molecular shape, and predicted angle.
+- Student result cards hide chemistry outputs before valid RDKit analysis and place average molecular weight in secondary information.
+- Trusted classroom 4xx responses return `ok: false`; 5xx/network responses preserve deferred recovery.
+- Student entry errors are exposed through an alert/live region and connected invalid input state.
+- Returned teacher feedback is filtered to the same joined Firebase student and classroom.
 - Example molecule list validates expected SMILES.
 - Validation service handles valid and invalid input.
 - Formula/mass display is blocked when validation fails.
@@ -610,6 +708,10 @@ The service does not call Open Babel, does not generate conformers, and does not
 
 ## 9. Classroom Activity Mode MVP
 
+> **HISTORICAL / SUPERSEDED:** 이 절의 예측 입력 중심 activity UI는 저장
+> 타입과 phase 이력 참고용이다. 현재 학생 화면은 2026-07-27 addendum의
+> 잠금 없는 5단계 흐름을 사용한다.
+
 This phase adds a classroom workflow layer without changing the chemistry validation source.
 
 ### Mode boundary
@@ -690,6 +792,10 @@ The comparison is not a grade. It does not normalize formula order, significant 
 - No activity result PDF/image export.
 
 ## 10. Student/Teacher Mode Split MVP
+
+> **HISTORICAL UI MATRIX:** 인증 이전의 역할 분리 설계다. 현재 학생 UI는
+> 5단계 흐름을, 현재 교사 UI는 Firebase claim과 서버 API 권한 경계를
+> 사용한다. 아래 내용은 레거시 컴포넌트 책임 참고용이다.
 
 This phase separates classroom UI roles without adding authentication, persistence, or dashboards.
 
@@ -848,6 +954,9 @@ The VSEPR viewer must show that:
 
 ## 13. Stabilization Notes — 3D Availability Pipeline
 
+> **HISTORICAL STABILIZATION NOTE:** 당시 선택형 VSEPR 가시성 규칙은
+> 현재 학생 3단계 `VSEPR 근거표`와 4단계 비교 화면으로 대체되었다.
+
 The current stabilization keeps the main classroom data path focused on:
 
 ```text
@@ -858,7 +967,7 @@ Ketcher 2D input
   -> source-labeled 3Dmol.js coordinate visualization
 ```
 
-VSEPR remains a separate optional classroom module:
+At that stabilization phase, VSEPR remained a separate optional classroom module:
 
 - `free_draw + student`: full VSEPR panel/model viewer hidden by default;
 - `free_draw + teacher`: teacher diagnostics may show VSEPR status;
@@ -998,6 +1107,9 @@ PubChem candidates that are only formula-compatible may still be reviewed as ext
 
 ## 16. Phase 15 — Activity Result Save and Export MVP
 
+> **HISTORICAL FEATURE PHASE:** 저장/내보내기 계약은 유지되지만, 현재
+> 학생 기본 5단계 UI의 중심 행동은 생각 작성, 교사 제출, 반환 피드백이다.
+
 This phase prepares the Classroom MVP Release Candidate by adding local activity-result snapshots and lightweight export formats.
 
 ### Data flow
@@ -1074,6 +1186,10 @@ student result.
 
 ## 17. Student Activity Flow Simplification
 
+> **SUPERSEDED 2026-07-27:** 아래 직접 작업대/저장·보고서 중심 기본 흐름은
+> 현재 5단계 학습 흐름으로 대체되었다. 데이터 계약과 과거 테스트 의도를
+> 설명하기 위해 보존한다.
+
 The default user experience is now the student activity flow, not the open
 toolbox view.
 
@@ -1129,6 +1245,9 @@ student + activity
 
 ## 17.1 Student 3D Availability Stabilization
 
+> **HISTORICAL ADDENDUM:** 3D 데이터 출처·검증 경계는 유지한다. 학생
+> 화면 배치는 현재 4단계 `3D 비교`가 우선한다.
+
 The student-facing 3D path now distinguishes three cases:
 
 ```text
@@ -1165,10 +1284,14 @@ average molecular weight remain RDKit validation results.
 
 ## 17.2 Firestore Security Rules Design
 
-Server persistence remains disabled until Firebase Auth and Firestore Security
-Rules are implemented and tested. The current `localStorage` snapshot flow is
-not a permission model and must not be treated as equivalent to server-side
-submission storage.
+> **HISTORICAL PLANNING STATE:** “server persistence disabled”는 당시
+> 계획 상태다. 현재 구현 상태는 17.5절의 trusted endpoint와 Firestore
+> submission/feedback 흐름을 따른다.
+
+At that planning phase, server persistence remained disabled until Firebase
+Auth and Firestore Security Rules were implemented and tested. The
+`localStorage` snapshot flow was not a permission model and was not treated as
+equivalent to server-side submission storage.
 
 Security design artifacts:
 
@@ -1238,6 +1361,10 @@ Current automated coverage:
 
 ## 17.3 Firebase Auth 1단계 데이터 흐름
 
+> **HISTORICAL AUTH PHASE:** 아래 `joinClassroom is still deferred`
+> 설명은 현재 계약이 아니다. 4xx 차단과 5xx/network deferred 복구는
+> 2026-07-27 addendum가 우선한다.
+
 This phase connected Firebase Auth first. Firestore write services were kept
 disabled until rules tests and teacher claim gating were in place.
 
@@ -1283,6 +1410,9 @@ authorization boundary.
 
 ## 17.4 Teacher claim and joinClassroom preparation
 
+> **HISTORICAL PREPARATION PHASE:** 이 절의 “Firestore writes disabled”
+> 상태는 17.5절 구현으로 대체되었다. 보안 경계의 설계 근거로만 보존한다.
+
 This phase still does not enable Firestore writes.
 
 ### Teacher authorization UI boundary
@@ -1315,8 +1445,9 @@ student enters class code + join code
 ```
 
 The trusted endpoint validates the Firebase ID token before using the UID. If
-the endpoint is not configured, the classroom is missing, or membership cannot
-be created, student activity remains browser-local and localStorage-based.
+the endpoint explicitly returns a 4xx rejection, student entry is blocked and
+no `StudentSession` is created. A 5xx response, unavailable endpoint, or network
+failure keeps the documented browser-local/deferred recovery path.
 
 ## 17.5 Firestore classroom submission MVP
 
@@ -1364,21 +1495,23 @@ created before this hardening step.
 
 ```text
 student creates activity result snapshot
-  -> app saves to existing localStorage submission box first
-  -> if Firebase config + anonymous UID exist, app tries Firestore submission write
-  -> Firestore rules require classrooms/{classCode}/students/{uid}
-  -> success: server submission is available to the teacher
-  -> failure or timeout: local submission remains and the student sees a safe fallback message
+  -> app keeps the pending snapshot in the current student session memory
+  -> app POSTs the snapshot and Firebase ID token to /api/save-submission
+  -> trusted endpoint verifies token, membership, submission ownership, and feedback lock
+  -> success: server submission is available to the teacher and the app stores a trusted receipt in memory
+  -> failure: current form input remains editable for retry; no identifiable submission snapshot is written to localStorage
 ```
 
 The browser still does not create membership documents directly. `joinClassroom`
 must remain a trusted endpoint before normal students can reliably submit to
 Firestore.
 
-Firestore submission writes must not leave the student UI in an indefinite
-"checking server submission" state. If the write does not settle within the
-client timeout, the app keeps the browser-local submission and reports that the
-server submission response is delayed.
+Submission completion must be based on the current student session, current
+validated structure, current response content, and a successful trusted-server
+receipt. A route, role, or student identity transition invalidates pending
+requests and clears student draft/derived state. Previous-version
+`molecule-workbench-activity-submissions` localStorage data is purged rather than
+loaded into a new student session.
 
 ### Teacher submission review flow
 
@@ -1386,7 +1519,7 @@ server submission response is delayed.
 teacher enters classCode
   -> client posts teacher idToken + classCode to /api/list-submissions
   -> trusted endpoint verifies teacher custom claim and classroom assignment
-  -> loaded submissions merge with browser-local submissions by id
+  -> app accepts the response only for the current teacher UID + token + classCode + request id
   -> teacher requests /api/create-feedback-draft with idToken, classCode, submissionId
   -> trusted endpoint loads the submission from Firestore and creates the draft
   -> if AI_FEEDBACK_ENDPOINT is absent or fails, endpoint returns a local guardrail draft
@@ -1407,17 +1540,23 @@ student joins classroom through /api/join-classroom
   -> student result panel shows returned teacher feedback
 ```
 
-Server-returned feedback must win over an older browser-local copy with the
-same submission id. Browser-local submissions remain as a fallback when server
-reads or writes fail.
+Returned feedback is loaded only from the trusted student endpoint for the
+current authenticated student. Student A's draft, receipt, or returned feedback
+must not remain visible after student B enters on the same browser.
 
 ### Test expectations
 
 - Firestore document builders strip undefined fields.
 - Student submission documents do not include `teacherFeedback`, raw MOL/SDF,
   or developer logs.
-- Firestore submission write timeout returns a student-safe browser fallback
-  message instead of exposing Firestore internals.
+- Student submission failures keep current form input for retry without writing
+  the submission snapshot to origin-wide localStorage.
+- The legacy activity-submission localStorage key is deleted and never hydrated.
+- Student identity changes clear draft answers, derived chemistry/3D state,
+  pending request ownership, and trusted completion receipts.
+- Submission completion uses the v3 stable content key, which is independent of
+  JSON object field order and record timestamps while including RDKit warnings,
+  structure intent, and safe atom/bond/component connectivity evidence.
 - Trusted classroom join endpoint verifies Firebase ID token before creating
   `students/{uid}` membership documents.
 - Teacher dashboard exposes Firestore controls only for authorized teacher

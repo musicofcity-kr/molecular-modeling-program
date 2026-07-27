@@ -7,6 +7,14 @@ The feature helps students keep a local record of a molecule modeling activity
 without adding accounts, databases, Firebase, teacher dashboards, or automatic
 grading.
 
+> **Current-scope addendum (2026-07-27):** This document governs only the
+> explicit local activity-result save and export feature. The current app as a
+> whole also includes Firebase classroom membership, trusted server submission,
+> teacher submission lists, and returned feedback. A local result is not a
+> server submission receipt, and Firestore records follow
+> `PRIVACY_POLICY.md`, `TEACHER_STUDENT_MODE_POLICY.md`, and the trusted
+> endpoint rules instead of this local-storage retention policy.
+
 ## Storage
 
 - Storage uses browser `localStorage`.
@@ -30,7 +38,8 @@ Student-facing notice:
 - activity ID/title and molecule name
 - student prediction values
 - RDKit validation status, canonical SMILES, molecular formula, average
-  molecular weight, and student-facing validation message
+  molecular weight, student-facing validation message, warnings, structure
+  intent, and the safe atom/bond/component graph summary
 - actual/external 3D source label and source note
 - coordinate-based measurement results with source notes
 - VSEPR educational prediction summary
@@ -73,6 +82,9 @@ PDF export and 3D viewer image capture are deferred.
 - VSEPR output is an educational prediction model only.
 - 3D measurements come from the currently loaded coordinate-bearing 3D payload
   and must not be described as experimental, literature, or optimized geometry.
+- General coordinate measurements stay in the source-labelled measurement list.
+  They are not copied into VSEPR angle evidence unless the VSEPR analysis
+  explicitly supplies a generated-coordinate measurement.
 
 ## Failure Policy
 

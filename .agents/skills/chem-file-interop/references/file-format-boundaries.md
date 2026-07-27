@@ -1,22 +1,33 @@
-# Chemical File Format Boundaries
+# Chemical File Format Boundaries v2
 
 ## SMILES
-Compact structure string. May encode stereochemistry but not 2D layout by default.
+
+Compact atom/bond graph representation. Dot-separated fragments represent distinct components. Default SMILES does not preserve 2D layout.
 
 ## Molfile
-Common molecule exchange format with atoms, bonds, and coordinates.
+
+Atom/bond table plus coordinates and properties. Coordinates may be 2D or 3D; their presence does not prove experimental origin.
 
 ## SDF
-Multiple molecules plus property fields.
+
+One or more molecule records plus properties. Record boundaries and component boundaries are separate concepts.
 
 ## RXN
-Reaction file format. Advanced; not MVP unless reactions are required.
+
+Reaction file containing reactant/product structures. Advanced unless reactions are required.
 
 ## XYZ
-Atom coordinates only. Bonding is not guaranteed.
+
+Atom coordinates only. Bonding is not guaranteed and must not be inferred silently.
 
 ## PDB
-Biomolecular coordinate format. Bonding/chemistry interpretation needs caution.
+
+Biomolecular coordinate format. Bonding, protonation, disorder, and model interpretation require caution.
 
 ## SVG/PNG
-Images only. Useful for worksheets but not reliable machine-readable chemistry.
+
+Images only. Useful for worksheets but not reliable machine-readable chemical structure.
+
+## Component Boundary Rule
+
+Never merge separate components just because they are visually close. Apply an explicit `StructureIntent` policy after import.

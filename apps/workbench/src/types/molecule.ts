@@ -9,9 +9,37 @@ export type MoleculeValidationStatus =
 
 export type MoleculeValidationSource = 'smiles' | 'mol-block';
 
+export type StructureIntent =
+  | 'single-molecule'
+  | 'ionic-compound'
+  | 'mixture';
+
+export type MoleculeGraphSummary = {
+  atomCount: number;
+  bondCount: number;
+  componentCount: number;
+  componentAtomCounts: number[];
+  isSingleComponent: boolean;
+  isolatedAtomCount: number;
+};
+
+export type ConnectivityDecision = {
+  allowed: boolean;
+  status:
+    | 'empty'
+    | 'single-component'
+    | 'multiple-components-allowed'
+    | 'multiple-components-blocked';
+  intent: StructureIntent;
+  summary?: MoleculeGraphSummary;
+  warnings?: string[];
+  errors?: string[];
+};
+
 export type MoleculeInput = {
   source: MoleculeSource;
   validationStatus: MoleculeValidationStatus;
+  structureIntent?: StructureIntent;
   label?: string;
   smiles?: string;
   molBlock?: string;
@@ -118,6 +146,9 @@ export type MoleculeValidationResult =
       canonicalSmiles: string;
       molecularFormula: string;
       molecularWeight: number;
+      structureIntent?: StructureIntent;
+      graphSummary?: MoleculeGraphSummary;
+      connectivityDecision?: ConnectivityDecision;
       studentMessage?: never;
       warnings: string[];
       errors: string[];
@@ -132,6 +163,9 @@ export type MoleculeValidationResult =
       canonicalSmiles?: never;
       molecularFormula?: never;
       molecularWeight?: never;
+      structureIntent?: StructureIntent;
+      graphSummary?: MoleculeGraphSummary;
+      connectivityDecision?: ConnectivityDecision;
       studentMessage: string;
       warnings: string[];
       errors: string[];

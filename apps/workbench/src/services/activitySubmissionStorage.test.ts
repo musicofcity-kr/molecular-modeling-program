@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { ActivityResultSnapshot } from '../types/activityResult';
 import type { StudentSession } from '../types/session';
 import {
+  ACTIVITY_SUBMISSION_STORAGE_KEY,
+  cacheActivitySubmissionForSession,
+  clearLegacyActivitySubmissionStorage,
   createActivitySubmission,
-  loadActivitySubmissions,
-  saveActivitySubmission,
-  updateActivitySubmissionFeedback,
 } from './activitySubmissionStorage';
 
 class MemoryStorage implements Storage {
@@ -71,8 +71,7 @@ const studentSession: StudentSession = {
 };
 
 describe('activity submission storage', () => {
-  it('creates and stores a classroom submission for teacher feedback', () => {
-    const storage = new MemoryStorage();
+  it('creates a classroom submission for the trusted endpoint', () => {
     const submission = createActivitySubmission({
       snapshot,
       studentSession,
@@ -84,60 +83,78 @@ describe('activity submission storage', () => {
     expect(submission.classCode).toBe('CHEM-101');
     expect(submission.studentDisplayName).toBe('3조-학생A');
     expect(submission.anonymousStudentId).toBe('student-123');
-
-    const saved = saveActivitySubmission(submission, { storage });
-    const loaded = loadActivitySubmissions({ storage });
-
-    expect(saved.ok).toBe(true);
-    expect(loaded.data).toHaveLength(1);
-    expect(loaded.data[0].snapshot.moleculeName).toBe('물');
   });
 
-  it('stores teacher feedback draft and returned feedback status', () => {
+  it('keeps a submission only in the supplied session-memory list', () => {
     const storage = new MemoryStorage();
+    storage.setItem(
+      ACTIVITY_SUBMISSION_STORAGE_KEY,
+      JSON.stringify([{ studentDisplayName: '이전 학생', snapshot }]),
+    );
     const submission = createActivitySubmission({
       snapshot,
       studentSession,
       id: 'submission-1',
       now: '2026-07-01T10:10:00.000Z',
     });
-    const saved = saveActivitySubmission(submission, { storage });
-    const feedback = {
-      id: 'feedback-1',
-      createdAt: '2026-07-01T10:20:00.000Z',
-      updatedAt: '2026-07-01T10:20:00.000Z',
-      source: 'local_guardrail_preview' as const,
-      summary: '물 활동 피드백 초안',
-      strengths: ['예측을 먼저 작성했습니다.'],
-      improvementQuestions: ['굽은형인 이유를 다시 설명해 볼까요?'],
-      studentMessage: '좋은 시작입니다.',
-      teacherReviewNote: '교사 확인 필요',
-      reviewRequired: true,
+
+    const cached = cacheActivitySubmissionForSession([], submission);
+
+    expect(cached.ok).toBe(true);
+    expect(cached.data).toEqual([submission]);
+    expect(cached.studentMessage).toContain('현재 화면');
+    expect(cached.studentMessage).toContain('새로고침하면 사라집니다');
+    expect(storage.getItem(ACTIVITY_SUBMISSION_STORAGE_KEY)).not.toBeNull();
+  });
+
+  it('removes legacy origin-wide submissions without reading them into the app', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(
+      ACTIVITY_SUBMISSION_STORAGE_KEY,
+      JSON.stringify([
+        {
+          studentDisplayName: '이전 학생',
+          anonymousStudentId: 'legacy-student',
+          snapshot,
+        },
+      ]),
+    );
+
+    const cleared = clearLegacyActivitySubmissionStorage({ storage });
+
+    expect(cleared.ok).toBe(true);
+    expect(cleared.data).toEqual([]);
+    expect(storage.getItem(ACTIVITY_SUBMISSION_STORAGE_KEY)).toBeNull();
+  });
+
+  it('deduplicates and bounds the session-memory cache without browser storage', () => {
+    const first = createActivitySubmission({
+      snapshot,
+      studentSession,
+      id: 'submission-1',
+      now: '2026-07-01T10:10:00.000Z',
+    });
+    const second = createActivitySubmission({
+      snapshot,
+      studentSession,
+      id: 'submission-2',
+      now: '2026-07-01T10:11:00.000Z',
+    });
+    const replacement = {
+      ...first,
+      updatedAt: '2026-07-01T10:12:00.000Z',
     };
 
-    const drafted = updateActivitySubmissionFeedback(
-      saved.data,
-      'submission-1',
-      feedback,
-      'feedback_draft',
-      { storage },
-    );
-    const returned = updateActivitySubmissionFeedback(
-      drafted.data,
-      'submission-1',
-      {
-        ...feedback,
-        studentMessage: '교사가 확인한 피드백입니다.',
-      },
-      'feedback_returned',
-      { storage },
+    const cached = cacheActivitySubmissionForSession(
+      [first, second],
+      replacement,
+      { limit: 2 },
     );
 
-    expect(drafted.data[0].status).toBe('feedback_draft');
-    expect(returned.data[0].status).toBe('feedback_returned');
-    expect(returned.data[0].teacherFeedback?.studentMessage).toBe(
-      '교사가 확인한 피드백입니다.',
-    );
-    expect(returned.data[0].feedbackReturnedAt).toBeDefined();
+    expect(cached.data.map((item) => item.id)).toEqual([
+      'submission-1',
+      'submission-2',
+    ]);
+    expect(cached.data[0].updatedAt).toBe('2026-07-01T10:12:00.000Z');
   });
 });
