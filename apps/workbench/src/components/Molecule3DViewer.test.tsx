@@ -1,9 +1,25 @@
 import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { Molecule3DViewer } from './Molecule3DViewer';
+import {
+  hasRenderableMoleculeViewerSize,
+  Molecule3DViewer,
+} from './Molecule3DViewer';
 
 describe('Molecule3DViewer', () => {
+  it('requires a nonzero host before marking coordinate data as rendered', () => {
+    expect(hasRenderableMoleculeViewerSize(null)).toBe(false);
+    expect(
+      hasRenderableMoleculeViewerSize({ clientWidth: 0, clientHeight: 360 }),
+    ).toBe(false);
+    expect(
+      hasRenderableMoleculeViewerSize({ clientWidth: 420, clientHeight: 0 }),
+    ).toBe(false);
+    expect(
+      hasRenderableMoleculeViewerSize({ clientWidth: 420, clientHeight: 360 }),
+    ).toBe(true);
+  });
+
   it('shows a student-facing message when no 3D coordinates are available', () => {
     const markup = renderToStaticMarkup(
       <Molecule3DViewer
@@ -14,6 +30,8 @@ describe('Molecule3DViewer', () => {
     );
 
     expect(markup).toContain('참고 3D 구조 보기');
+    expect(markup).toContain('data-viewer-status="loading"');
+    expect(markup).toContain('data-model-rendered="false"');
     expect(markup).toContain('이 분자의 3D 자료가 아직 준비되지 않았습니다');
     expect(markup).toContain('자료 상태');
     expect(markup).toContain('3D 자료 준비 전');
@@ -46,7 +64,10 @@ describe('Molecule3DViewer', () => {
       />,
     );
 
-    expect(markup).toContain('물의 교육용 3D 자료를 표시합니다.');
+    expect(markup).toContain('3D 구조 보기를 준비하는 중입니다.');
+    expect(markup).not.toContain('물의 교육용 3D 자료를 표시합니다.');
+    expect(markup).toContain('data-viewer-status="loading"');
+    expect(markup).toContain('data-model-rendered="false"');
     expect(markup).toContain('표현 방식');
     expect(markup).toContain('공-막대 모형');
     expect(markup).toContain('원자 라벨 표시');

@@ -3506,6 +3506,7 @@ html {
 }
 
 .mobile-viewer-switch,
+.mobile-viewer-guide,
 .student-mobile-step-nav {
   display: none;
 }
@@ -3808,6 +3809,14 @@ html {
     display: grid;
   }
 
+  .mobile-viewer-guide {
+    display: block;
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+    line-height: 1.55;
+  }
+
   .shape-viewer-grid[data-mobile-viewer="vsepr"] .reference-viewer-column,
   .shape-viewer-grid[data-mobile-viewer="reference"] .vsepr-viewer-column {
     display: none;
@@ -3881,6 +3890,7 @@ html {
   .activity-result-actions,
   .saved-result-list,
   .student-mobile-step-nav,
+  .mobile-viewer-guide,
   .mobile-viewer-switch {
     display: none !important;
   }

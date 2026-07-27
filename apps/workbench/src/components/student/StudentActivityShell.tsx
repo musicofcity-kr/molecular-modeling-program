@@ -24,7 +24,7 @@ type StudentActivityShellProps = {
   examples: ExampleMolecule[];
   selectedExampleId: string;
   drawingSlot: ReactNode;
-  analysisSlot?: ReactNode;
+  analysisSlot?: ReactNode | ((open3DComparison: () => void) => ReactNode);
   predictionViewerSlot: ReactNode;
   actual3DViewerSlot: ReactNode;
   external3DSearchSlot?: ReactNode;
@@ -204,7 +204,11 @@ export function StudentActivityShell({
           molecule3DInput={molecule3DInput}
           collapsible={false}
         />
-        {analysisSlot}
+        {typeof analysisSlot === 'function'
+          ? analysisSlot(() => {
+              navigateToStep(4);
+            })
+          : analysisSlot}
       </section>
       <ShapeViewerSection
         predictionSlot={predictionViewerSlot}

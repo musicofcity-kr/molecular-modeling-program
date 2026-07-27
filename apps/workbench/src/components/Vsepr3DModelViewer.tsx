@@ -20,12 +20,28 @@ type Point3D = {
 };
 
 type VseprViewMode = 'electron-domains' | 'atoms-only';
+type ViewerStatus = 'loading' | 'ready' | 'error';
+type ViewerHostSize = Pick<HTMLElement, 'clientWidth' | 'clientHeight'>;
+
+type Vsepr3DStudentMessageInput = {
+  analysis: VseprAnalysis;
+  modelStatus: VseprModelViewStatus;
+  hasTemplate: boolean;
+  viewerStatus: ViewerStatus;
+  modelRendered: boolean;
+};
 
 const SCALE = 1.7;
 const CENTER_COLOR = '#1d2730';
 const BOND_ATOM_COLOR = '#2f6f7b';
 const BOND_COLOR = '#6c8c94';
 const LONE_PAIR_COLOR = '#7a5aa6';
+
+export function hasRenderableVseprViewerSize(
+  host: ViewerHostSize | null,
+): boolean {
+  return Boolean(host && host.clientWidth > 0 && host.clientHeight > 0);
+}
 
 function getStatusLabel(status: VseprModelViewStatus): string {
   switch (status) {
@@ -42,27 +58,37 @@ function getStatusLabel(status: VseprModelViewStatus): string {
   }
 }
 
-function getStudentMessage(
-  analysis: VseprAnalysis,
-  status: VseprModelViewStatus,
-  template: VseprGeometryTemplate | null,
-): string {
+export function getVsepr3DStudentMessage({
+  analysis,
+  modelStatus,
+  hasTemplate,
+  viewerStatus,
+  modelRendered,
+}: Vsepr3DStudentMessageInput): string {
   const centralAtomLabel = getCentralAtomLabel(analysis);
-
-  if (status === 'rendered' && template) {
-    return `${centralAtomLabel ? `${centralAtomLabel} 주변 ` : ''}${template.axeNotation} 전자쌍 반발 교육용 예측 모형을 표시합니다.`;
-  }
 
   if (analysis.status === 'needs_central_atom') {
     return '예상 입체 모형을 보려면 먼저 중심 원자를 선택해 주세요.';
   }
 
-  if (analysis.status === 'supported' && !template) {
+  if (analysis.status === 'supported' && !hasTemplate) {
     return '이 전자쌍 모형 표기에 대한 입체 모형 자료가 아직 없습니다.';
   }
 
   if (analysis.status !== 'supported') {
     return '입체 구조 예상이 지원되는 구조에서만 교육용 3D 예측 모형을 표시합니다.';
+  }
+
+  if (viewerStatus === 'error') {
+    return '3D 예측 모형을 표시하지 못했습니다. 2D 구조 분석 결과는 계속 확인할 수 있습니다. 잠시 후 다시 시도하거나 새로고침해 주세요.';
+  }
+
+  if (modelStatus === 'rendered' && hasTemplate && !modelRendered) {
+    return '3D 구조 보기를 준비하는 중입니다.';
+  }
+
+  if (modelStatus === 'rendered' && hasTemplate && modelRendered) {
+    return `${centralAtomLabel ? `${centralAtomLabel} 주변 ` : ''}${analysis.axeNotation} 전자쌍 반발 교육용 예측 모형을 표시합니다.`;
   }
 
   return `${centralAtomLabel ? `${centralAtomLabel} 주변 ` : ''}예상 입체 모형 보기 버튼을 누르면 교육용 3D 예측 모형을 표시합니다.`;
@@ -92,9 +118,9 @@ export function Vsepr3DModelViewer({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<any>(null);
   const initialViewRef = useRef<any[] | null>(null);
-  const [viewerStatus, setViewerStatus] = useState<'loading' | 'ready' | 'error'>(
-    'loading',
-  );
+  const [viewerStatus, setViewerStatus] = useState<ViewerStatus>('loading');
+  const [modelRendered, setModelRendered] = useState(false);
+  const [hasRenderableSize, setHasRenderableSize] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
   const [showLonePairs, setShowLonePairs] = useState(true);
   const [viewMode, setViewMode] =
@@ -109,9 +135,13 @@ export function Vsepr3DModelViewer({
   const statusPillText =
     viewerStatus === 'error'
       ? '표시 오류'
-      : viewerStatus === 'loading' && modelStatus === 'not_requested'
+      : modelStatus === 'rendered' && !modelRendered
         ? '3D 구조 보기 준비 중'
-        : getStatusLabel(modelStatus);
+        : viewerStatus === 'loading' &&
+            modelStatus !== 'unsupported' &&
+            modelStatus !== 'error'
+          ? '3D 구조 보기 준비 중'
+          : getStatusLabel(modelStatus);
 
   function clearViewer() {
     const viewer = viewerRef.current;
@@ -236,6 +266,13 @@ export function Vsepr3DModelViewer({
 
     const handleResize = () => {
       viewerRef.current?.resize();
+      const nextHasRenderableSize = hasRenderableVseprViewerSize(hostRef.current);
+
+      setHasRenderableSize(nextHasRenderableSize);
+
+      if (!nextHasRenderableSize) {
+        setModelRendered(false);
+      }
     };
 
     async function initializeViewer() {
@@ -255,6 +292,7 @@ export function Vsepr3DModelViewer({
         });
         viewerRef.current.render();
         setViewerStatus('ready');
+        handleResize();
 
         if (typeof ResizeObserver !== 'undefined') {
           resizeObserver = new ResizeObserver(handleResize);
@@ -263,6 +301,7 @@ export function Vsepr3DModelViewer({
 
         window.addEventListener('resize', handleResize);
       } catch (error) {
+        setModelRendered(false);
         setViewerStatus('error');
         onDeveloperLog?.(
           `VSEPR 3D model viewer initialization failed: ${getErrorMessage(error)}`,
@@ -287,14 +326,23 @@ export function Vsepr3DModelViewer({
       return;
     }
 
+    if (!hasRenderableSize) {
+      setModelRendered(false);
+      return;
+    }
+
     if (!shouldRenderTemplate || !template) {
+      setModelRendered(false);
       clearViewer();
       return;
     }
 
     try {
+      setModelRendered(false);
       renderTemplate(viewerRef.current, template);
+      setModelRendered(true);
     } catch (error) {
+      setModelRendered(false);
       setViewerStatus('error');
       clearViewer();
       onDeveloperLog?.(
@@ -303,6 +351,7 @@ export function Vsepr3DModelViewer({
     }
   }, [
     centralAtomLabel,
+    hasRenderableSize,
     onDeveloperLog,
     shouldRenderTemplate,
     showLabels,
@@ -313,7 +362,12 @@ export function Vsepr3DModelViewer({
   ]);
 
   return (
-    <section className="workspace-panel vsepr-model-panel" data-testid="vsepr-3d-model-viewer">
+    <section
+      className="workspace-panel vsepr-model-panel"
+      data-testid="vsepr-3d-model-viewer"
+      data-viewer-status={viewerStatus}
+      data-model-rendered={modelRendered ? 'true' : 'false'}
+    >
       <div className="panel-heading viewer-heading">
         <div>
           <p className="section-label">입체 구조 예상 보기</p>
@@ -385,7 +439,7 @@ export function Vsepr3DModelViewer({
           <button
             className="secondary-action"
             data-testid="vsepr-reset-view-button"
-            disabled={viewerStatus !== 'ready' || !shouldRenderTemplate}
+            disabled={!modelRendered}
             type="button"
             onClick={resetView}
           >
@@ -394,7 +448,7 @@ export function Vsepr3DModelViewer({
           <button
             className="secondary-action"
             data-testid="vsepr-zoom-to-fit-button"
-            disabled={viewerStatus !== 'ready' || !shouldRenderTemplate}
+            disabled={!modelRendered}
             type="button"
             onClick={zoomToFit}
           >
@@ -411,7 +465,15 @@ export function Vsepr3DModelViewer({
           aria-label="전자쌍 반발 교육용 3D 예측 모형 보기 영역"
         />
         <div className="viewer-empty-state" data-testid="vsepr-3d-model-message">
-          <p>{getStudentMessage(analysis, modelStatus, template)}</p>
+          <p>
+            {getVsepr3DStudentMessage({
+              analysis,
+              modelStatus,
+              hasTemplate: Boolean(template),
+              viewerStatus,
+              modelRendered,
+            })}
+          </p>
           <dl>
             <div>
               <dt>모형 종류</dt>

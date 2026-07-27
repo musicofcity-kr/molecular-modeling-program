@@ -30,6 +30,11 @@ export function ShapeViewerSection({
       >
         {external3DSearchSlot}
 
+        <p className="mobile-viewer-guide" data-testid="mobile-viewer-guide">
+          작은 화면에서는 아래 탭을 눌러 VSEPR 예상 모형과 참고 3D 구조를
+          번갈아 확인하세요.
+        </p>
+
         <div
           className="mobile-viewer-switch"
           role="tablist"

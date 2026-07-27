@@ -41,6 +41,7 @@ type Molecule3DViewerProps = {
 };
 
 const NO_COORDINATES_MESSAGE = '이 분자의 3D 자료가 아직 준비되지 않았습니다';
+const VIEWER_PREPARING_MESSAGE = '3D 구조 보기를 준비하는 중입니다.';
 const NO_MEASUREMENT_COORDINATES_MESSAGE =
   '3D 자료가 없어서 측정 도구를 사용할 수 없습니다. 2D 구조 확인 결과는 계속 확인할 수 있습니다.';
 const MEASUREMENT_LOADING_MESSAGE =
@@ -63,6 +64,14 @@ type ThreeDmolAtomLike = {
   y?: number;
   z?: number;
 };
+
+type ViewerHostSize = Pick<HTMLElement, 'clientWidth' | 'clientHeight'>;
+
+export function hasRenderableMoleculeViewerSize(
+  host: ViewerHostSize | null,
+): boolean {
+  return Boolean(host && host.clientWidth > 0 && host.clientHeight > 0);
+}
 
 function get3DmolModelFormat(format: Molecule3DInput['format']): string {
   if (format === 'mol') {
@@ -259,6 +268,8 @@ export const Molecule3DViewer = forwardRef<
   const [viewerStatus, setViewerStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
   );
+  const [modelRendered, setModelRendered] = useState(false);
+  const [hasRenderableSize, setHasRenderableSize] = useState(false);
   const [studentMessage, setStudentMessage] = useState(
     getInitialMessage(coordinateData),
   );
@@ -288,6 +299,15 @@ export const Molecule3DViewer = forwardRef<
 
   function resizeViewer() {
     viewerRef.current?.resize();
+    const nextHasRenderableSize = hasRenderableMoleculeViewerSize(
+      hostRef.current,
+    );
+
+    setHasRenderableSize(nextHasRenderableSize);
+
+    if (!nextHasRenderableSize) {
+      setModelRendered(false);
+    }
   }
 
   function addAtomLabels(viewer: GLViewer, atoms: SelectedAtom3D[]) {
@@ -360,7 +380,7 @@ export const Molecule3DViewer = forwardRef<
   function resetView() {
     const viewer = viewerRef.current;
 
-    if (!viewer) {
+    if (!viewer || !hasRenderableMoleculeViewerSize(hostRef.current)) {
       return;
     }
 
@@ -385,9 +405,10 @@ export const Molecule3DViewer = forwardRef<
   }
 
   function loadStructure(input: Molecule3DInput) {
+    setModelRendered(false);
     const viewer = viewerRef.current;
 
-    if (!viewer) {
+    if (!viewer || !hasRenderableMoleculeViewerSize(hostRef.current)) {
       return;
     }
 
@@ -411,6 +432,7 @@ export const Molecule3DViewer = forwardRef<
     viewer.zoomTo();
     initialViewRef.current = viewer.getView();
     viewer.render();
+    setModelRendered(true);
     setStudentMessage(`${input.label}의 교육용 3D 자료를 표시합니다.`);
   }
 
@@ -418,7 +440,10 @@ export const Molecule3DViewer = forwardRef<
     ref,
     () => ({
       loadStructure,
-      clear: clearViewer,
+      clear: () => {
+        clearViewer();
+        setModelRendered(false);
+      },
       resize: resizeViewer,
     }),
     [representationMode, showAtomLabels, atomSelectionMode, userMode],
@@ -441,7 +466,7 @@ export const Molecule3DViewer = forwardRef<
     let resizeObserver: ResizeObserver | null = null;
 
     const handleResize = () => {
-      viewerRef.current?.resize();
+      resizeViewer();
     };
 
     async function initializeViewer() {
@@ -461,6 +486,7 @@ export const Molecule3DViewer = forwardRef<
         });
         viewerRef.current.render();
         setViewerStatus('ready');
+        handleResize();
 
         if (typeof ResizeObserver !== 'undefined') {
           resizeObserver = new ResizeObserver(handleResize);
@@ -469,6 +495,7 @@ export const Molecule3DViewer = forwardRef<
 
         window.addEventListener('resize', handleResize);
       } catch (error) {
+        setModelRendered(false);
         setViewerStatus('error');
         setStudentMessage('3D 구조 보기를 초기화하지 못했습니다.');
         onDeveloperLog?.(`3Dmol.js viewer initialization failed: ${getErrorMessage(error)}`);
@@ -492,6 +519,7 @@ export const Molecule3DViewer = forwardRef<
     }
 
     if (!coordinateData) {
+      setModelRendered(false);
       clearViewer();
       initialViewRef.current = null;
       parsedAtomsRef.current = [];
@@ -504,6 +532,7 @@ export const Molecule3DViewer = forwardRef<
     }
 
     if (coordinateData.coordinateDimension !== '3d') {
+      setModelRendered(false);
       clearViewer();
       initialViewRef.current = null;
       parsedAtomsRef.current = [];
@@ -516,9 +545,15 @@ export const Molecule3DViewer = forwardRef<
       return;
     }
 
+    if (!hasRenderableSize) {
+      setModelRendered(false);
+      return;
+    }
+
     try {
       loadStructure(coordinateData);
     } catch (error) {
+      setModelRendered(false);
       clearViewer();
       initialViewRef.current = null;
       parsedAtomsRef.current = [];
@@ -529,10 +564,16 @@ export const Molecule3DViewer = forwardRef<
       setStudentMessage('3D 자료를 표시하지 못했습니다.');
       onDeveloperLog?.(`3Dmol.js structure load failed: ${getErrorMessage(error)}`);
     }
-  }, [coordinateData, onDeveloperLog, viewerStatus]);
+  }, [coordinateData, hasRenderableSize, onDeveloperLog, viewerStatus]);
 
   useEffect(() => {
-    if (viewerStatus !== 'ready' || !coordinateData || !viewerRef.current) {
+    if (
+      viewerStatus !== 'ready' ||
+      !hasRenderableSize ||
+      !modelRendered ||
+      !coordinateData ||
+      !viewerRef.current
+    ) {
       return;
     }
 
@@ -540,6 +581,8 @@ export const Molecule3DViewer = forwardRef<
   }, [
     atomSelectionMode,
     coordinateData,
+    hasRenderableSize,
+    modelRendered,
     parsedAtoms,
     representationMode,
     showAtomLabels,
@@ -561,11 +604,18 @@ export const Molecule3DViewer = forwardRef<
   }, [coordinateData, hasValidatedStructure, onDeveloperLog, validatedStructureKey]);
 
   const displayedStudentMessage =
-    coordinateData || viewerStatus === 'error' ? studentMessage : NO_COORDINATES_MESSAGE;
+    viewerStatus === 'error'
+      ? studentMessage
+      : coordinateData?.coordinateDimension === '3d' && !modelRendered
+        ? VIEWER_PREPARING_MESSAGE
+        : coordinateData
+          ? studentMessage
+          : NO_COORDINATES_MESSAGE;
   const hasCoordinateData = Boolean(coordinateData);
   const has3DCoordinateData = coordinateData?.coordinateDimension === '3d';
   const canUseCoordinateControls =
     viewerStatus === 'ready' &&
+    modelRendered &&
     hasCoordinateData &&
     has3DCoordinateData &&
     hasValidatedStructure;
@@ -594,7 +644,12 @@ export const Molecule3DViewer = forwardRef<
   };
 
   return (
-    <section className="workspace-panel viewer-panel" data-testid="molecule-3d-viewer">
+    <section
+      className="workspace-panel viewer-panel"
+      data-testid="molecule-3d-viewer"
+      data-viewer-status={viewerStatus}
+      data-model-rendered={modelRendered ? 'true' : 'false'}
+    >
       <div className="panel-heading viewer-heading">
         <div>
           <p className="section-label">3D 구조 보기</p>

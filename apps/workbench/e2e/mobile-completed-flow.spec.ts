@@ -139,6 +139,38 @@ async function dispatchTouchDrag(page: Page, target: Locator) {
     .toBeGreaterThan(0);
 }
 
+async function expectSingleSized3DCanvas(host: Locator) {
+  const canvas = host.locator('canvas');
+
+  await expect(canvas).toHaveCount(1);
+  await expect
+    .poll(async () => {
+      if ((await canvas.count()) !== 1) {
+        return false;
+      }
+
+      const [box, dimensions] = await Promise.all([
+        canvas.boundingBox(),
+        canvas.evaluate((element) => {
+          const renderedCanvas = element as HTMLCanvasElement;
+          return {
+            width: renderedCanvas.width,
+            height: renderedCanvas.height,
+          };
+        }),
+      ]);
+
+      return Boolean(
+        box &&
+          box.width > 0 &&
+          box.height > 0 &&
+          dimensions.width > 0 &&
+          dimensions.height > 0,
+      );
+    })
+    .toBe(true);
+}
+
 test('390x844 touch device completes 3D visit and submission without fixed-nav overlap', async ({
   page,
 }) => {
@@ -154,14 +186,53 @@ test('390x844 touch device completes 3D visit and submission without fixed-nav o
 
   await enterValidatedWaterActivity(page);
 
+  await page.getByTestId('mobile-learning-step-3').tap();
+  const showVseprModelButton = page.getByTestId('show-vsepr-model-button');
+  await expect(showVseprModelButton).toHaveText(
+    '3D 비교에서 VSEPR 모형 보기',
+  );
+  await showVseprModelButton.tap();
+
   const step4Button = page.getByTestId('mobile-learning-step-4');
-  await expect(step4Button).toHaveAttribute('data-status', 'review');
-  await step4Button.tap();
+  await expect(page.getByTestId('student-activity-shell')).toHaveAttribute(
+    'data-active-step',
+    '4',
+  );
+  await expect(step4Button).toHaveAttribute('aria-current', 'step');
   await expect(step4Button).toHaveAttribute('data-status', 'completed');
 
-  const vseprViewer = page.getByTestId('vsepr-3d-host');
-  await expect(vseprViewer).toBeVisible();
-  await dispatchTouchDrag(page, vseprViewer);
+  const vseprModelViewer = page.getByTestId('vsepr-3d-model-viewer');
+  await expect(vseprModelViewer).toHaveAttribute('data-viewer-status', 'ready');
+  await expect(vseprModelViewer).toHaveAttribute('data-model-rendered', 'true');
+  await expect(page.getByTestId('mobile-vsepr-view-button')).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+
+  const vsepr3DHost = page.getByTestId('vsepr-3d-host');
+  await expect(vsepr3DHost).toBeVisible();
+  await expectSingleSized3DCanvas(vsepr3DHost);
+  await dispatchTouchDrag(page, vsepr3DHost);
+
+  const reference3DViewButton = page.getByTestId(
+    'mobile-reference-3d-view-button',
+  );
+  await reference3DViewButton.tap();
+  await expect(reference3DViewButton).toHaveAttribute('aria-selected', 'true');
+
+  const molecule3DViewer = page.getByTestId('molecule-3d-viewer');
+  await expect(molecule3DViewer).toHaveAttribute('data-viewer-status', 'ready');
+  await expect(molecule3DViewer).toHaveAttribute('data-model-rendered', 'true');
+
+  const molecule3DHost = page.getByTestId('viewer-3d');
+  await expect(molecule3DHost).toBeVisible();
+  await expect
+    .poll(async () => {
+      const box = await molecule3DHost.boundingBox();
+      return Boolean(box && box.width > 0 && box.height > 0);
+    })
+    .toBe(true);
+  await expectSingleSized3DCanvas(molecule3DHost);
 
   await page.getByTestId('mobile-learning-step-5').tap();
   const thoughtInput = page.getByTestId('student-thought-input');

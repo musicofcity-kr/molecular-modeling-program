@@ -2760,21 +2760,26 @@ function WorkbenchApp({
       />
     </section>
   );
-  const vseprEvidencePanel = isVseprModuleVisible ? (
-    <VseprPanel
-      analysis={vseprAnalysis}
-      selectedCentralAtomId={selectedVseprCentralAtomId}
-      onSelectCentralAtom={handleSelectVseprCentralAtom}
-      canShowModel={
-        vseprAnalysis.status === 'supported' &&
-        hasVseprGeometryTemplate(vseprAnalysis.axeNotation)
-      }
-      modelStatus={vseprModelStatus}
-      modelButtonLabel="VSEPR 예상 모형 준비하기"
-      renderedModelButtonLabel="VSEPR 예상 모형 준비됨"
-      onShowModel={handleShowVseprModel}
-    />
-  ) : null;
+  const renderVseprEvidencePanel = (
+    onShowModel: () => void,
+    renderedModelButtonLabel = 'VSEPR 예상 모형 준비됨',
+  ) =>
+    isVseprModuleVisible ? (
+      <VseprPanel
+        analysis={vseprAnalysis}
+        selectedCentralAtomId={selectedVseprCentralAtomId}
+        onSelectCentralAtom={handleSelectVseprCentralAtom}
+        canShowModel={
+          vseprAnalysis.status === 'supported' &&
+          hasVseprGeometryTemplate(vseprAnalysis.axeNotation)
+        }
+        modelStatus={vseprModelStatus}
+        modelButtonLabel="VSEPR 예상 모형 준비하기"
+        renderedModelButtonLabel={renderedModelButtonLabel}
+        onShowModel={onShowModel}
+      />
+    ) : null;
+  const vseprEvidencePanel = renderVseprEvidencePanel(handleShowVseprModel);
   const vseprModelViewerSection = isVseprModuleVisible ? (
     <Suspense
       fallback={
@@ -3117,7 +3122,15 @@ function WorkbenchApp({
           examples={exampleMolecules}
           selectedExampleId={selectedExampleId}
           drawingSlot={studentDrawingSlot}
-          analysisSlot={vseprEvidencePanel}
+          analysisSlot={(open3DComparison) =>
+            renderVseprEvidencePanel(
+              () => {
+                handleShowVseprModel();
+                open3DComparison();
+              },
+              '3D 비교에서 VSEPR 모형 보기',
+            )
+          }
           predictionViewerSlot={vseprModelViewerSection}
           actual3DViewerSlot={actual3DViewerSection}
           external3DSearchSlot={studentExternal3DSearchSection}
